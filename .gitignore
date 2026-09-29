@@ -1,0 +1,63 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment and secrets
+.env
+.env.local
+*.pem
+
+# Packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Test / type / lint caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+
+# Local data artefacts (raw CSV is generated locally)
+data/raw/*.csv
+data/processed/*.csv
+data/processed/*.json
+data/interim/*
+!data/interim/.gitkeep
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+data/sample/*.csv
+!data/sample/.gitkeep
+
+# Trained models (produced by scripts/train_model.py)
+models/*.joblib
+models/*.json
+!models/README.md
+!models/.gitkeep
+
+# Generated reports
+reports/figures/*
+reports/metrics/*
+reports/reports/*
+!reports/figures/.gitkeep
+!reports/metrics/.gitkeep
+!reports/reports/.gitkeep

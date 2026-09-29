@@ -1,0 +1,8 @@
+-r requirements.txt
+-e .
+pytest>=8.0
+httpx>=0.27
+ruff>=0.4
+black>=24.3
+jupyter>=1.0
+ipykernel>=6.29
