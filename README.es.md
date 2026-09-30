@@ -4,21 +4,30 @@
 
 Leer en [English](README.md)
 
-Aplicación integral de portafolio para clasificar demanda WiFi simulada como **LOW** o **HIGH**. Demuestra un flujo reproducible de datos, evaluación temporal que evita fugas, un pipeline de scikit-learn, una API FastAPI y un dashboard Streamlit.
+V3 es un prototipo de apoyo a decisiones con datos sintéticos. A partir de una ubicación y hora estima demanda LOW/HIGH, conexiones para la próxima hora, intervalo calibrado con validación, uso aproximado de capacidad y sensibilidad local del modelo.
 
 > **Solo datos sintéticos.** Los puntos de acceso, coordenadas, demanda, clima, eventos, métricas de red y valores históricos son simulados. No representan uso real de WiFi ni infraestructura municipal en Tunja.
 
 ## 1. Descripción del proyecto
 
-El proyecto demuestra cómo estructurar un clasificador horario como software mantenible, desde la generación y validación hasta la evaluación y el uso mediante API o dashboard.
+El proyecto demuestra un flujo mantenible de clasificación y regresión con construcción de escenarios por ubicación y hora, evaluación temporal y uso mediante API o dashboard.
 
 ## 2. Funcionalidades
 
 - Generador determinista y validación estructurada.
 - Variables históricas con semántica temporal explícita.
 - Particiones cronológicas de entrenamiento, validación y prueba.
-- Cinco modelos base y pipeline persistido.
-- API tipada, dashboard multipágina, pruebas pytest, Ruff y Black.
+- Cinco clasificadores y dos regresores base, con artefactos separados.
+- Constructor determinista de escenarios, resolución de AP sintéticos y contexto histórico; sin telemetría en vivo ni clave de mapas de pago.
+- Clasificador y regresor separados, entrenados con las mismas particiones cronológicas.
+- Asistente determinista basado en herramientas y API independiente en el puerto 8001; no requiere credenciales LLM.
+- Nueve secciones: resumen, escenario, explorador, análisis geográfico y de red, rendimiento, asistente, predicción avanzada y acerca de.
+
+## Inicio rápido V3
+
+Instale con `python -m pip install -r requirements-dev.txt`, entrene ambos modelos con `python scripts/train_model.py` y evalúe con `python scripts/evaluate_model.py`. Inicie el dashboard con `streamlit run app/dashboard.py`, la API principal con `uvicorn api.main:app --reload --port 8000` y el asistente con `uvicorn assistant_api.main:app --reload --port 8001`.
+
+Consulte [Predicción de escenarios](docs/scenario_prediction.md), [Asistente](docs/assistant.md), [Geoespacial](docs/geospatial.md) y [Limitaciones, privacidad y seguridad](docs/limitations.md).
 
 ## 3. Problema
 
@@ -44,7 +53,7 @@ La lógica reutilizable está en `src/wifi_tunja_smart_predictor/`. Consulte [ar
 
 ## 7. Flujo de ML
 
-Preparación valida, elimina duplicados solo de la copia procesada y genera variables. El pipeline combina ingeniería, `ColumnTransformer` y clasificador; el preprocesamiento se ajusta solo con entrenamiento.
+Preparación valida, elimina duplicados solo de la copia procesada y genera variables. Los pipelines combinan ingeniería, `ColumnTransformer` y estimador; el preprocesamiento se ajusta solo con entrenamiento.
 
 ## 8. Prevención de fugas
 
@@ -52,7 +61,7 @@ La marca temporal es el instante de predicción. Las variables históricas prece
 
 ## 9. Modelos
 
-Regresión Logística, Árbol de Decisión, Random Forest, K vecinos y Naive Bayes Gaussiano. La selección usa F1 de `HIGH` en validación; la prueba no decide el modelo. Comparación: `reports/metrics/model_comparison.csv`.
+La clasificación compara cinco modelos y selecciona por F1 de `HIGH` en validación. La regresión compara Random Forest y HistGradientBoosting y selecciona por MAE de validación. Un intervalo split conformal usa residuos de validación; la cobertura de prueba se informa aparte.
 
 ## 10. Evaluación
 
@@ -60,7 +69,7 @@ Se reportan exactitud, precisión, exhaustividad, F1, ROC-AUC y matriz de confus
 
 ## 11. Dashboard
 
-Ejecute `streamlit run app/dashboard.py`. Incluye resumen, exploración, análisis geográfico y de red, rendimiento, predicción y Acerca de. No presenta telemetría en vivo.
+Ejecute `streamlit run app/dashboard.py`. Incluye nueve secciones, constructor de escenarios por ubicación/hora, mapa interactivo de AP sintéticos y asistente determinista. No presenta telemetría en vivo.
 
 ## 12. API
 
@@ -111,11 +120,11 @@ pip install -r requirements-dev.txt
 
 ## 22. Limitaciones
 
-Los datos y resultados son sintéticos. No hay ingestión en vivo, conexión municipal, despliegue ni monitoreo. Las probabilidades no se declaran calibradas. No se implementa regresión.
+Los datos y resultados son sintéticos. No hay ingestión en vivo ni conexión municipal. Los intervalos pueden perder cobertura ante cambios de distribución; la sensibilidad local no es causal. La capacidad usa conexiones como aproximación.
 
 ## 23. Mejoras futuras
 
-Datasets reales autorizados, regresión para conteos futuros, despliegue, monitoreo, almacenamiento, ingestión y explicabilidad son extensiones posibles, fuera de este prototipo.
+Datos reales autorizados, proveedores en vivo, despliegue y monitoreo requieren trabajo futuro, fuera de este prototipo.
 
 ## 24. Autor
 

@@ -9,7 +9,7 @@
 
 Read this in [Español](README.es.md)
 
-An end-to-end portfolio application for classifying simulated WiFi demand as **LOW** or **HIGH**. It demonstrates a reproducible data pipeline, leakage-aware temporal evaluation, a reusable scikit-learn model pipeline, a FastAPI service, and an interactive Streamlit dashboard.
+V3 is a synthetic decision-support prototype that turns a location and time into a LOW/HIGH WiFi demand class, next-hour connection estimate, validation-calibrated prediction interval, capacity proxy, and local model-sensitivity summary.
 
 > **Synthetic data only.** Access points, coordinates, demand, weather, events, network metrics, and historical values are simulated. They do not represent actual public WiFi usage or municipal infrastructure in Tunja.
 
@@ -24,12 +24,23 @@ The project explores how an hourly WiFi demand classification system can be stru
 - Chronological train, validation, and test periods.
 - Five scikit-learn baselines and a persisted preprocessing/model pipeline.
 - FastAPI endpoints with typed request and response contracts.
-- Streamlit pages for overview, demand exploration, geographic and network summaries, model evaluation, prediction, and project details.
+- A deterministic scenario builder, synthetic access-point resolver, and historical analog context; no live telemetry or paid map key is required.
+- Separate classification and regression artifacts trained and evaluated on the same chronological split.
+- A deterministic tool-grounded assistant with a separate API on port 8001; no LLM credential is required.
+- Nine dashboard sections: Overview, Live Scenario, Demand Explorer, Geographic Analysis, Network Analysis, Model Performance, AI Assistant, Advanced Prediction, and About.
 - pytest, Ruff, Black, and GitHub Actions configuration.
+
+## V3 quick start
+
+Install with `python -m pip install -r requirements-dev.txt`, train both models using `python scripts/train_model.py`, and run evaluation with `python scripts/evaluate_model.py`. Start the dashboard with `streamlit run app/dashboard.py`, the main API with `uvicorn api.main:app --reload --port 8000`, and the assistant API with `uvicorn assistant_api.main:app --reload --port 8001`.
+
+The scenario endpoint is `POST /scenario/predict` on port 8000. The assistant provides `GET /health`, `GET /suggestions`, `POST /chat`, and `POST /dataset/query` on port 8001. OpenAPI docs are available at each service's `/docs` path.
+
+See [Scenario Prediction](docs/scenario_prediction.md), [Assistant](docs/assistant.md), [Geospatial Resolution](docs/geospatial.md), and [Limitations, Privacy, and Security](docs/limitations.md).
 
 ## 3. Problem statement
 
-The prototype classifies the expected demand level for a prediction hour. `demand_level` is the primary target (`LOW` or `HIGH`). It is a demonstration of engineering and evaluation practice, not a production forecast service.
+The classifier predicts `demand_level` (`LOW` or `HIGH`) and the separate regressor estimates the existing `connections_next_hour` target. The scenario builder maps a synthetic location and time to historical context. This is a demonstration prototype, not a production or live forecast service.
 
 ## 4. Architecture
 
@@ -61,7 +72,7 @@ The row timestamp is the prediction time. Historical connection features refer t
 
 ## 9. Models
 
-Logistic Regression, Decision Tree, Random Forest, K-Nearest Neighbors, and Gaussian Naive Bayes are compared. The persisted model is selected using validation F1 for the `HIGH` class. Test metrics do not select the model. The comparison file is `reports/metrics/model_comparison.csv`.
+Five classification candidates and two regression candidates are compared. The classifier is selected by validation F1 for the `HIGH` class; the regressor is selected by validation MAE. Both models use the same chronological split. The regression interval is calibrated from validation residuals with split conformal prediction. Test metrics do not select either model.
 
 ## 10. Evaluation
 
@@ -69,11 +80,11 @@ Metrics include accuracy, precision, recall, F1 for `HIGH`, ROC-AUC where availa
 
 ## 11. Dashboard
 
-Run `streamlit run app/dashboard.py`. Pages include Overview, Demand Explorer, Geographic Analysis, Network Analysis, Model Performance, Predict Demand, and About. Geographic points are simulated. Prediction output is a synthetic-data classification, not live telemetry or a causal explanation.
+Run `streamlit run app/dashboard.py`. The nine pages include location/time scenario prediction and deterministic assistant chat. Geographic points are simulated. Predictions are estimates from synthetic data, not live telemetry; local sensitivity summaries are not causal explanations.
 
 ## 12. API
 
-Run `uvicorn api.main:app --reload`, then visit [Swagger UI](http://127.0.0.1:8000/docs). The service provides `GET /health`, `GET /model-info`, and `POST /predict`. See [API documentation](docs/api.md) for the supported input contract.
+Run `uvicorn api.main:app --reload --port 8000`, then visit [Swagger UI](http://127.0.0.1:8000/docs). The main service preserves `GET /health`, `GET /model-info`, and `POST /predict`, and adds `GET /locations` and `POST /scenario/predict`. Start the deterministic assistant separately on port 8001. See [API documentation](docs/api.md).
 
 ## 13. Project structure
 
@@ -130,7 +141,7 @@ python scripts/evaluate_model.py
 ## 19. API execution
 
 ```powershell
-uvicorn api.main:app --reload
+uvicorn api.main:app --reload --port 8000
 ```
 
 Health and model metadata are available at `/health` and `/model-info`; interactive request documentation is at `/docs`.
@@ -152,13 +163,13 @@ black --check .
 ## 22. Project limitations
 
 - All observations and evaluation results are synthetic.
-- There is no live data ingestion, municipal telemetry connection, deployment, or model monitoring.
-- Predicted probabilities are classifier outputs and are not asserted to be calibrated operational confidence.
-- `connections_next_hour` is a future-count target only; regression is a possible future extension and is not implemented here.
+- There is no live data ingestion, municipal telemetry connection, or model monitoring.
+- Predicted probabilities are model scores, not calibrated operational confidence.
+- Regression, capacity use, and intervals all describe synthetic targets; interval coverage may change under distribution shift.
 
 ## 23. Future improvements
 
-Potential next steps include authorized real datasets, regression for future connection counts, deployment, monitoring, persistent storage, ingestion, and model explanation tools. They are not part of this classification prototype.
+Potential next steps include authorized real datasets, live providers, production deployment, monitoring, and persistent session storage.
 
 ## 24. Author
 

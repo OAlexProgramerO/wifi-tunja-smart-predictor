@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from wifi_tunja_smart_predictor.config import RAW_DATASET_PATH
+from wifi_tunja_smart_predictor.config import PROCESSED_DATASET_PATH, RAW_DATASET_PATH
 from wifi_tunja_smart_predictor.exceptions import DatasetNotFoundError
 
 logger = logging.getLogger(__name__)
@@ -38,3 +38,9 @@ def load_raw_dataset(path: Path | str | None = None) -> pd.DataFrame:
         frame["date"] = pd.to_datetime(frame["date"], errors="coerce")
     logger.info("Loaded %s rows and %s columns", f"{len(frame):,}", frame.shape[1])
     return frame
+
+
+def load_analysis_dataset() -> pd.DataFrame:
+    """Load the deduplicated processed frame when available, otherwise the raw source."""
+    path = PROCESSED_DATASET_PATH if PROCESSED_DATASET_PATH.is_file() else RAW_DATASET_PATH
+    return load_raw_dataset(path)

@@ -66,7 +66,7 @@ Role values: `identifier` | `feature` | `historical_feature` | `target`.
 | connections_next_hour | int | **Future** connection count in [timestamp, timestamp+1h) | 80 | target |
 | demand_level | string | **Primary** class: LOW or HIGH | HIGH | target |
 
-## Engineered columns (VERSION 0.2)
+## Engineered columns (VERSION 0.3)
 
 | column | data_type | description | example | role |
 | --- | --- | --- | --- | --- |
@@ -82,3 +82,4 @@ Role values: `identifier` | `feature` | `historical_feature` | `target`.
 | network_stress_indicator | float | utilisation × packet-loss (fractions) | 0.005 | feature |
 | recent_to_daily_ratio | float | previous hour / last-24h mean | 1.08 | feature |
 | recent_to_weekly_ratio | float | previous hour / last-7d mean | 1.11 | feature |
+

@@ -15,3 +15,15 @@ class ModelNotFoundError(FileNotFoundError):
 
 class PredictionError(ValueError):
     """Raised when inference inputs are incompatible with the trained pipeline."""
+
+
+class LocationResolutionError(ValueError):
+    """Raised when a synthetic location cannot be resolved safely."""
+
+
+class ScenarioBuildError(ValueError):
+    """Raised when historical context cannot construct a model-ready scenario."""
+
+
+class AssistantQueryError(ValueError):
+    """Raised when an assistant request or structured query is unsupported."""

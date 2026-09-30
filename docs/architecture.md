@@ -1,6 +1,6 @@
 # Architecture
 
-VERSION **0.2.0** of WiFi Tunja Smart Predictor is a single-repository prototype: an installable package under `src/`, command-line scripts, a FastAPI service, and a navigable Streamlit dashboard.
+VERSION **0.3.0** of WiFi Tunja Smart Predictor is an installable package under `src/`, command-line training/evaluation scripts, a backward-compatible main FastAPI service, an independent deterministic assistant API, and a nine-section Streamlit dashboard.
 
 **The dataset is synthetic and was generated for software development, machine learning experimentation, demonstration, and portfolio purposes.** Coordinates and access-point identifiers do not correspond to real public WiFi infrastructure in Tunja.
 
@@ -27,7 +27,7 @@ VERSION **0.2.0** of WiFi Tunja Smart Predictor is a single-repository prototype
    scripts/train_model.py
           | temporal split -> sklearn Pipeline fit on TRAIN only
           v
-   models/wifi_demand_classifier.joblib
+   models/wifi_demand_classifier.joblib + wifi_demand_regressor.joblib
           |                          \
           v                           v
    scripts/evaluate_model.py    src/.../models/predict.py
@@ -37,7 +37,7 @@ VERSION **0.2.0** of WiFi Tunja Smart Predictor is a single-repository prototype
                                v                v
                          api/ (FastAPI)   app/dashboard.py
                                |                |
-                               +---- tests/ ----+
+                               + assistant_api/ + tests/
 ```
 
 ## Layers
@@ -58,11 +58,13 @@ VERSION **0.2.0** of WiFi Tunja Smart Predictor is a single-repository prototype
 - `ColumnTransformer`: median imputation + optional scaling for numerics; most-frequent imputation + `OneHotEncoder(handle_unknown="ignore")` for categoricals.
 - Fitted only after the temporal split, on training rows.
 
-### Model layer (`models/train.py`, `models/evaluate.py`)
+### Model layer (`models/train.py`, `models/regression.py`, `models/evaluate.py`)
 
 - Five baseline classifiers with bounded hyperparameters.
 - Comparison table written to `reports/metrics/model_comparison.csv`.
 - Selection uses **validation F1** for class `HIGH`. Test metrics are reported for all models and are not used for selection.
+- Separate next-hour connection regressors are selected by validation MAE and persisted with independent metadata.
+- A split-conformal interval uses validation absolute residuals; test coverage is reported separately.
 
 ### Inference layer (`models/predict.py`)
 
@@ -71,14 +73,19 @@ VERSION **0.2.0** of WiFi Tunja Smart Predictor is a single-repository prototype
 
 ### API layer (`api/`)
 
-- HTTP adapters only. `/health`, `/model-info`, `/predict`.
+- The original `/health`, `/model-info`, and `/predict` contracts remain available; V3 adds `/locations` and `/scenario/predict`.
 - OpenAPI at `/docs`.
 
 ### Dashboard layer (`app/dashboard.py`)
 
-- Overview, demand explorer, geographic analysis, network analysis, model performance, prediction, and about pages.
-- Dataset loading is cached by Streamlit; model loading is cached by the shared inference layer.
-- Calls the inference layer; does not reimplement preprocessing.
+- Overview, scenario prediction, demand explorer, geographic analysis, network analysis, model performance, assistant, advanced prediction, and about.
+- Location/time scenario construction runs through shared package services. Frames and model resources are cached.
+
+### Assistant layer (`assistant/`, `assistant_api/`)
+
+- Deterministic intent routing invokes fixed prediction, location, model metadata, and aggregate-query tools.
+- Dataset queries use strict allowlists; assistant input is never executed as code or SQL.
+- Session context is bounded, process-local, and non-durable.
 
 ### Testing layer (`tests/`)
 
@@ -90,7 +97,7 @@ VERSION **0.2.0** of WiFi Tunja Smart Predictor is a single-repository prototype
 2. `scripts/prepare_data.py` validates it, removes exact duplicates in a derived copy, and writes processed data.
 3. `scripts/train_model.py` splits chronologically, fits candidate pipelines on train, chooses by validation F1, and writes the selected artifact and metadata.
 4. `scripts/evaluate_model.py` evaluates the saved artifact on the held-out test period and writes metrics and figures.
-5. The API and dashboard call the same package inference functions. Tests use small in-memory data and an isolated artifact.
+5. Scenario APIs, dashboard, and assistant use the same scenario builder and model service. Tests use small in-memory data and injected models.
 
 ## Modeling location of identifiers
 

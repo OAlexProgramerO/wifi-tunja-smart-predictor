@@ -21,7 +21,7 @@ app = FastAPI(
     title=PROJECT_NAME,
     version=PROJECT_VERSION,
     description=(
-        "REST API for LOW/HIGH synthetic WiFi demand classification. "
+        "REST API for synthetic WiFi demand classification and location/time scenario estimates. "
         + SYNTHETIC_DATA_DISCLAIMER
         + " Do not interpret outputs as forecasts of real municipal infrastructure."
     ),

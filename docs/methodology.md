@@ -4,7 +4,7 @@
 
 ## Dataset generation
 
-`scripts/generate_synthetic_dataset.py` simulates 30 access points in 12 named synthetic zones over 2024-01-01 through 2025-12-31, then samples approximately 60,000 prediction-time rows (seed **42**). A warm-up window is simulated so lag features are defined on the first exported day. Exact generation details live in that script; this document describes how VERSION 0.2 uses the file.
+`scripts/generate_synthetic_dataset.py` simulates 30 access points in 12 named synthetic zones over 2024-01-01 through 2025-12-31, then samples approximately 60,000 prediction-time rows (seed **42**). A warm-up window is simulated so lag features are defined on the first exported day. Exact generation details live in that script; this document describes how VERSION 0.3 uses the file.
 
 ## Target definition
 
@@ -19,7 +19,7 @@
 
 ## Feature groups
 
-| Group | Role in VERSION 0.2 |
+| Group | Role in VERSION 0.3 |
 | --- | --- |
 | Identifiers (`wifi_id`, `zone_id`, `zone_name`, lat/lon/alt) | Not used as model inputs (location identity / dummy risk). |
 | `zone_type` | Categorical feature (land-use generalisation). |
@@ -35,7 +35,7 @@ The generator injects roughly 1–3% missingness in selected non-target columns 
 
 ## Temporal validation
 
-Random row-wise `train_test_split` would mix future hours into training. VERSION 0.2 uses a calendar holdout:
+Random row-wise `train_test_split` would mix future hours into training. VERSION 0.3 uses a calendar holdout:
 
 | Split | Timestamp rule |
 | --- | --- |
@@ -56,10 +56,13 @@ Imputers, scalers, and encoders are fitted on **train** only. The persisted mode
 
 Sklearn `Pipeline`: `FeatureEngineer` → `ColumnTransformer` → classifier.
 
-Baselines: Logistic Regression, Decision Tree, Random Forest, KNN, Gaussian Naive Bayes. Scaling is applied for LR, KNN, and Naive Bayes. Trees skip scaling. Hyperparameters are capped (no large grid search in 0.2.0).
+Classification candidates: Logistic Regression, Decision Tree, Random Forest, KNN, Gaussian Naive Bayes. Regression candidates: Random Forest Regressor and HistGradientBoostingRegressor. Classifier selection uses validation F1 for HIGH; regressor selection uses validation MAE. Test metrics are reserved for final reporting.
 
-Class imbalance is reported from the generated synthetic labels (generator target: roughly 55–70% LOW). VERSION 0.2 does **not** apply oversampling; precision/recall/F1 are reported for `HIGH`.
+The regression target is the existing `connections_next_hour`; it is excluded from all feature inputs. The nominal 90% split-conformal interval uses the finite-sample quantile of absolute validation residuals around the selected regressor. Test coverage and mean interval width are reported. This procedure does not guarantee coverage after distribution shift, and all results remain specific to synthetic data.
+
+Class imbalance is reported from the generated synthetic labels (generator target: roughly 55–70% LOW). VERSION 0.3 does **not** apply oversampling; precision/recall/F1 are reported for `HIGH`.
 
 ## Evaluation
 
 Accuracy, precision, recall, F1 (`HIGH` as positive class), ROC-AUC when `predict_proba` exists, and a confusion matrix. All numbers must come from execution. They describe **the synthetic evaluation dataset only**.
+

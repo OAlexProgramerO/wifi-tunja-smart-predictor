@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.3.0] - 2026-09-30
+
+### Added
+
+- Location-and-time scenario builder with deterministic synthetic historical analogs, replay safeguards, and nearest-AP geospatial resolution.
+- Separate next-hour connection regressor alongside the backward-compatible LOW/HIGH classifier.
+- Validation-calibrated split-conformal prediction intervals and capacity-use estimates.
+- Deterministic tool-grounded assistant service on port 8001 and allowlisted aggregate dataset queries.
+- Nine-section Streamlit navigation, scenario prediction, interactive synthetic AP map, and advanced feature form.
+- Regression and scenario service tests, model metadata, and V3 documentation.
+
+### Changed
+
+- Model training/evaluation now reports classifier and regressor metrics on the existing temporal split.
+- Removed generated HTML evaluation charts; evaluation writes compact PNG figures and JSON/CSV metrics.
+- Set package version to 0.3.0.
+
 ## [0.2.0] - 2026-09-29
 
 ### Changed

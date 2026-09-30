@@ -9,6 +9,8 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from wifi_tunja_smart_predictor.assistant.schemas import AssistantContext, ChatRequest
+from wifi_tunja_smart_predictor.assistant.service import AssistantService
 from wifi_tunja_smart_predictor.config import (
     CATEGORICAL_ALLOWED_VALUES,
     MODEL_COMPARISON_PATH,
@@ -24,11 +26,9 @@ from wifi_tunja_smart_predictor.config import (
 )
 from wifi_tunja_smart_predictor.data.loader import load_raw_dataset
 from wifi_tunja_smart_predictor.exceptions import DatasetNotFoundError, ModelNotFoundError
-from wifi_tunja_smart_predictor.models.predict import (
-    load_model,
-    predict_demand,
-    predict_probability,
-)
+from wifi_tunja_smart_predictor.geospatial.providers import PlotlyOpenStreetMapProvider
+from wifi_tunja_smart_predictor.scenarios.builder import ScenarioRequest
+from wifi_tunja_smart_predictor.scenarios.service import ScenarioPredictionService
 from wifi_tunja_smart_predictor.visualization.plots import (
     plot_confusion_matrix_plotly,
     plot_demand_by_hour,
@@ -40,10 +40,20 @@ from wifi_tunja_smart_predictor.visualization.plots import (
 )
 
 
-@st.cache_data(show_spinner=False)
+@st.cache_data(show_spinner=False, ttl="15m", max_entries=2)
 def _load_frame() -> pd.DataFrame:
     path = PROCESSED_DATASET_PATH if PROCESSED_DATASET_PATH.is_file() else RAW_DATASET_PATH
     return load_raw_dataset(path)
+
+
+@st.cache_resource(max_entries=1)
+def _prediction_service() -> ScenarioPredictionService:
+    return ScenarioPredictionService(_load_frame())
+
+
+@st.cache_resource(max_entries=1)
+def _assistant_service() -> AssistantService:
+    return AssistantService(_load_frame(), _prediction_service())
 
 
 def _json_file(path: Path) -> dict:
@@ -114,12 +124,58 @@ def render_demand(frame: pd.DataFrame) -> None:
         return
     left, right = st.columns(2)
     with left:
-        st.plotly_chart(plot_demand_distribution(selected), use_container_width=True)
-        st.plotly_chart(plot_demand_by_weekday(selected), use_container_width=True)
+        st.plotly_chart(plot_demand_distribution(selected), width="stretch")
+        st.plotly_chart(plot_demand_by_weekday(selected), width="stretch")
     with right:
-        st.plotly_chart(plot_demand_by_hour(selected), use_container_width=True)
-        st.plotly_chart(plot_demand_by_zone(selected), use_container_width=True)
-    st.plotly_chart(plot_demand_over_time(selected), use_container_width=True)
+        st.plotly_chart(plot_demand_by_hour(selected), width="stretch")
+        st.plotly_chart(plot_demand_by_zone(selected), width="stretch")
+    st.plotly_chart(plot_demand_over_time(selected), width="stretch")
+    daily = selected.assign(
+        observation_date=pd.to_datetime(selected["timestamp"]).dt.date,
+        is_high=selected[TARGET_COLUMN].eq("HIGH").astype(float),
+    )
+    daily_summary = daily.groupby("observation_date", as_index=False).agg(
+        mean_connections=("connections_next_hour", "mean"), high_share=("is_high", "mean")
+    )
+    st.plotly_chart(
+        px.line(
+            daily_summary,
+            x="observation_date",
+            y="mean_connections",
+            title="Daily mean next-hour connections (synthetic)",
+        ),
+        width="stretch",
+    )
+    period_summary = (
+        selected.assign(
+            month_start=pd.to_datetime(selected["timestamp"]).dt.to_period("M").dt.to_timestamp(),
+            is_high=selected[TARGET_COLUMN].eq("HIGH").astype(float),
+        )
+        .groupby("month_start", as_index=False)
+        .agg(mean_connections=("connections_next_hour", "mean"), high_share=("is_high", "mean"))
+    )
+    st.plotly_chart(
+        px.line(
+            period_summary,
+            x="month_start",
+            y="high_share",
+            title="Monthly HIGH-demand share (synthetic)",
+        ),
+        width="stretch",
+    )
+    weekend_summary = selected.groupby("is_weekend", as_index=False).agg(
+        mean_connections=("connections_next_hour", "mean"), rows=("timestamp", "size")
+    )
+    weekend_summary["period"] = weekend_summary["is_weekend"].map({0: "Weekday", 1: "Weekend"})
+    st.plotly_chart(
+        px.bar(
+            weekend_summary,
+            x="period",
+            y="mean_connections",
+            title="Weekday vs weekend mean connections",
+        ),
+        width="stretch",
+    )
 
 
 def render_map(frame: pd.DataFrame) -> None:
@@ -149,7 +205,7 @@ def render_map(frame: pd.DataFrame) -> None:
         title="Synthetic WiFi access points (not real infrastructure)",
     )
     fig.update_layout(margin=dict(l=0, r=0, t=40, b=0), height=520)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width="stretch")
 
 
 def render_network(frame: pd.DataFrame) -> None:
@@ -157,7 +213,7 @@ def render_network(frame: pd.DataFrame) -> None:
         "4. Network analysis",
         "Means by hour of day from the last completed hour (prediction-time network snapshot).",
     )
-    st.plotly_chart(plot_network_metrics(frame), use_container_width=True)
+    st.plotly_chart(plot_network_metrics(frame), width="stretch")
 
 
 def render_performance() -> None:
@@ -167,7 +223,7 @@ def render_performance() -> None:
     )
     if MODEL_COMPARISON_PATH.is_file():
         comparison = pd.read_csv(MODEL_COMPARISON_PATH)
-        st.dataframe(comparison, use_container_width=True)
+        st.dataframe(comparison, width="stretch")
         metric_cols = [
             c
             for c in ["accuracy", "precision", "recall", "f1", "roc_auc"]
@@ -186,7 +242,7 @@ def render_performance() -> None:
                 title="Test metrics by model",
             )
             fig.update_layout(template="plotly_white", yaxis_range=[0, 1])
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, width="stretch")
     else:
         st.info("Train models first: python scripts/train_model.py")
 
@@ -217,7 +273,7 @@ def render_performance() -> None:
                 selected["confusion_matrix"],
                 selected.get("confusion_matrix_labels") or selected.get("labels"),
             ),
-            use_container_width=True,
+            width="stretch",
         )
     elif matrix:
         st.write(selected.get("test_metrics_selected_model", selected))
@@ -236,7 +292,7 @@ def _default_row(frame: pd.DataFrame) -> pd.Series:
             row[col] = (
                 mode.iloc[0]
                 if len(mode)
-                else next(iter(CATEGORICAL_ALLOWED_VALUES.get(col, {"NONE"})))
+                else sorted(CATEGORICAL_ALLOWED_VALUES.get(col, {"NONE"}))[0]
             )
     return pd.Series(row)
 
@@ -252,9 +308,9 @@ def render_prediction(frame: pd.DataFrame) -> None:
         zone_type = c1.selectbox(
             "Zone type", sorted(CATEGORICAL_ALLOWED_VALUES["zone_type"]), index=0
         )
-        time_period = c2.selectbox("Time period", list(CATEGORICAL_ALLOWED_VALUES["time_period"]))
+        time_period = c2.selectbox("Time period", sorted(CATEGORICAL_ALLOWED_VALUES["time_period"]))
         weather_condition = c3.selectbox(
-            "Weather", list(CATEGORICAL_ALLOWED_VALUES["weather_condition"])
+            "Weather", sorted(CATEGORICAL_ALLOWED_VALUES["weather_condition"])
         )
         c1, c2, c3, c4 = st.columns(4)
         hour = c1.slider("Hour", 0, 23, int(defaults.get("hour", 12)))
@@ -266,7 +322,7 @@ def render_prediction(frame: pd.DataFrame) -> None:
         )
         month = c3.slider("Month", 1, 12, int(defaults.get("month", 6)))
         traffic_level = c4.selectbox(
-            "Traffic level", list(CATEGORICAL_ALLOWED_VALUES["traffic_level"])
+            "Traffic level", sorted(CATEGORICAL_ALLOWED_VALUES["traffic_level"])
         )
         c1, c2, c3, c4 = st.columns(4)
         is_weekend = int(c1.checkbox("Weekend", value=bool(defaults.get("is_weekend", 0))))
@@ -310,7 +366,7 @@ def render_prediction(frame: pd.DataFrame) -> None:
         )
         c1, c2, c3 = st.columns(3)
         event_nearby = int(c1.checkbox("Event nearby", value=bool(defaults.get("event_nearby", 0))))
-        event_type = c2.selectbox("Event type", list(CATEGORICAL_ALLOWED_VALUES["event_type"]))
+        event_type = c2.selectbox("Event type", sorted(CATEGORICAL_ALLOWED_VALUES["event_type"]))
         estimated_event_attendance = c3.number_input(
             "Event attendance", value=float(defaults.get("estimated_event_attendance", 0))
         )
@@ -418,21 +474,30 @@ def render_prediction(frame: pd.DataFrame) -> None:
 
     if submitted:
         try:
-            model = load_model()
-            label = predict_demand(payload, model=model)[0]
-            proba = predict_probability(payload, model=model)
-            st.success(f"Predicted demand: **{label}**")
-            st.info(
-                "HIGH indicates the model assigned the high-demand class for this simulated input; "
-                "LOW indicates the low-demand class. It is a model classification, not a real-world forecast."
-            )
-            if proba:
-                st.write(
-                    "Class probabilities (from the trained classifier, not a calibrated real-world confidence):"
+            advanced_time = pd.Timestamp(year=2025, month=month, day=1, hour=hour).to_pydatetime()
+            result = (
+                _prediction_service()
+                .predict(
+                    ScenarioRequest(
+                        datetime=advanced_time, zone=zone_type, context_overrides=payload
+                    )
                 )
-                st.json(proba[0])
-            else:
-                st.caption("This estimator does not expose class probabilities.")
+                .to_dict()
+            )
+            st.session_state["last_scenario_result"] = result
+            st.success(
+                f"Predicted demand: **{result['classification']['predicted_demand_level']}**"
+            )
+            st.metric(
+                "Expected next-hour connections",
+                f"{result['regression']['predicted_connections_next_hour']:.1f}",
+            )
+            st.caption(
+                f"{result['regression']['interval_confidence']:.0%} calibrated interval: {result['regression']['prediction_interval_lower']:.1f}–{result['regression']['prediction_interval_upper']:.1f}. Synthetic estimate; feature sensitivity is not causal."
+            )
+            st.dataframe(
+                pd.DataFrame(result["explanation"]["top_factors"]), width="stretch", hide_index=True
+            )
         except ModelNotFoundError as exc:
             st.error(str(exc))
         except Exception as exc:
@@ -441,76 +506,323 @@ def render_prediction(frame: pd.DataFrame) -> None:
     with st.expander("Input variables used"):
         st.json(payload)
         st.caption(
-            "Engineered cyclical and ratio features are computed inside the saved pipeline. "
-            "No SHAP/LIME explanations are implemented in VERSION 0.2."
+            "These values use the same feature contract as training. Explanations are local sensitivity proxies, not causal effects."
+        )
+
+
+def render_scenario(frame: pd.DataFrame) -> None:
+    _section_header(
+        "Scenario prediction",
+        "Choose where and when; context comes from deterministic synthetic historical analogs.",
+    )
+    service = _prediction_service()
+    catalog = service.builder.resolver.catalog
+    zones = catalog[["zone_id", "zone_name"]].drop_duplicates().sort_values("zone_name")
+    dates = pd.to_datetime(frame["timestamp"]).dt.date
+    today = pd.Timestamp.now(tz="America/Bogota").date()
+    selected_date = today if today > dates.max() else max(dates.min(), today)
+    with st.form("scenario_form"):
+        a, b, c = st.columns(3)
+        zone_id = a.selectbox(
+            "Synthetic location",
+            zones["zone_id"],
+            format_func=lambda z: zones.set_index("zone_id").loc[z, "zone_name"],
+        )
+        date_value = b.date_input("Date", value=selected_date)
+        time_value = c.time_input(
+            "Time",
+            value=pd.Timestamp.now(tz="America/Bogota")
+            .replace(minute=0, second=0, microsecond=0)
+            .time(),
+        )
+        with st.expander("Optional context overrides"):
+            use_context = st.checkbox("Override simulated traffic and weather")
+            traffic = st.selectbox("Traffic", sorted(CATEGORICAL_ALLOWED_VALUES["traffic_level"]))
+            weather = st.selectbox(
+                "Weather", sorted(CATEGORICAL_ALLOWED_VALUES["weather_condition"])
+            )
+        submitted = st.form_submit_button("Estimate WiFi demand", type="primary")
+    if submitted:
+        overrides = {"traffic_level": traffic, "weather_condition": weather} if use_context else {}
+        candidate_ap = st.session_state.get("scenario_selected_ap_id")
+        if (
+            candidate_ap
+            and not (catalog["wifi_id"].eq(candidate_ap) & catalog["zone_id"].eq(zone_id)).any()
+        ):
+            candidate_ap = None
+        request = ScenarioRequest(
+            datetime=pd.Timestamp.combine(date_value, time_value).to_pydatetime(),
+            zone_id=zone_id,
+            access_point_id=candidate_ap,
+            context_overrides=overrides,
+        )
+        try:
+            st.session_state["last_scenario_result"] = service.predict(request).to_dict()
+        except (ModelNotFoundError, ValueError) as exc:
+            st.error(str(exc))
+    result = st.session_state.get("last_scenario_result")
+    if result:
+        scenario = result["scenario"]
+        loc = scenario["location"]
+        st.success(
+            f"{result['classification']['predicted_demand_level']} demand · {scenario['scenario_mode'].replace('_', ' ').title()}"
+        )
+        st.caption(f"{loc['zone_name']} · {loc['access_point_id']} · {scenario['scenario_time']}")
+        c1, c2, c3 = st.columns(3)
+        c1.metric("HIGH probability", f"{result['classification']['probability_high']:.1%}")
+        c2.metric(
+            "Expected connections next hour",
+            f"{result['regression']['predicted_connections_next_hour']:.1f}",
+        )
+        c3.metric(
+            "Estimated capacity use",
+            f"{result['capacity']['predicted_capacity_utilization_pct']:.1f}%",
+        )
+        interval = result["regression"]
+        st.caption(
+            f"{interval['interval_confidence']:.0%} split-conformal interval: {interval['prediction_interval_lower']:.1f}–{interval['prediction_interval_upper']:.1f} connections."
+        )
+        st.markdown("**Factors associated with this output** · sensitivity proxy, not causal.")
+        st.dataframe(
+            pd.DataFrame(result["explanation"]["top_factors"]), width="stretch", hide_index=True
+        )
+    st.caption(SYNTHETIC_DATA_DISCLAIMER)
+
+
+def render_geography(frame: pd.DataFrame) -> None:
+    _section_header(
+        "Geographic analysis", "Select a simulated access point marker for the scenario builder."
+    )
+    catalog = _prediction_service().builder.resolver.catalog
+    fig = PlotlyOpenStreetMapProvider().build_map(catalog)
+    selection = st.plotly_chart(
+        fig, width="stretch", on_select="rerun", selection_mode="points", key="geography_map"
+    )
+    points = selection.get("selection", {}).get("points", []) if selection else []
+    if points:
+        custom_data = points[0].get("customdata") or []
+        ap_id = custom_data[0] if custom_data else None
+        if ap_id in set(catalog["wifi_id"]):
+            st.session_state["scenario_selected_ap_id"] = str(ap_id)
+    ap_id = st.session_state.get("scenario_selected_ap_id")
+    if ap_id:
+        st.write(catalog.loc[catalog["wifi_id"] == ap_id])
+        st.info(f"Selected {ap_id}. Use it in Scenario Prediction.")
+    st.caption(
+        "All coordinates are simulated. The map uses OpenStreetMap tiles without a paid key."
+    )
+
+
+def render_assistant() -> None:
+    _section_header("AI Assistant", "Deterministic, tool-grounded answers. No LLM key is required.")
+    st.session_state.setdefault("assistant_session_id", None)
+    st.session_state.setdefault("assistant_messages", [])
+    suggestions = [
+        "What is expected downtown today at 6 PM?",
+        "Which synthetic zone has highest demand at 6 PM?",
+        "How many access points are in the dataset?",
+        "Explain this dashboard",
+        "What are the model limitations?",
+    ]
+    columns = st.columns(len(suggestions))
+    for column, suggestion in zip(columns, suggestions):
+        if column.button(suggestion, key=f"suggest_{suggestion}"):
+            st.session_state["assistant_pending"] = suggestion
+    for message in st.session_state["assistant_messages"]:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
+            if message.get("sources"):
+                st.caption("Sources: " + ", ".join(message["sources"]))
+    prompt = st.chat_input("Ask about demand, a location, the dataset, or model")
+    prompt = prompt or st.session_state.pop("assistant_pending", None)
+    if prompt:
+        st.session_state["assistant_messages"].append({"role": "user", "content": prompt})
+        context = None
+        scenario = st.session_state.get("last_scenario_result")
+        if scenario:
+            loc = scenario["scenario"]["location"]
+            context = AssistantContext(
+                zone_id=loc["zone_id"],
+                access_point_id=loc["access_point_id"],
+                datetime=pd.Timestamp(scenario["scenario"]["scenario_time"]).to_pydatetime(),
+            )
+        answer = _assistant_service().handle(
+            ChatRequest(
+                message=prompt, session_id=st.session_state["assistant_session_id"], context=context
+            )
+        )
+        st.session_state["assistant_session_id"] = answer.session_id
+        st.session_state["assistant_messages"].append(
+            {"role": "assistant", "content": answer.answer, "sources": answer.sources}
+        )
+        st.rerun()
+
+
+def render_performance_v3() -> None:
+    render_performance()
+    regression_comparison_path = (
+        Path(__file__).resolve().parents[1]
+        / "reports"
+        / "metrics"
+        / "regression_model_comparison.csv"
+    )
+    if regression_comparison_path.is_file():
+        _section_header(
+            "Regressor candidates",
+            "Candidate selection uses validation MAE; test metrics are reported separately.",
+        )
+        comparison = pd.read_csv(regression_comparison_path)
+        st.dataframe(comparison, width="stretch", hide_index=True)
+        if "validation_mae" in comparison and "model" in comparison:
+            st.plotly_chart(
+                px.bar(
+                    comparison,
+                    x="model",
+                    y="validation_mae",
+                    title="Validation MAE by regressor (lower is better)",
+                ),
+                width="stretch",
+            )
+    regression = _json_file(
+        Path(__file__).resolve().parents[1] / "models" / "regression_metadata.json"
+    )
+    _section_header("Regression and uncertainty")
+    metrics = regression.get("test_metrics", {})
+    for column, key, label in zip(
+        st.columns(4),
+        ("mae", "rmse", "r2", "test_interval_coverage"),
+        ("MAE", "RMSE", "R²", "Interval coverage"),
+    ):
+        value = regression.get(key) if key == "test_interval_coverage" else metrics.get(key)
+        column.metric(
+            label, f"{value:.3f}" if isinstance(value, (float, int)) else "Train models to populate"
+        )
+    if regression:
+        st.caption(
+            f"{regression.get('interval_confidence', .9):.0%} nominal interval; calibration radius {regression.get('calibration_radius', 'unavailable')} connections. Test coverage may differ under distribution shift."
+        )
+
+
+def _render_page(title: str, kind: str) -> None:
+    st.title(title)
+    st.caption(
+        f"WiFi Tunja Smart Predictor · v{PROJECT_VERSION} · synthetic decision-support prototype"
+    )
+    if kind == "Overview":
+        frame = _load_frame()
+        render_overview(frame)
+        metadata = _json_file(MODEL_METADATA_PATH)
+        regression = _json_file(
+            Path(__file__).resolve().parents[1] / "models" / "regression_metadata.json"
+        )
+        m1, m2, m3 = st.columns(3)
+        m1.metric(
+            "Classifier",
+            (
+                "Ready"
+                if (
+                    Path(__file__).resolve().parents[1] / "models" / "wifi_demand_classifier.joblib"
+                ).is_file()
+                else "Train required"
+            ),
+        )
+        m2.metric(
+            "Regressor",
+            (
+                "Ready"
+                if (
+                    Path(__file__).resolve().parents[1] / "models" / "wifi_demand_regressor.joblib"
+                ).is_file()
+                else "Train required"
+            ),
+        )
+        m3.metric(
+            "Selected models",
+            f"{metadata.get('selected_model', '—')} / {regression.get('selected_model', '—')}",
+        )
+        st.markdown(
+            "Start with a location and time in Scenario Prediction to get a class, connection estimate, interval, capacity proxy, and associated factors."
+        )
+    elif kind == "Scenario":
+        render_scenario(_load_frame())
+    elif kind == "Demand":
+        render_demand(_load_frame())
+    elif kind == "Geography":
+        render_geography(_load_frame())
+    elif kind == "Network":
+        render_network(_load_frame())
+    elif kind == "Performance":
+        render_performance_v3()
+    elif kind == "Assistant":
+        render_assistant()
+    elif kind == "Advanced":
+        render_prediction(_load_frame())
+    else:
+        st.markdown(
+            "This prototype uses synthetic access points, coordinates, contexts, and outcomes. It has no live telemetry or real-time provider. Classification predicts `demand_level`; regression estimates `connections_next_hour`. The conformal interval is calibrated on validation residuals. Feature sensitivity does not establish causation. See `docs/` for methodology, API, privacy, and limitations."
         )
 
 
 def main() -> None:
     st.set_page_config(page_title=PROJECT_NAME, page_icon="📶", layout="wide")
-    st.sidebar.title("📶 WiFi Tunja")
-    page = st.sidebar.radio(
-        "Navigate",
-        [
-            "🏠 Overview",
-            "📊 Demand Explorer",
-            "🗺️ Geographic Analysis",
-            "📡 Network Analysis",
-            "🤖 Model Performance",
-            "🔮 Predict Demand",
-            "ℹ️ About",
-        ],
-        label_visibility="collapsed",
-    )
-    st.sidebar.caption(f"Version {PROJECT_VERSION} · Synthetic simulation")
-    st.title(page)
-    st.caption("Synthetic WiFi demand simulation for Tunja")
-    st.info(SYNTHETIC_DATA_DISCLAIMER)
-
+    pages = [
+        st.Page(
+            lambda: _render_page("Overview", "Overview"),
+            title="Overview",
+            icon="🏠",
+            url_path="overview",
+            default=True,
+        ),
+        st.Page(
+            lambda: _render_page("Scenario Prediction", "Scenario"),
+            title="Live Scenario",
+            icon="📍",
+            url_path="scenario",
+        ),
+        st.Page(
+            lambda: _render_page("Demand Explorer", "Demand"),
+            title="Demand Explorer",
+            icon="📊",
+            url_path="demand",
+        ),
+        st.Page(
+            lambda: _render_page("Geographic Analysis", "Geography"),
+            title="Geographic Analysis",
+            icon="🗺️",
+            url_path="geography",
+        ),
+        st.Page(
+            lambda: _render_page("Network Analysis", "Network"),
+            title="Network Analysis",
+            icon="📡",
+            url_path="network",
+        ),
+        st.Page(
+            lambda: _render_page("Model Performance", "Performance"),
+            title="Model Performance",
+            icon="📈",
+            url_path="performance",
+        ),
+        st.Page(
+            lambda: _render_page("AI Assistant", "Assistant"),
+            title="AI Assistant",
+            icon="💬",
+            url_path="assistant",
+        ),
+        st.Page(
+            lambda: _render_page("Advanced Prediction", "Advanced"),
+            title="Advanced Prediction",
+            icon="🧰",
+            url_path="advanced",
+        ),
+        st.Page(lambda: _render_page("About", "About"), title="About", icon="ℹ️", url_path="about"),
+    ]
+    navigation = st.navigation(pages, position="sidebar")
+    st.sidebar.caption(f"v{PROJECT_VERSION} · simulated data")
     try:
-        frame = _load_frame()
+        navigation.run()
     except DatasetNotFoundError as exc:
         st.error(str(exc))
-        st.stop()
-
-    if page == "🏠 Overview":
-        st.markdown(
-            "Explore a reproducible classification workflow built from simulated observations."
-        )
-        render_overview(frame)
-        st.markdown(
-            "**Workflow:** synthetic data → validation → temporal evaluation → shared model → API and dashboard"
-        )
-    elif page == "📊 Demand Explorer":
-        render_demand(frame)
-    elif page == "🗺️ Geographic Analysis":
-        render_map(frame)
-    elif page == "📡 Network Analysis":
-        render_network(frame)
-    elif page == "🤖 Model Performance":
-        render_performance()
-    elif page == "🔮 Predict Demand":
-        st.markdown(
-            "Enter a simulated snapshot and receive a LOW/HIGH classification. This is not a real-time forecast."
-        )
-        render_prediction(frame)
-    else:
-        st.markdown("""### Project purpose
-This portfolio project demonstrates a maintainable end-to-end machine-learning application.
-
-### Data and target
-Every access point, coordinate, demand observation, weather value, event, network metric, and historical value is simulated. The classifier predicts `demand_level` (LOW or HIGH); the future count `connections_next_hour` is not an input.
-
-### Architecture
-Reusable logic lives in `src/wifi_tunja_smart_predictor/`. The API and dashboard use the same persisted scikit-learn pipeline. Evaluation uses ordered train, validation, and test periods.
-
-### Limitations
-Synthetic results do not establish real-world accuracy or represent municipal infrastructure. The dashboard does not receive live telemetry and predictions are not causal explanations.
-
-### Technology
-Python · pandas · scikit-learn · FastAPI · Streamlit · pytest · Ruff
-
-[GitHub repository](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor)""")
 
 
 if __name__ == "__main__":

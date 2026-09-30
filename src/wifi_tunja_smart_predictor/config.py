@@ -1,4 +1,4 @@
-"""Central configuration for WiFi Tunja Smart Predictor (VERSION 0.2.0).
+"""Central configuration for WiFi Tunja Smart Predictor (VERSION 0.3.0).
 
 Paths are resolved relative to the repository root so the project works on any
 machine as long as it is executed from a clone of this repository.
@@ -7,13 +7,17 @@ machine as long as it is executed from a clone of this repository.
 from __future__ import annotations
 
 import os
+from importlib.metadata import PackageNotFoundError, version
 from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-PROJECT_VERSION = os.getenv("PROJECT_VERSION", "0.2.0")
+try:
+    PROJECT_VERSION = version("wifi-tunja-smart-predictor")
+except PackageNotFoundError:
+    PROJECT_VERSION = "0.3.0"
 PROJECT_NAME = "WiFi Tunja Smart Predictor"
 RANDOM_SEED = int(os.getenv("RANDOM_SEED", "42"))
 
@@ -35,6 +39,10 @@ MODELS_DIR = PROJECT_ROOT / "models"
 MODEL_FILENAME = "wifi_demand_classifier.joblib"
 MODEL_PATH = MODELS_DIR / MODEL_FILENAME
 MODEL_METADATA_PATH = MODELS_DIR / "model_metadata.json"
+CLASSIFICATION_METADATA_PATH = MODELS_DIR / "classification_metadata.json"
+REGRESSION_MODEL_FILENAME = "wifi_demand_regressor.joblib"
+REGRESSION_MODEL_PATH = MODELS_DIR / REGRESSION_MODEL_FILENAME
+REGRESSION_METADATA_PATH = MODELS_DIR / "regression_metadata.json"
 
 REPORTS_DIR = PROJECT_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
@@ -42,9 +50,14 @@ METRICS_DIR = REPORTS_DIR / "metrics"
 MODEL_COMPARISON_PATH = METRICS_DIR / "model_comparison.csv"
 CONFUSION_MATRIX_PATH = FIGURES_DIR / "confusion_matrix.png"
 SELECTED_MODEL_METRICS_PATH = METRICS_DIR / "selected_model_test_metrics.json"
+REGRESSION_COMPARISON_PATH = METRICS_DIR / "regression_model_comparison.csv"
+SELECTED_REGRESSION_METRICS_PATH = METRICS_DIR / "selected_regression_test_metrics.json"
+REGRESSION_RESIDUALS_FIGURE_PATH = FIGURES_DIR / "regression_residuals.png"
+REGRESSION_PREDICTIONS_FIGURE_PATH = FIGURES_DIR / "regression_predictions.png"
 
 TARGET_COLUMN = "demand_level"
 SECONDARY_TARGET_COLUMN = "connections_next_hour"
+REGRESSION_TARGET_COLUMN = SECONDARY_TARGET_COLUMN
 TARGET_LABELS = ("LOW", "HIGH")
 POSITIVE_LABEL = "HIGH"
 
@@ -294,5 +307,10 @@ SYNTHETIC_DATA_DISCLAIMER = (
     "The dataset is synthetic and was generated for software development, "
     "machine learning experimentation, demonstration, and portfolio purposes."
 )
+
+DATASET_VERSION = "synthetic_seed_42_v1"
+PREPROCESSING_VERSION = "scenario-features-v1"
+INTERVAL_CONFIDENCE = 0.90
+CLASSIFICATION_THRESHOLD = 0.50
 
 LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

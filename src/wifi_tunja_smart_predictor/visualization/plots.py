@@ -107,13 +107,24 @@ def plot_network_metrics(frame: pd.DataFrame) -> go.Figure:
     """Hour-of-day means for selected network snapshot metrics."""
     metrics = [
         "connected_devices",
+        "active_sessions",
         "channel_utilization_percent",
         "latency_ms",
         "bandwidth_usage_mbps",
         "packet_loss_percent",
+        "signal_strength_dbm",
     ]
-    available = [col for col in metrics if col in frame.columns]
-    aggregated = frame.groupby("hour", observed=True)[available].mean().reset_index()
+    source = frame.copy()
+    if {"connected_devices", "access_point_capacity"} <= set(source.columns):
+        capacity = pd.to_numeric(source["access_point_capacity"], errors="coerce").replace(
+            0, np.nan
+        )
+        source["capacity_utilization_percent"] = (
+            pd.to_numeric(source["connected_devices"], errors="coerce") / capacity * 100
+        )
+        metrics.append("capacity_utilization_percent")
+    available = [col for col in metrics if col in source.columns]
+    aggregated = source.groupby("hour", observed=True)[available].mean().reset_index()
     long = aggregated.melt(id_vars="hour", var_name="metric", value_name="mean_value")
     fig = px.line(
         long,

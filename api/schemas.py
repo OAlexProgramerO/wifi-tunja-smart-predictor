@@ -5,9 +5,10 @@ Targets ``demand_level`` and ``connections_next_hour`` are intentionally absent.
 
 from __future__ import annotations
 
-from typing import Literal
+from datetime import datetime
+from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 ZoneType = Literal[
     "DOWNTOWN",
@@ -51,10 +52,14 @@ class ModelInfoResponse(BaseModel):
     train_period: dict | None = None
     validation_period: dict | None = None
     test_period: dict | None = None
+    regression_model_loaded: bool = False
+    regression_model: str | None = None
 
 
 class PredictRequest(BaseModel):
     """Fields required by the persisted training pipeline (pre-engineering)."""
+
+    model_config = ConfigDict(extra="forbid")
 
     zone_type: ZoneType = Field(description="Synthetic land-use type of the access point.")
     month: int = Field(ge=1, le=12)
@@ -106,4 +111,70 @@ class PredictResponse(BaseModel):
     )
     model_version: str
     selected_model: str | None = None
+    disclaimer: str
+
+
+class ScenarioLocationRequest(BaseModel):
+    """Synthetic area, AP, or coordinate input; coordinates must be paired."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    zone: str | None = Field(default=None, min_length=1, max_length=100)
+    zone_id: str | None = Field(default=None, min_length=1, max_length=40)
+    access_point_id: str | None = Field(default=None, min_length=1, max_length=40)
+    latitude: float | None = Field(default=None, ge=-90, le=90)
+    longitude: float | None = Field(default=None, ge=-180, le=180)
+
+    @model_validator(mode="after")
+    def validate_location(self) -> ScenarioLocationRequest:
+        if (self.latitude is None) != (self.longitude is None):
+            raise ValueError("latitude and longitude must be provided together")
+        selectors = [
+            self.zone is not None,
+            self.zone_id is not None,
+            self.access_point_id is not None,
+            self.latitude is not None,
+        ]
+        if sum(selectors) == 0:
+            raise ValueError("provide a zone, zone_id, access_point_id, or coordinate pair")
+        if sum(selectors) > 1:
+            raise ValueError("choose one location selector to avoid ambiguous resolution")
+        return self
+
+
+class ScenarioAdvancedContext(BaseModel):
+    """Small optional context override set; all other fields come from analogs."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    temperature_c: float | None = Field(default=None, ge=-10, le=40)
+    humidity_percent: float | None = Field(default=None, ge=0, le=100)
+    precipitation_mm: float | None = Field(default=None, ge=0, le=100)
+    wind_speed_kmh: float | None = Field(default=None, ge=0, le=150)
+    weather_condition: WeatherCondition | None = None
+    traffic_level: TrafficLevel | None = None
+    event_nearby: int | None = Field(default=None, ge=0, le=1)
+    event_type: EventType | None = None
+    estimated_event_attendance: float | None = Field(default=None, ge=0, le=20_000)
+    estimated_people_nearby: float | None = Field(default=None, ge=0, le=20_000)
+
+
+class ScenarioPredictRequest(BaseModel):
+    """Simple user scenario; no target or technical feature vector is accepted."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    location: ScenarioLocationRequest
+    datetime: datetime
+    advanced_context: ScenarioAdvancedContext | None = None
+
+
+class ScenarioPredictionResponse(BaseModel):
+    """Combined outputs with model-derived estimates and synthetic-data notice."""
+
+    scenario: dict[str, Any]
+    classification: dict[str, Any]
+    regression: dict[str, Any]
+    capacity: dict[str, Any]
+    explanation: dict[str, Any]
     disclaimer: str
