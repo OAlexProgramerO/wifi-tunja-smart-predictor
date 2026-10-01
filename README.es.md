@@ -4,7 +4,7 @@
 
 Leer en [English](README.md)
 
-V3 es un prototipo de apoyo a decisiones con datos sintéticos. A partir de una ubicación y hora estima demanda LOW/HIGH, conexiones para la próxima hora, intervalo calibrado con validación, uso aproximado de capacidad y sensibilidad local del modelo.
+**Versión actual: 0.3.1.** V3 es un prototipo de apoyo a decisiones con datos sintéticos. A partir de una ubicación y hora estima demanda LOW/HIGH, conexiones para la próxima hora, intervalo calibrado con validación, uso aproximado de capacidad y sensibilidad local del modelo.
 
 > **Solo datos sintéticos.** Los puntos de acceso, coordenadas, demanda, clima, eventos, métricas de red y valores históricos son simulados. No representan uso real de WiFi ni infraestructura municipal en Tunja.
 
@@ -21,6 +21,7 @@ El proyecto demuestra un flujo mantenible de clasificación y regresión con con
 - Constructor determinista de escenarios, resolución de AP sintéticos y contexto histórico; sin telemetría en vivo ni clave de mapas de pago.
 - Clasificador y regresor separados, entrenados con las mismas particiones cronológicas.
 - Asistente determinista basado en herramientas y API independiente en el puerto 8001; no requiere credenciales LLM.
+- Conversación básica en inglés y español para saludos, identidad y capacidades, sin distinguir mayúsculas ni puntuación externa.
 - Nueve secciones: resumen, escenario, explorador, análisis geográfico y de red, rendimiento, asistente, predicción avanzada y acerca de.
 
 ## Inicio rápido V3

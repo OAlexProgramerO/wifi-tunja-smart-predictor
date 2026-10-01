@@ -68,7 +68,8 @@ def test_scenario_prediction_returns_both_models_interval_and_capacity(mini_fram
 
 
 def test_assistant_is_deterministic_and_supports_followup_context(mini_frame):
-    assistant = AssistantService(mini_frame)
+    prediction_service = ScenarioPredictionService(mini_frame, DummyClassifier(), DummyRegressor())
+    assistant = AssistantService(mini_frame, prediction_service=prediction_service)
     first = assistant.handle(ChatRequest(message="I am in downtown", session_id="test"))
     followup = assistant.handle(
         ChatRequest(message="What about 7 PM?", session_id=first.session_id)

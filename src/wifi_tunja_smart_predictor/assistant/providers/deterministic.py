@@ -10,6 +10,25 @@ class DeterministicProvider:
 
     def compose(self, intent: str, tool_result: dict[str, Any]) -> str:
         """Return a response template from a structured result."""
+        if intent == "GREETING":
+            message = tool_result.get("message", "")
+            if message == "hello":
+                return "Hello! How can I help you with WiFi Tunja Smart Predictor?"
+            if message == "hola":
+                return "¡Hola! ¿Cómo puedo ayudarte?"
+            if message == "buenas":
+                return "¡Buenas! ¿Cómo puedo ayudarte?"
+            return "Hello! How can I help you?"
+        if intent == "IDENTITY":
+            message = tool_result.get("message", "")
+            if message in {"quién eres", "qué eres", "cómo te llamas"}:
+                return "Soy el Asistente de WiFi Tunja Smart Predictor. Puedo ayudarte a explorar datos de demanda WiFi, escenarios de predicción e información del modelo."
+            return "I'm the WiFi Tunja Smart Predictor Assistant. I can help you explore WiFi demand data, predictions, and model information."
+        if intent == "CAPABILITIES":
+            message = tool_result.get("message", "")
+            if message in {"qué puedes hacer", "en qué puedes ayudarme"}:
+                return "Puedo ayudarte a explorar el conjunto de datos sintético de WiFi, analizar escenarios de demanda y entender los resultados del modelo."
+            return "I can help you explore the synthetic WiFi dataset, analyze demand scenarios, and understand model results."
         if "answer" in tool_result:
             return str(tool_result["answer"])
         if intent == "LOCATION_INFO":

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.3.1] - 2026-10-01
+
+### Added
+
+- Deterministic English and Spanish greeting, identity, and capabilities intents in the assistant.
+- Basic punctuation and surrounding whitespace normalization for conversational matches.
+- Unit coverage for the requested conversation examples and matching behavior.
+
+### Changed
+
+- Bumped package version to 0.3.1.
+
 ## [0.3.0] - 2026-09-30
 
 ### Added

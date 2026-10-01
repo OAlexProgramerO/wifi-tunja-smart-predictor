@@ -10,7 +10,12 @@ from uuid import uuid4
 
 import pandas as pd
 
-from wifi_tunja_smart_predictor.assistant.intents import LOCAL_ZONE, ParsedMessage, parse_message
+from wifi_tunja_smart_predictor.assistant.intents import (
+    LOCAL_ZONE,
+    ParsedMessage,
+    normalize_message,
+    parse_message,
+)
 from wifi_tunja_smart_predictor.assistant.providers.deterministic import DeterministicProvider
 from wifi_tunja_smart_predictor.assistant.queries import DatasetQuery, DatasetQueryEngine
 from wifi_tunja_smart_predictor.assistant.schemas import AssistantContext, ChatRequest, ChatResponse
@@ -117,6 +122,13 @@ class AssistantService:
         self, parsed: ParsedMessage, message: str, state: dict[str, Any]
     ) -> tuple[str, dict[str, Any], list[str], dict[str, Any] | None]:
         text = message.casefold()
+        if parsed.intent in {"GREETING", "IDENTITY", "CAPABILITIES"}:
+            return (
+                parsed.intent,
+                {"message": normalize_message(message)},
+                ["deterministic_conversation_templates"],
+                None,
+            )
         if parsed.intent == "LOCATION_INFO" and state.get("zone"):
             resolved = location_tool(self.locations, state["zone"])
             state["location"] = resolved

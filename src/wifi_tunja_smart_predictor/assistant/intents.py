@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import string
 from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -42,7 +43,7 @@ class ParsedMessage:
 
 def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
     """Classify supported project questions without inventing extracted values."""
-    text = message.casefold().strip()
+    text = normalize_message(message)
     zone = next((item for item in ZONE_TERMS if re.search(rf"\b{re.escape(item)}\b", text)), None)
     hour = _parse_hour(text)
     parsed_date = (
@@ -51,7 +52,25 @@ def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
         else None
     )
 
-    if any(word in text for word in ("limit", "limitation", "weakness", "cannot", "can't")):
+    if text in {"hi", "hello", "hey", "hola", "buenas"}:
+        intent = "GREETING"
+    elif text in {
+        "who are you",
+        "what are you",
+        "who is this",
+        "quién eres",
+        "qué eres",
+        "cómo te llamas",
+    }:
+        intent = "IDENTITY"
+    elif text in {
+        "what can you do",
+        "what can you help me with",
+        "qué puedes hacer",
+        "en qué puedes ayudarme",
+    }:
+        intent = "CAPABILITIES"
+    elif any(word in text for word in ("limit", "limitation", "weakness", "cannot", "can't")):
         intent = "LIMITATIONS"
     elif (
         zone
@@ -135,6 +154,11 @@ def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
     else:
         intent = "DASHBOARD_HELP"
     return ParsedMessage(intent=intent, zone=zone, hour=hour, date=parsed_date)
+
+
+def normalize_message(message: str) -> str:
+    """Case-fold and trim common surrounding whitespace and punctuation."""
+    return message.casefold().strip().strip(string.punctuation + "¡¿").strip()
 
 
 def _parse_hour(text: str) -> int | None:

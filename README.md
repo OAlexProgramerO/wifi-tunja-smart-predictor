@@ -9,7 +9,7 @@
 
 Read this in [Español](README.es.md)
 
-V3 is a synthetic decision-support prototype that turns a location and time into a LOW/HIGH WiFi demand class, next-hour connection estimate, validation-calibrated prediction interval, capacity proxy, and local model-sensitivity summary.
+**Current release: 0.3.1.** V3 is a synthetic decision-support prototype that turns a location and time into a LOW/HIGH WiFi demand class, next-hour connection estimate, validation-calibrated prediction interval, capacity proxy, and local model-sensitivity summary.
 
 > **Synthetic data only.** Access points, coordinates, demand, weather, events, network metrics, and historical values are simulated. They do not represent actual public WiFi usage or municipal infrastructure in Tunja.
 
@@ -27,6 +27,7 @@ The project explores how an hourly WiFi demand classification system can be stru
 - A deterministic scenario builder, synthetic access-point resolver, and historical analog context; no live telemetry or paid map key is required.
 - Separate classification and regression artifacts trained and evaluated on the same chronological split.
 - A deterministic tool-grounded assistant with a separate API on port 8001; no LLM credential is required.
+- English and Spanish greetings, assistant identity, and capability questions with case- and punctuation-insensitive matching.
 - Nine dashboard sections: Overview, Live Scenario, Demand Explorer, Geographic Analysis, Network Analysis, Model Performance, AI Assistant, Advanced Prediction, and About.
 - pytest, Ruff, Black, and GitHub Actions configuration.
 
