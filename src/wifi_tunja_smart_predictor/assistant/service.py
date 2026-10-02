@@ -87,7 +87,7 @@ class AssistantService:
         state = self.sessions.get(session_id)
         self._merge_context(state, request.context)
         parsed = parse_message(request.message, has_context=bool(state.get("location")))
-        if parsed.zone:
+        if parsed.zone and parsed.intent != "DEMAND_SCENARIO":
             state["zone"] = parsed.zone
         try:
             intent, result, sources, scenario = self._dispatch(parsed, request.message, state)
@@ -132,13 +132,48 @@ class AssistantService:
         if parsed.intent == "LOCATION_INFO" and state.get("zone"):
             resolved = location_tool(self.locations, state["zone"])
             state["location"] = resolved
+            state["zone"] = resolved["zone_id"]
+            state["access_point_id"] = resolved["access_point_id"]
+            is_spanish = any(
+                term in text for term in ("estoy en", "centro", "norte", "sur", "universidad")
+            )
             return (
                 "LOCATION_INFO",
-                {"location": resolved},
+                {"location": resolved, "language": "es" if is_spanish else "en"},
                 ["location_tool", "synthetic_dataset"],
                 None,
             )
         if parsed.intent in {"PREDICTION", "FOLLOW_UP", "EXPLANATION"}:
+            return self._predict(parsed, text, state)
+        if parsed.intent == "DEMAND_SCENARIO":
+            if parsed.invalid_time:
+                return (
+                    parsed.intent,
+                    {"answer": "Please provide a valid time, such as 18:00 or 6 PM."},
+                    ["scenario_clarification"],
+                    None,
+                )
+            if parsed.zone is None and not state.get("location"):
+                return (
+                    parsed.intent,
+                    {
+                        "answer": "Which synthetic zone should I use? For example, downtown, north, south, or university."
+                    },
+                    ["scenario_clarification"],
+                    None,
+                )
+            if parsed.zone is not None:
+                try:
+                    self.locations.resolve(zone=parsed.zone)
+                except LocationResolutionError:
+                    return (
+                        parsed.intent,
+                        {
+                            "answer": f"I couldn't match '{parsed.zone}' to a synthetic zone. Choose a listed project zone such as downtown, north, south, or university."
+                        },
+                        ["scenario_clarification"],
+                        None,
+                    )
             return self._predict(parsed, text, state)
         if parsed.intent == "MODEL_INFO":
             return (
@@ -224,11 +259,15 @@ class AssistantService:
         if self.predictions is None:
             self.predictions = ScenarioPredictionService(self.frame)
         output = prediction_tool(self.predictions, request)
+        if any(term in text for term in ("demanda", "conexiones", "cuál", "habrá")):
+            output["response_language"] = "es"
         state["location"] = output["scenario"]["location"]
         state["zone"] = output["scenario"]["location"]["zone_id"]
         state["datetime"] = when.isoformat()
         state["last_prediction"] = output
-        intent = "EXPLANATION" if parsed.intent == "EXPLANATION" else "PREDICTION"
+        intent = (
+            parsed.intent if parsed.intent in {"DEMAND_SCENARIO", "EXPLANATION"} else "PREDICTION"
+        )
         sources = [
             "location_tool",
             "historical_demand_tool",

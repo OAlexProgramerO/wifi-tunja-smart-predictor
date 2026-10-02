@@ -618,10 +618,11 @@ def render_assistant() -> None:
     st.session_state.setdefault("assistant_session_id", None)
     st.session_state.setdefault("assistant_messages", [])
     suggestions = [
-        "What is expected downtown today at 6 PM?",
-        "Which synthetic zone has highest demand at 6 PM?",
+        "What is the demand downtown?",
+        "Will demand be high in the north at 6 PM?",
+        "How many connections are expected in the south?",
+        "¿Cuál es la demanda en el centro?",
         "How many access points are in the dataset?",
-        "Explain this dashboard",
         "What are the model limitations?",
     ]
     columns = st.columns(len(suggestions))

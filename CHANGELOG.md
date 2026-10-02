@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.3.2] - 2026-10-02
+
+### Added
+
+- Context-aware deterministic English and Spanish demand questions with synthetic-zone aliases and simple time extraction.
+- Follow-up demand queries reuse the conversation's saved location and call the existing scenario prediction service.
+- Clarifying responses for missing zones, unknown synthetic zones, and invalid times.
+- Demand scenario example prompts in the existing assistant page.
+
 ## [0.3.1] - 2026-10-01
 
 ### Added

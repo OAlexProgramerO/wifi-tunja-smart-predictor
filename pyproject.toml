@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wifi-tunja-smart-predictor"
-version = "0.3.1"
+version = "0.3.2"
 description = "Synthetic-data ML prototype for public WiFi demand prediction in Tunja, Colombia."
 readme = "README.md"
 requires-python = ">=3.11"

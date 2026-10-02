@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any
 
 
@@ -33,12 +34,10 @@ class DeterministicProvider:
             return str(tool_result["answer"])
         if intent == "LOCATION_INFO":
             location = tool_result["location"]
-            return (
-                f"{location['zone_name']} is a synthetic zone represented by AP "
-                f"{location['access_point_id']} ({location['zone_type']}). "
-                "These are simulated locations, not official boundaries."
-            )
-        if intent == "PREDICTION":
+            if tool_result.get("language") == "es":
+                return f"Entendido. Usaré el escenario sintético de {location['zone_name']}."
+            return f"Got it. I'll use the {location['zone_name']} synthetic scenario."
+        if intent in {"PREDICTION", "DEMAND_SCENARIO"}:
             return _prediction_answer(tool_result)
         if intent == "FOLLOW_UP":
             return _prediction_answer(tool_result)
@@ -72,17 +71,52 @@ def _prediction_answer(result: dict[str, Any]) -> str:
     classification = result["classification"]
     regression = result["regression"]
     capacity = result["capacity"]
-    return (
-        f"In this synthetic scenario for {scenario['location']['zone_name']} at "
-        f"{scenario['scenario_time']}, expected next-hour connections are "
-        f"{regression['predicted_connections_next_hour']:.0f} "
-        f"(validation-calibrated {regression['interval_confidence']:.0%} interval "
-        f"{regression['prediction_interval_lower']:.0f}–{regression['prediction_interval_upper']:.0f}). "
-        f"Demand is {classification['predicted_demand_level']} with "
-        f"{classification['probability_high']:.0%} probability of HIGH. Estimated capacity use is "
-        f"{capacity['predicted_capacity_utilization_pct']:.1f}%. "
-        "This is a model-based estimate from historical simulated patterns, not a live observation."
+    location_name = scenario["location"]["zone_name"]
+    timestamp = scenario["scenario_time"]
+    try:
+        timestamp = datetime.fromisoformat(timestamp).strftime("%Y-%m-%d %H:%M")
+    except (TypeError, ValueError):
+        pass
+    if result.get("response_language") == "es":
+        answer = (
+            f"En este escenario sintético para {location_name} a las {timestamp}, el modelo estima "
+            f"aproximadamente {regression['predicted_connections_next_hour']:.0f} conexiones para la próxima hora. "
+            f"La demanda prevista es {classification['predicted_demand_level']}"
+        )
+        probability = classification.get("probability_high")
+        if probability is not None:
+            answer += f" (probabilidad estimada de demanda alta: {probability:.0%})"
+        utilization = capacity.get("predicted_capacity_utilization_pct")
+        if utilization is not None:
+            answer += f", con uso estimado de capacidad del {utilization:.1f}%"
+        answer += "."
+        lower = regression.get("prediction_interval_lower")
+        upper = regression.get("prediction_interval_upper")
+        confidence = regression.get("interval_confidence")
+        if lower is not None and upper is not None and confidence is not None:
+            answer += f" El intervalo de predicción del {confidence:.0%} es {lower:.0f}–{upper:.0f} conexiones."
+        return answer + " Es una estimación con datos sintéticos, no telemetría en vivo."
+    answer = (
+        f"In this synthetic scenario for {location_name} at {timestamp}, the model estimates "
+        f"approximately {regression['predicted_connections_next_hour']:.0f} connections for the next hour. "
+        f"Predicted demand is {classification['predicted_demand_level']}"
     )
+    probability = classification.get("probability_high")
+    if probability is not None:
+        answer += f" ({probability:.0%} estimated probability of HIGH)"
+    utilization = capacity.get("predicted_capacity_utilization_pct")
+    if utilization is not None:
+        answer += f", with estimated capacity utilization of {utilization:.1f}%"
+    answer += "."
+    lower = regression.get("prediction_interval_lower")
+    upper = regression.get("prediction_interval_upper")
+    confidence = regression.get("interval_confidence")
+    if lower is not None and upper is not None and confidence is not None:
+        answer += (
+            f" The {confidence:.0%} prediction interval is {lower:.0f}–{upper:.0f} connections."
+        )
+    answer += " This estimate uses synthetic data, not live network telemetry."
+    return answer
 
 
 def _model_answer(result: dict[str, Any]) -> str:
