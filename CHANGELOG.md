@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.3] - 2026-10-03
+
+### Added
+
+- Dashboard-aware deterministic assistant explanations for all nine existing sections, in English and Spanish.
+- Optional dashboard section and current scenario result in the existing chat context.
+- Conceptual explanations for classification and regression metrics, preserving synthetic-data and non-causality limits.
+- Dashboard-context assistant tests and section-aware prompt suggestions.
+
+### Improved
+
+- Streamlit assistant now passes the last visited dashboard section and displayed scenario result.
+- Bumped package version to 0.3.3.
+
 ## [0.3.2] - 2026-10-02
 
 ### Added

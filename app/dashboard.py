@@ -624,6 +624,16 @@ def render_assistant() -> None:
         "¿Cuál es la demanda en el centro?",
         "How many access points are in the dataset?",
         "What are the model limitations?",
+        "Explain this dashboard section.",
+        "What does this prediction mean?",
+        "Why is demand high?",
+        "Explain the capacity indicator.",
+        "What does this graph show?",
+        "Explain model performance.",
+        "Explícame esta sección.",
+        "¿Qué significa esta predicción?",
+        "¿Por qué la demanda es alta?",
+        "¿Qué muestra este gráfico?",
     ]
     columns = st.columns(len(suggestions))
     for column, suggestion in zip(columns, suggestions):
@@ -638,15 +648,18 @@ def render_assistant() -> None:
     prompt = prompt or st.session_state.pop("assistant_pending", None)
     if prompt:
         st.session_state["assistant_messages"].append({"role": "user", "content": prompt})
-        context = None
+        section = st.session_state.get("assistant_dashboard_section")
         scenario = st.session_state.get("last_scenario_result")
+        context_values = {"dashboard_section": section} if section else {}
         if scenario:
             loc = scenario["scenario"]["location"]
-            context = AssistantContext(
+            context_values.update(
                 zone_id=loc["zone_id"],
                 access_point_id=loc["access_point_id"],
                 datetime=pd.Timestamp(scenario["scenario"]["scenario_time"]).to_pydatetime(),
+                scenario_result=scenario,
             )
+        context = AssistantContext(**context_values) if context_values else None
         answer = _assistant_service().handle(
             ChatRequest(
                 message=prompt, session_id=st.session_state["assistant_session_id"], context=context
@@ -705,6 +718,19 @@ def render_performance_v3() -> None:
 
 
 def _render_page(title: str, kind: str) -> None:
+    section_names = {
+        "Overview": "Overview",
+        "Scenario": "Live Scenario",
+        "Demand": "Demand Explorer",
+        "Geography": "Geographic Analysis",
+        "Network": "Network Analysis",
+        "Performance": "Model Performance",
+        "Assistant": "AI Assistant",
+        "Advanced": "Advanced Prediction",
+        "About": "About",
+    }
+    if kind != "Assistant":
+        st.session_state["assistant_dashboard_section"] = section_names.get(kind)
     st.title(title)
     st.caption(
         f"WiFi Tunja Smart Predictor · v{PROJECT_VERSION} · synthetic decision-support prototype"

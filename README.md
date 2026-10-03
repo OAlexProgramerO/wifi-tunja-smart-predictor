@@ -9,7 +9,7 @@
 
 Read this in [Español](README.es.md)
 
-**Current release: 0.3.2.** V3 is a synthetic decision-support prototype that turns a location and time into a LOW/HIGH WiFi demand class, next-hour connection estimate, validation-calibrated prediction interval, capacity proxy, and local model-sensitivity summary.
+**Current release: 0.3.3 (V3.3 — Dashboard-Aware Assistant).** V3 is a synthetic decision-support prototype that turns a location and time into a LOW/HIGH WiFi demand class, next-hour connection estimate, validation-calibrated prediction interval, capacity proxy, and local model-sensitivity summary. The deterministic assistant now explains the active dashboard section, current scenario output, indicators, and model metrics in English and Spanish, while keeping synthetic-data and non-causality limits explicit.
 
 **V3.2 release note:** The deterministic assistant now answers natural English and Spanish demand questions using synthetic zone and time context, and reuses the location in follow-up questions.
 
@@ -31,6 +31,7 @@ The project explores how an hourly WiFi demand classification system can be stru
 - A deterministic tool-grounded assistant with a separate API on port 8001; no LLM credential is required.
 - English and Spanish greetings, assistant identity, and capability questions with case- and punctuation-insensitive matching.
 - Context-aware natural demand questions in English and Spanish, including zone/time aliases and follow-up location reuse through the existing scenario service.
+- Dashboard-aware assistant explanations for all nine sections, current scenario results, indicators, and model metrics in English and Spanish.
 - Nine dashboard sections: Overview, Live Scenario, Demand Explorer, Geographic Analysis, Network Analysis, Model Performance, AI Assistant, Advanced Prediction, and About.
 - pytest, Ruff, Black, and GitHub Actions configuration.
 

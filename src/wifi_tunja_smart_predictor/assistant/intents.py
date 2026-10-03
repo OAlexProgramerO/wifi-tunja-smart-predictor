@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import re
 import string
+import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -60,11 +61,14 @@ class ParsedMessage:
     hour: int | None
     date: datetime | None
     invalid_time: bool = False
+    dashboard_section: str | None = None
 
 
 def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
     """Classify supported questions and extract simple deterministic entities."""
     text = normalize_message(message)
+    comparable = _comparison_text(text)
+    dashboard_section = _mentioned_section(comparable)
     raw_zone = next(
         (item for item in ZONE_TERMS if re.search(rf"\b{re.escape(item)}\b", text)), None
     )
@@ -101,6 +105,10 @@ def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
         "en qué puedes ayudarme",
     }:
         intent = "CAPABILITIES"
+    elif _metric_name(comparable):
+        intent = "METRIC_EXPLANATION"
+    elif dashboard_section or _is_dashboard_question(comparable):
+        intent = "DASHBOARD_SECTION_HELP"
     elif _is_explicit_historical_or_dataset(text):
         intent = "DATA_QUERY"
     elif any(word in text for word in ("limit", "limitation", "weakness", "cannot", "can't")):
@@ -162,12 +170,102 @@ def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
         intent = "DATA_QUERY"
     else:
         intent = "DASHBOARD_HELP"
-    return ParsedMessage(intent, zone, hour, parsed_date, invalid_time)
+    return ParsedMessage(intent, zone, hour, parsed_date, invalid_time, dashboard_section)
 
 
 def normalize_message(message: str) -> str:
     """Case-fold and trim common surrounding whitespace and punctuation."""
     return message.casefold().strip().strip(string.punctuation + "¡¿").strip()
+
+
+def _comparison_text(text: str) -> str:
+    decomposed = unicodedata.normalize("NFKD", text)
+    return "".join(char for char in decomposed if not unicodedata.combining(char))
+
+
+def _mentioned_section(text: str) -> str | None:
+    sections = {
+        "overview": ("overview", "dashboard overview"),
+        "live_scenario": ("live scenario", "scenario prediction", "scenario"),
+        "demand_explorer": ("demand explorer", "demand analysis"),
+        "geographic_analysis": ("geographic analysis", "geographic", "geography"),
+        "network_analysis": ("network analysis", "network"),
+        "model_performance": ("model performance", "performance"),
+        "ai_assistant": ("ai assistant", "assistant"),
+        "advanced_prediction": ("advanced prediction", "advanced"),
+        "about": ("about",),
+    }
+    for section, aliases in sections.items():
+        if any(
+            re.search(rf"\b{re.escape(alias)}\b", text) for alias in aliases if alias != "about"
+        ) or (
+            section == "about"
+            and (text == "about" or "about section" in text or "explain about" in text)
+        ):
+            return section
+    return None
+
+
+def _metric_name(text: str) -> str | None:
+    for metric in (
+        "accuracy",
+        "precision",
+        "recall",
+        "f1",
+        "roc auc",
+        "roc-auc",
+        "mae",
+        "rmse",
+        "r2",
+        "r²",
+    ):
+        if re.search(rf"\b{re.escape(metric)}\b", text):
+            return metric.replace("-", " ").replace("²", "2").upper()
+    return None
+
+
+def _is_dashboard_question(text: str) -> bool:
+    terms = (
+        "what am i looking at",
+        "what does this",
+        "what is this",
+        "what does this mean",
+        "explain this",
+        "what does this chart",
+        "what does this graph",
+        "explain the chart",
+        "explain the graph",
+        "explain the indicator",
+        "explain model performance",
+        "what does this indicator",
+        "what is the purpose",
+        "why is demand high",
+        "why is this high",
+        "what does high mean",
+        "what does low mean",
+        "what does this interval",
+        "this number mean",
+        "what is this number",
+        "why?",
+        "why is this",
+        "prediction interval",
+        "capacity indicator",
+        "capacity utilization",
+        "current prediction",
+        "que estoy viendo",
+        "que significa esta",
+        "que muestra este",
+        "que representa este",
+        "explicame",
+        "para que sirve esta",
+        "por que la demanda es alta",
+        "por que este valor",
+        "que significa high",
+        "que significa low",
+        "intervalo de prediccion",
+        "indicador de capacidad",
+    )
+    return any(term in text for term in terms)
 
 
 def _is_demand_question(text: str) -> bool:

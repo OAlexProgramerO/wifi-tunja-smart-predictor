@@ -17,6 +17,8 @@ class AssistantContext(BaseModel):
     latitude: float | None = Field(default=None, ge=-90, le=90)
     longitude: float | None = Field(default=None, ge=-180, le=180)
     datetime: DateTime | None = None
+    dashboard_section: str | None = Field(default=None, max_length=80)
+    scenario_result: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def coordinates_are_paired(self) -> AssistantContext:

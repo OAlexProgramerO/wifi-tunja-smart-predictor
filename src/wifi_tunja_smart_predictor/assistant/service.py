@@ -36,6 +36,195 @@ from wifi_tunja_smart_predictor.scenarios.service import ScenarioPredictionServi
 
 logger = logging.getLogger(__name__)
 
+_SECTION_ALIASES = {
+    "overview": "overview",
+    "dashboard overview": "overview",
+    "live scenario": "live_scenario",
+    "scenario prediction": "live_scenario",
+    "scenario": "live_scenario",
+    "demand explorer": "demand_explorer",
+    "demand analysis": "demand_explorer",
+    "geographic analysis": "geographic_analysis",
+    "geographic": "geographic_analysis",
+    "geography": "geographic_analysis",
+    "network analysis": "network_analysis",
+    "network": "network_analysis",
+    "model performance": "model_performance",
+    "performance": "model_performance",
+    "ai assistant": "ai_assistant",
+    "assistant": "ai_assistant",
+    "advanced prediction": "advanced_prediction",
+    "advanced": "advanced_prediction",
+    "about": "about",
+}
+
+
+def _canonical_section(value: str) -> str | None:
+    return _SECTION_ALIASES.get(value.casefold().strip())
+
+
+def _is_scenario_question(text: str) -> bool:
+    return any(
+        term in text
+        for term in (
+            "prediction",
+            "demand high",
+            "capacity",
+            "interval",
+            "why",
+            "probability",
+            "conexiones",
+            "prediccion",
+            "capacidad",
+            "intervalo",
+            "demanda es alta",
+        )
+    )
+
+
+def _section_explanation(section: str, language: str = "en") -> str:
+    answers = {
+        "overview": "Overview summarizes the synthetic dataset and model readiness. The prototype classifies next-hour demand as LOW/HIGH and estimates next-hour connections; it does not use live Tunja telemetry.",
+        "live_scenario": "Live Scenario combines a selected synthetic location and time with the existing classifier and regressor. It displays LOW/HIGH probability, expected next-hour connections, a validation-calibrated prediction interval, a capacity-use proxy, and local sensitivity factors. These are synthetic estimates, not live telemetry or causal findings.",
+        "demand_explorer": "Demand Explorer filters historical synthetic observations by date, zone type, access point, simulated weather, and nearby-event flag. Its distribution, hourly, weekday, zone, daily, monthly, and weekend charts describe those filtered records; they do not establish causation.",
+        "geographic_analysis": "Geographic Analysis displays simulated access-point locations and lets you select a point for the scenario builder. Coordinates and points do not represent real public WiFi infrastructure in Tunja.",
+        "network_analysis": "Network Analysis plots hourly means of the prototype's synthetic network indicators, such as connected devices, sessions, channel utilization, latency, bandwidth, packet loss, signal, and capacity proxy. They are not live network measurements.",
+        "model_performance": "Model Performance reports classification and regression metrics from a temporal synthetic-data test holdout. Accuracy, precision, recall, F1, and ROC-AUC describe classification; MAE, RMSE, and R² describe connection-count regression. These scores do not establish real-world performance.",
+        "ai_assistant": "AI Assistant uses deterministic intent rules and fixed project tools for dataset, demand, location, model, and dashboard questions. It can reuse session location, time, dashboard section, and scenario context; no LLM credential is required.",
+        "advanced_prediction": "Advanced Prediction accepts the model's explicit feature inputs and returns the existing regression estimate and calibrated prediction interval alongside classification output. The interval summarizes uncertainty for this synthetic prototype; real-world coverage is not guaranteed.",
+        "about": "About describes WiFi Tunja Smart Predictor, a Python and Streamlit decision-support prototype with deterministic assistant/API services and scikit-learn models. Its observations, locations, and outcomes are synthetic, not municipal WiFi telemetry.",
+    }
+    if language == "es":
+        spanish = {
+            "overview": "Overview resume el conjunto de datos sintético y el estado de los modelos. El prototipo clasifica la demanda de la próxima hora como LOW/HIGH y estima conexiones; no usa telemetría WiFi en vivo de Tunja.",
+            "live_scenario": "Live Scenario combina una ubicación y hora sintéticas con los modelos existentes. Muestra probabilidad LOW/HIGH, conexiones estimadas, intervalo calibrado con validación, un indicador aproximado de capacidad y factores de sensibilidad local. Son estimaciones sintéticas, no telemetría en vivo ni causas comprobadas.",
+            "demand_explorer": "Demand Explorer filtra observaciones históricas sintéticas por fecha, zona, punto de acceso, clima simulado y eventos cercanos. Sus gráficos describen esos registros y no demuestran causalidad.",
+            "geographic_analysis": "Geographic Analysis muestra ubicaciones simuladas de puntos de acceso para seleccionar en el generador de escenarios. Las coordenadas no representan infraestructura WiFi pública real en Tunja.",
+            "network_analysis": "Network Analysis grafica promedios horarios de indicadores de red sintéticos, como dispositivos conectados, sesiones, uso de canal, latencia, ancho de banda, pérdida de paquetes, señal y capacidad. No son mediciones en vivo.",
+            "model_performance": "Model Performance presenta métricas de clasificación y regresión en una partición temporal de prueba sintética. Accuracy, precision, recall, F1 y ROC-AUC describen clasificación; MAE, RMSE y R² describen regresión. No demuestran rendimiento real.",
+            "ai_assistant": "AI Assistant usa reglas deterministas y herramientas internas para preguntas sobre datos, demanda, ubicaciones, modelos y el panel. Reutiliza contexto de sesión y no requiere credenciales de un LLM.",
+            "advanced_prediction": "Advanced Prediction recibe las entradas explícitas del modelo y devuelve la estimación de regresión, su intervalo calibrado y la clasificación. La cobertura real no está garantizada.",
+            "about": "About describe WiFi Tunja Smart Predictor, un prototipo con Python, Streamlit, servicios deterministas y modelos scikit-learn. Sus observaciones, ubicaciones y resultados son sintéticos, no telemetría municipal.",
+        }
+        return spanish[section]
+    return answers[section]
+
+
+def _metric_explanation(metric: str, language: str = "en") -> str:
+    definitions = {
+        "ACCURACY": "Accuracy is the share of classification labels predicted correctly across both LOW and HIGH classes.",
+        "PRECISION": "Precision for HIGH is the share of predicted-HIGH cases that are HIGH in the evaluation labels.",
+        "RECALL": "Recall for HIGH is the share of evaluation HIGH cases the classifier identifies as HIGH.",
+        "F1": "F1 for HIGH is the harmonic mean of HIGH-class precision and recall, balancing false alarms and missed HIGH cases.",
+        "ROC AUC": "ROC-AUC measures how well the classifier ranks HIGH cases above LOW cases across probability thresholds.",
+        "MAE": "MAE is the mean absolute difference between estimated and observed next-hour connection counts; lower is better.",
+        "RMSE": "RMSE is the square root of mean squared connection-count error, so larger errors weigh more; lower is better.",
+        "R2": "R² compares regression error with a mean-baseline on the evaluated connection counts; higher is generally better, and it can be negative.",
+    }
+    if language == "es":
+        spanish = {
+            "ACCURACY": "Accuracy es la proporción de etiquetas LOW/HIGH clasificadas correctamente.",
+            "PRECISION": "Precision para HIGH es la proporción de predicciones HIGH que realmente son HIGH.",
+            "RECALL": "Recall para HIGH es la proporción de casos HIGH que el clasificador identifica.",
+            "F1": "F1 para HIGH es la media armónica de precision y recall de esa clase.",
+            "ROC AUC": "ROC-AUC mide qué tan bien el clasificador ordena casos HIGH sobre LOW entre distintos umbrales.",
+            "MAE": "MAE es el error absoluto medio entre conexiones estimadas y observadas; menor es mejor.",
+            "RMSE": "RMSE es la raíz del error cuadrático medio y penaliza más los errores grandes.",
+            "R2": "R² compara el error de regresión con una referencia basada en la media; puede ser negativo.",
+        }
+        return (
+            spanish.get(metric, "Esta métrica se reporta en el periodo sintético de prueba.")
+            + " La evaluación usa datos sintéticos y no demuestra rendimiento real."
+        )
+    return (
+        definitions.get(metric, "This metric is reported on the synthetic test period.")
+        + " The project's evaluation uses synthetic data, so it does not establish real-world performance."
+    )
+
+
+def _scenario_explanation(result: Any, language: str = "en") -> str:
+    if not isinstance(result, dict) or not {"scenario", "classification", "regression"}.issubset(
+        result
+    ):
+        return (
+            "No hay un resultado completo del escenario en esta sesión. Ejecuta un escenario primero; las estimaciones usan datos sintéticos."
+            if language == "es"
+            else "A complete scenario result is not available in this session. Run a scenario first; estimates use synthetic data."
+        )
+    classification = result["classification"]
+    regression = result["regression"]
+    demand = classification.get("predicted_demand_level", "unknown")
+    probability = classification.get("probability_high")
+    estimate = regression.get("predicted_connections_next_hour")
+    lower = regression.get("prediction_interval_lower")
+    upper = regression.get("prediction_interval_upper")
+    confidence = regression.get("interval_confidence")
+    capacity = result.get("capacity", {}).get("predicted_capacity_utilization_pct")
+    factors = result.get("explanation", {}).get("top_factors", [])
+    factor_text = ", ".join(str(item.get("label")) for item in factors[:3] if item.get("label"))
+    if language == "es":
+        answer = f"El escenario sintético actual estima demanda {demand}"
+        if probability is not None:
+            answer += f" con una probabilidad estimada de HIGH del {probability:.0%}"
+        if estimate is not None:
+            answer += f" y aproximadamente {estimate:.0f} conexiones para la próxima hora"
+        answer += "."
+        if capacity is not None:
+            answer += f" El uso aproximado de capacidad es {capacity:.1f}%."
+        if lower is not None and upper is not None and confidence is not None:
+            answer += f" El intervalo de predicción nominal del {confidence:.0%} es {lower:.0f}–{upper:.0f} conexiones."
+        if factor_text:
+            answer += f" {factor_text} son factores de sensibilidad local asociados con la salida, no causas comprobadas."
+        answer += " Este resultado usa datos sintéticos, no telemetría en vivo."
+        return answer
+    answer = f"The current synthetic scenario predicts {demand} demand"
+    if probability is not None:
+        answer += f" with {probability:.0%} estimated probability of HIGH"
+    if estimate is not None:
+        answer += f" and about {estimate:.0f} connections next hour"
+    answer += "."
+    if capacity is not None:
+        answer += f" Estimated capacity use is {capacity:.1f}%."
+    if lower is not None and upper is not None and confidence is not None:
+        answer += f" The nominal {confidence:.0%} prediction interval is {lower:.0f}–{upper:.0f} connections."
+    if factor_text:
+        answer += f" {factor_text} are local model-sensitivity factors associated with this output, not proven causes."
+    answer += " It is an estimate from synthetic data, not live telemetry."
+    return answer
+
+
+def _metric_name(text: str) -> str | None:
+    from wifi_tunja_smart_predictor.assistant.intents import _comparison_text
+
+    normalized = _comparison_text(text).replace("-", " ")
+    for metric in ("accuracy", "precision", "recall", "roc auc", "f1", "mae", "rmse", "r2"):
+        if metric in normalized:
+            return metric.upper()
+    return None
+
+
+def _response_language(message: str) -> str:
+    from wifi_tunja_smart_predictor.assistant.intents import _comparison_text
+
+    text = _comparison_text(message.casefold())
+    return (
+        "es"
+        if any(
+            term in text
+            for term in (
+                "que ",
+                "explica",
+                "explicame",
+                "seccion",
+                "grafico",
+                "demanda",
+                "por que",
+                "prediccion",
+            )
+        )
+        else "en"
+    )
+
 
 class ChatSessionStore:
     """Small process-local store for reusable scenario context, with bounded entries."""
@@ -116,7 +305,15 @@ class AssistantService:
         if context is None:
             return
         for key, value in context.model_dump(exclude_none=True).items():
-            state[key] = value.isoformat() if isinstance(value, datetime) else value
+            if key == "dashboard_section":
+                normalized = normalize_message(value)
+                section = _canonical_section(normalized)
+                if section:
+                    state[key] = section
+                else:
+                    state.pop(key, None)
+            else:
+                state[key] = value.isoformat() if isinstance(value, datetime) else value
 
     def _dispatch(
         self, parsed: ParsedMessage, message: str, state: dict[str, Any]
@@ -127,6 +324,67 @@ class AssistantService:
                 parsed.intent,
                 {"message": normalize_message(message)},
                 ["deterministic_conversation_templates"],
+                None,
+            )
+        if parsed.intent in {"DASHBOARD_SECTION_HELP", "METRIC_EXPLANATION"}:
+            section = parsed.dashboard_section or state.get("dashboard_section")
+            language = _response_language(message)
+            metric = _metric_name(normalize_message(message))
+            if metric:
+                answer = _metric_explanation(metric, language)
+            elif _is_scenario_question(normalize_message(message)):
+                scenario = state.get("scenario_result") or state.get("last_prediction")
+                answer = (
+                    _scenario_explanation(scenario, language)
+                    if scenario
+                    else (
+                        "Aún no hay un resultado de escenario en esta sesión. Ejecuta un escenario primero; las estimaciones usan datos sintéticos."
+                        if language == "es"
+                        else "There is no current scenario result in this session yet. Run a scenario first; all estimates use synthetic data."
+                    )
+                )
+            elif section == "live_scenario" and state.get("scenario_result"):
+                answer = _scenario_explanation(state["scenario_result"], language)
+            elif section:
+                answer = _section_explanation(section, language)
+                state["dashboard_section"] = section
+            else:
+                answer = (
+                    "¿Qué sección del panel quieres que explique?"
+                    if language == "es"
+                    else "Which dashboard section would you like me to explain?"
+                )
+            return (
+                "DASHBOARD_SECTION_HELP",
+                {"answer": answer},
+                ["dashboard_context", "project_documentation"],
+                None,
+            )
+        if parsed.intent in {"DASHBOARD_SECTION_HELP", "METRIC_EXPLANATION"}:
+            section = parsed.dashboard_section or state.get("dashboard_section")
+            metric = _metric_name(normalize_message(message))
+            if metric:
+                answer = _metric_explanation(metric)
+            elif _is_scenario_question(normalize_message(message)):
+                scenario = state.get("scenario_result") or state.get("last_prediction")
+                answer = (
+                    _scenario_explanation(scenario)
+                    if scenario
+                    else (
+                        "There is no current scenario result in this session yet. Run a scenario first; all estimates use synthetic data."
+                    )
+                )
+            elif section == "live_scenario" and state.get("scenario_result"):
+                answer = _scenario_explanation(state["scenario_result"])
+            elif section:
+                answer = _section_explanation(section)
+                state["dashboard_section"] = section
+            else:
+                answer = "Which dashboard section would you like me to explain?"
+            return (
+                "DASHBOARD_SECTION_HELP",
+                {"answer": answer},
+                ["dashboard_context", "project_documentation"],
                 None,
             )
         if parsed.intent == "LOCATION_INFO" and state.get("zone"):
@@ -265,6 +523,8 @@ class AssistantService:
         state["zone"] = output["scenario"]["location"]["zone_id"]
         state["datetime"] = when.isoformat()
         state["last_prediction"] = output
+        state["scenario_result"] = output
+        state["scenario_result"] = output
         intent = (
             parsed.intent if parsed.intent in {"DEMAND_SCENARIO", "EXPLANATION"} else "PREDICTION"
         )

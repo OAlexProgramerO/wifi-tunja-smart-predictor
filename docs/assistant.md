@@ -25,3 +25,11 @@ Example:
 ```
 
 Optional future LLM and live providers are intentionally not activated in this release. A deterministic provider remains the default and only configured answer path.
+
+## Dashboard-aware explanations (0.3.3)
+
+The existing chat context accepts optional `dashboard_section` and `scenario_result` fields inside `context`. Section names are validated against the dashboard's nine existing sections. The bounded process-local session store retains these values alongside the V3.2 location and time so short follow-ups such as “Explain this” can use the active context. Without a recognized section, the assistant asks which section to explain.
+
+The assistant explains Overview, Live Scenario, Demand Explorer, Geographic Analysis, Network Analysis, Model Performance, AI Assistant, Advanced Prediction, and About in English and Spanish. It also describes accuracy, precision, recall, F1, ROC-AUC, MAE, RMSE, and R² conceptually. No metric values are fabricated. Scenario explanations use the supplied or previously returned scenario result rather than running inference again. Local sensitivity factors are described as associations, not causes. All data, locations, outcomes, and performance metrics remain synthetic and do not represent real Tunja WiFi telemetry.
+
+The Streamlit page passes the last visited dashboard section and the currently displayed scenario result through the existing chat context. The assistant remains deterministic and requires no LLM credential.
