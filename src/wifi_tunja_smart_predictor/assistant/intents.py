@@ -62,6 +62,8 @@ class ParsedMessage:
     date: datetime | None
     invalid_time: bool = False
     dashboard_section: str | None = None
+    historical_kind: str | None = None
+    comparison_zones: tuple[str, ...] = ()
 
 
 def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
@@ -69,6 +71,7 @@ def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
     text = normalize_message(message)
     comparable = _comparison_text(text)
     dashboard_section = _mentioned_section(comparable)
+    comparison_zones = _comparison_zones(comparable)
     raw_zone = next(
         (item for item in ZONE_TERMS if re.search(rf"\b{re.escape(item)}\b", text)), None
     )
@@ -79,6 +82,42 @@ def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
             text,
         )
         raw_zone = unknown_match.group(1) if unknown_match else None
+        if raw_zone in {
+            "historically",
+            "historical",
+            "demand",
+            "highest",
+            "lowest",
+            "average",
+            "usually",
+            "at",
+            "6",
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "manana",
+            "tarde",
+            "noche",
+            "tiene",
+            "tuvo",
+            "semana",
+            "dia",
+            "hora",
+            "mayor",
+            "mas",
+            "menos",
+            "alta",
+            "alto",
+            "baja",
+            "bajo",
+            "suele",
+            "historica",
+            "demanda",
+            "high",
+            "low",
+        }:
+            raw_zone = None
     zone = ZONE_ALIASES.get(raw_zone, raw_zone)
     hour, invalid_time = _parse_hour(text, allow_bare=demand_question)
     parsed_date = (
@@ -86,6 +125,7 @@ def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
         if "today" in text or "tonight" in text or "hoy" in text
         else None
     )
+    historical_kind = _historical_kind(comparable, comparison_zones, hour)
 
     if text in {"hi", "hello", "hey", "hola", "buenas"}:
         intent = "GREETING"
@@ -105,6 +145,15 @@ def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
         "en qué puedes ayudarme",
     }:
         intent = "CAPABILITIES"
+    elif (
+        historical_kind
+        and "historically" in comparable
+        and "synthetic zone" in comparable
+        and hour is not None
+    ):
+        intent = "DATA_QUERY"
+    elif historical_kind and not _is_dashboard_question(comparable):
+        intent = historical_kind
     elif _metric_name(comparable):
         intent = "METRIC_EXPLANATION"
     elif dashboard_section or _is_dashboard_question(comparable):
@@ -170,7 +219,174 @@ def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
         intent = "DATA_QUERY"
     else:
         intent = "DASHBOARD_HELP"
-    return ParsedMessage(intent, zone, hour, parsed_date, invalid_time, dashboard_section)
+    return ParsedMessage(
+        intent,
+        zone,
+        hour,
+        parsed_date,
+        invalid_time,
+        dashboard_section,
+        historical_kind,
+        comparison_zones,
+    )
+
+
+def _comparison_zones(text: str) -> tuple[str, ...]:
+    occurrences = []
+    for term in ZONE_TERMS:
+        for match in re.finditer(rf"\b{re.escape(_comparison_text(term))}\b", text):
+            occurrences.append((match.start(), match.end(), ZONE_ALIASES.get(term, term)))
+    occurrences.sort(key=lambda item: (item[0], -(item[1] - item[0])))
+    found = []
+    last_end = -1
+    for start, end, zone in occurrences:
+        if start >= last_end:
+            found.append(zone)
+            last_end = end
+    match = re.search(
+        r"\b(?:compare|compara|between|entre)\s+(?:the\s+|el\s+|la\s+)?(.+?)\s+(?:and|with|vs\.?|versus|or|y|con)\s+(?:the\s+|el\s+|la\s+)?([a-z][a-z -]*)\b",
+        text,
+    )
+    if match:
+        operands = [match.group(1).split()[-2:], match.group(2).split()[:2]]
+        extracted = []
+        for words in operands:
+            phrase = " ".join(words).strip()
+            known = next(
+                (
+                    ZONE_ALIASES.get(term, term)
+                    for term in ZONE_TERMS
+                    if re.search(rf"\b{re.escape(_comparison_text(term))}\b", phrase)
+                ),
+                None,
+            )
+            if known:
+                extracted.append(known)
+            elif phrase:
+                extracted.append(phrase.split()[-1])
+        if len(extracted) == 2:
+            return tuple(extracted)
+    return tuple(dict.fromkeys(found))
+
+
+def _historical_kind(text: str, zones: tuple[str, ...], hour: int | None) -> str | None:
+    comparison = any(
+        term in text
+        for term in (
+            "compare",
+            "compara",
+            "compared",
+            "which has more",
+            "which zone has higher",
+            "which zone had more",
+            "que zona tiene mayor",
+            "que zona tuvo mas",
+            "how does",
+            "como se compara",
+        )
+    )
+    time_analysis = any(
+        term in text
+        for term in (
+            "morning",
+            "afternoon",
+            "evening",
+            "night",
+            "manana",
+            "tarde",
+            "noche",
+            "weekday",
+            "weekend",
+            "day of the week",
+            "dia de la semana",
+            "hour",
+            "hora",
+            "what time",
+            "what day",
+            "que dia",
+            "a que hora",
+        )
+    )
+    peak = any(
+        term in text
+        for term in (
+            "highest",
+            "lowest",
+            "peak",
+            "mas alta",
+            "mas bajo",
+            "mayor demanda",
+            "cuando suele",
+            "what time",
+            "what day",
+            "que dia",
+            "a que hora",
+        )
+    )
+    zone_analysis = any(
+        term in text
+        for term in (
+            "average",
+            "promedio",
+            "distribution",
+            "distribucion",
+            "by zone",
+            "por zona",
+            "historical demand",
+            "historically",
+            "historical pattern",
+            "patron historico",
+            "historicamente",
+            "how has demand changed",
+            "como ha cambiado",
+            "demand changed",
+        )
+    )
+    historical = any(
+        term in text
+        for term in (
+            "historical",
+            "historically",
+            "pattern",
+            "history",
+            "historica",
+            "historicamente",
+            "patron",
+            "changed",
+            "cambiado",
+            "average",
+            "promedio",
+            "usually",
+            "suele",
+            "weekday",
+            "weekend",
+        )
+    )
+    if len(zones) > 1 or comparison:
+        return "HISTORICAL_COMPARISON"
+    if peak and "zone" in text and hour is not None:
+        return "HISTORICAL_ZONE_ANALYSIS"
+    if peak and time_analysis:
+        return "HISTORICAL_TIME_ANALYSIS"
+    if time_analysis and any(
+        term in text for term in ("higher", "mayor", "more", " o ", " or ", " vs ")
+    ):
+        return "HISTORICAL_TIME_ANALYSIS"
+    if peak:
+        return "HISTORICAL_PEAK"
+    if zone_analysis or (historical and zones):
+        return "HISTORICAL_ZONE_ANALYSIS"
+    if time_analysis and historical:
+        return "HISTORICAL_TIME_ANALYSIS"
+    if historical:
+        return "HISTORICAL_DEMAND"
+    if (
+        _is_demand_question(text)
+        and hour is None
+        and any(term in text for term in ("usually", "suele", "average", "promedio"))
+    ):
+        return "HISTORICAL_DEMAND"
+    return None
 
 
 def normalize_message(message: str) -> str:
