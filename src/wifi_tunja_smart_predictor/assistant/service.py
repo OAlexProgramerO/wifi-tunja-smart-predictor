@@ -13,6 +13,7 @@ import pandas as pd
 from wifi_tunja_smart_predictor.assistant.intents import (
     LOCAL_ZONE,
     ParsedMessage,
+    _comparison_text,
     normalize_message,
     parse_message,
 )
@@ -276,7 +277,12 @@ class AssistantService:
         state = self.sessions.get(session_id)
         self._merge_context(state, request.context)
         parsed = parse_message(request.message, has_context=bool(state.get("location")))
-        if parsed.zone and parsed.intent != "DEMAND_SCENARIO":
+        if (
+            parsed.zone
+            and not parsed.historical_kind
+            and not parsed.intent.startswith("HISTORICAL")
+            and parsed.intent != "DEMAND_SCENARIO"
+        ):
             state["zone"] = parsed.zone
         try:
             intent, result, sources, scenario = self._dispatch(parsed, request.message, state)
@@ -451,6 +457,9 @@ class AssistantService:
                 ["project_methodology"],
                 None,
             )
+        if parsed.historical_kind or parsed.intent.startswith("HISTORICAL"):
+            result = self._historical_analysis(parsed, message, state)
+            return parsed.intent, result, ["dataset_query_tool", "synthetic_dataset"], None
         if parsed.intent == "DATA_QUERY":
             result = self._natural_query(message, parsed, state)
             return "DATA_QUERY", result, ["dataset_query_tool", "synthetic_dataset"], None
@@ -524,7 +533,6 @@ class AssistantService:
         state["datetime"] = when.isoformat()
         state["last_prediction"] = output
         state["scenario_result"] = output
-        state["scenario_result"] = output
         intent = (
             parsed.intent if parsed.intent in {"DEMAND_SCENARIO", "EXPLANATION"} else "PREDICTION"
         )
@@ -538,6 +546,367 @@ class AssistantService:
             output["explanation"] = model_explanation_tool(output)
             output["explanation_question"] = True
         return intent, output, sources, output["scenario"]
+
+    def _historical_analysis(
+        self, parsed: ParsedMessage, message: str, state: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Aggregate historical outcomes through the existing allowlisted query engine."""
+        text = _comparison_text(message.casefold())
+        language = (
+            "es"
+            if any(
+                word in text
+                for word in (
+                    "demanda",
+                    "compara",
+                    "historica",
+                    "promedio",
+                    "manana",
+                    "noche",
+                    "que zona",
+                    "que dia",
+                )
+            )
+            else "en"
+        )
+        if parsed.invalid_time:
+            return {
+                "answer": (
+                    "Indica una hora válida, por ejemplo 18:00 o 6 PM."
+                    if language == "es"
+                    else "Please provide a valid hour, such as 18:00 or 6 PM."
+                )
+            }
+        filters: dict[str, Any] = {}
+        explicit_zones = list(parsed.comparison_zones)
+        if not explicit_zones and parsed.zone:
+            explicit_zones = [parsed.zone]
+        if not explicit_zones and parsed.historical_kind != "HISTORICAL_COMPARISON":
+            location = state.get("location") or {}
+            remembered = location.get("zone_id") or state.get("zone")
+            if remembered:
+                explicit_zones = [str(remembered)]
+
+        zone_ids: list[str] = []
+        zone_labels: dict[str, str] = {}
+        for zone in explicit_zones:
+            try:
+                resolved = (
+                    self.locations.resolve(zone_id=zone)
+                    if zone.casefold().startswith("zone_")
+                    else self.locations.resolve(zone=zone)
+                )
+            except LocationResolutionError as exc:
+                return {
+                    "answer": (
+                        f"No encontré la zona sintética '{zone}'. Elige una zona disponible del conjunto de datos."
+                        if language == "es"
+                        else f"I couldn't match '{zone}' to a synthetic zone. Choose a zone available in the dataset."
+                    ),
+                    "error": str(exc),
+                }
+            zone_ids.append(resolved.zone_id)
+            zone_labels[resolved.zone_id] = resolved.zone_name
+
+        if parsed.hour is not None:
+            filters["hour"] = parsed.hour
+        period_comparison = (
+            ("morning" in text and ("evening" in text or "night" in text))
+            or ("manana" in text and "noche" in text)
+        ) and any(term in text for term in (" or ", " o ", "higher", "mayor", "more"))
+        weekday_weekend = "weekday" in text and "weekend" in text
+        if not period_comparison and ("morning" in text or "manana" in text):
+            filters["time_period"] = "MORNING"
+        elif not period_comparison and ("afternoon" in text or "tarde" in text):
+            filters["time_period"] = "AFTERNOON"
+        elif not period_comparison and ("night" in text or "noche" in text):
+            filters["time_period"] = "NIGHT"
+        elif not period_comparison and "evening" in text:
+            filters["time_period"] = "EVENING"
+        if not weekday_weekend and ("weekend" in text or "fin de semana" in text):
+            filters["is_weekend"] = 1
+        elif not weekday_weekend and ("weekday" in text or "entre semana" in text):
+            filters["is_weekend"] = 0
+
+        if "changed" in text or "cambiado" in text:
+            return self._historical_change(zone_ids[0] if zone_ids else None, filters, language)
+
+        kind = parsed.historical_kind or parsed.intent
+        metric = (
+            "high_share"
+            if " high " in f" {text} " or "high-demand" in text or "alta" in text
+            else "mean_connections"
+        )
+        if kind == "HISTORICAL_COMPARISON" and len(zone_ids) >= 2:
+            if zone_ids[0] == zone_ids[1]:
+                return {
+                    "answer": (
+                        "Seleccionaste la misma zona dos veces; elige dos zonas diferentes."
+                        if language == "es"
+                        else "Both comparison labels resolve to the same synthetic zone. Choose two different zones."
+                    )
+                }
+            records = self._history_stats(group_by=("zone_id", "zone_name"), filters=filters)
+            selected = [row for row in records if row["zone_id"] in zone_ids[:2]]
+            if len(selected) < 2:
+                return self._empty_history(language)
+            answer = self._comparison_answer(selected, "mean_connections", language)
+            answer += " " + self._comparison_answer(selected, "high_share", language)
+            return {"answer": answer + self._synthetic_suffix(language), "rows": selected}
+        if (
+            kind == "HISTORICAL_COMPARISON"
+            and not zone_ids
+            and any(word in text for word in ("compare", "compara", "between", "entre"))
+        ):
+            return {
+                "answer": (
+                    "¿Qué dos zonas sintéticas quieres comparar?"
+                    if language == "es"
+                    else "Which two synthetic zones would you like to compare?"
+                )
+            }
+
+        if kind in {"HISTORICAL_PEAK", "HISTORICAL_TIME_ANALYSIS"}:
+            if any(term in text for term in ("day", "weekday", "dia", "semana")):
+                group_by = ("day_name",)
+                label = "day"
+            elif period_comparison:
+                group_by = ("time_period",)
+                label = "period"
+            elif weekday_weekend:
+                group_by = ("is_weekend",)
+                label = "weekend"
+            elif kind == "HISTORICAL_TIME_ANALYSIS" and filters.get("time_period"):
+                group_by = ()
+                label = "period"
+            else:
+                group_by = ("hour",)
+                label = "hour"
+            records = self._history_stats(group_by=group_by, filters=filters)
+            if not records:
+                return self._empty_history(language)
+            if label in {"period", "weekend"} and len(records) > 1:
+                if label == "period":
+                    requested = []
+                    if "morning" in text or "manana" in text:
+                        requested.append("MORNING")
+                    if "afternoon" in text or "tarde" in text:
+                        requested.append("AFTERNOON")
+                    if "evening" in text:
+                        requested.append("EVENING")
+                    if "night" in text or "noche" in text:
+                        requested.append("NIGHT")
+                    if requested:
+                        records = [row for row in records if row.get("time_period") in requested]
+                    if len(records) < 2:
+                        return self._empty_history(language)
+                return {
+                    "answer": self._comparison_answer(records, metric, language, label=label),
+                    "rows": records,
+                }
+            reverse = "lowest" not in text and "baja" not in text and "lowest" not in text
+            best = sorted(
+                records,
+                key=lambda item: ((item.get(metric) or 0), str(item[group_by[0]])),
+                reverse=reverse,
+            )[0]
+            dimension = best[group_by[0]]
+            if label == "hour":
+                dimension = f"{int(dimension):02d}:00"
+            value = best.get(metric)
+            summary = self._metric_label(metric, value)
+            answer = (
+                f"En los registros sintéticos, el valor {'más bajo' if not reverse else 'más alto'} aparece en {dimension}: {summary}."
+                if language == "es"
+                else f"In the synthetic records, the {'lowest' if not reverse else 'highest'} value is at {dimension}: {summary}."
+            )
+            return {"answer": answer + self._synthetic_suffix(language), "rows": records}
+
+        if zone_ids:
+            filters["zone_id"] = zone_ids[0]
+        if kind == "HISTORICAL_TIME_ANALYSIS":
+            group_by = ("time_period",)
+        elif kind == "HISTORICAL_PEAK":
+            group_by = ("hour",)
+        else:
+            group_by = ("zone_id", "zone_name") if not zone_ids else ()
+        records = self._history_stats(group_by=group_by, filters=filters)
+        if not records:
+            return self._empty_history(language)
+        if zone_ids:
+            for row in records:
+                row["zone_id"] = zone_ids[0]
+                row["zone_name"] = zone_labels.get(zone_ids[0], zone_ids[0])
+        if group_by and group_by[0] == "zone_id":
+            records = sorted(
+                records, key=lambda row: row.get("mean_connections") or 0, reverse=True
+            )
+            answer = self._zone_summary(
+                records, language, high_first="high" in text or "alta" in text
+            )
+            return {"answer": answer + self._synthetic_suffix(language), "rows": records}
+        row = records[0]
+        answer = (
+            f"El promedio de conexiones estimadas para la próxima hora es {row.get('mean_connections', 0):.1f}; la frecuencia de demanda HIGH es {row.get('high_share', 0):.1%} (LOW: {row.get('low_share', 0):.1%})."
+            if language == "es"
+            else f"Average next-hour connections are {row.get('mean_connections', 0):.1f}; the HIGH-demand rate is {row.get('high_share', 0):.1%} (LOW: {row.get('low_share', 0):.1%})."
+        )
+        return {"answer": answer + self._synthetic_suffix(language), "rows": records}
+
+    def _history_stats(
+        self, *, group_by: tuple[str, ...], filters: dict[str, Any]
+    ) -> list[dict[str, Any]]:
+        mean = dataset_query_tool(
+            self.queries,
+            DatasetQuery(
+                metric="mean",
+                column="connections_next_hour",
+                group_by=list(group_by),
+                filters=filters,
+            ),
+        )
+        high = dataset_query_tool(
+            self.queries,
+            DatasetQuery(
+                metric="high_share", column="demand_level", group_by=list(group_by), filters=filters
+            ),
+        )
+        if not group_by:
+            if mean.get("rows_after_filters", 0) == 0:
+                return []
+            high_share = high["value"]
+            return [
+                {
+                    **mean,
+                    "mean_connections": mean["value"],
+                    "high_share": high_share,
+                    "low_share": 1 - high_share if high_share is not None else None,
+                }
+            ]
+        high_by_key = {tuple(row[key] for key in group_by): row for row in high}
+        combined = []
+        for row in mean:
+            key = tuple(row[column] for column in group_by)
+            merged = dict(row)
+            merged["mean_connections"] = row.get("value")
+            merged["high_share"] = high_by_key.get(key, {}).get("value")
+            merged["low_share"] = (
+                1 - merged["high_share"] if merged["high_share"] is not None else None
+            )
+            combined.append(merged)
+        return combined
+
+    @staticmethod
+    def _metric_label(metric: str, value: Any) -> str:
+        if value is None:
+            return "no value"
+        if metric == "high_share":
+            return f"{value:.1%} HIGH-demand rate"
+        return f"{value:.1f} average next-hour connections"
+
+    @staticmethod
+    def _zone_summary(records: list[dict[str, Any]], language: str, high_first: bool) -> str:
+        if high_first:
+            records = sorted(records, key=lambda row: row.get("high_share") or 0, reverse=True)
+            metric = "frecuencia de demanda HIGH" if language == "es" else "HIGH-demand rate"
+        else:
+            metric = (
+                "promedio de conexiones para la próxima hora"
+                if language == "es"
+                else "average next-hour connections"
+            )
+        parts = [
+            f"{row.get('zone_name', row.get('zone_id'))}: {row.get('mean_connections', 0):.1f} conexiones, {row.get('high_share', 0):.1%} HIGH, {row.get('low_share', 0):.1%} LOW"
+            for row in records[:5]
+        ]
+        if language == "es":
+            return (
+                f"Por {metric}, los resultados de zonas del conjunto sintético son: "
+                + "; ".join(parts)
+                + "."
+            )
+        return f"By {metric}, the synthetic zone results are: " + "; ".join(parts) + "."
+
+    @staticmethod
+    def _comparison_answer(
+        rows: list[dict[str, Any]], metric: str, language: str, label: str = "zone"
+    ) -> str:
+        left, right = rows[:2]
+        left_value, right_value = left.get(metric) or 0, right.get(metric) or 0
+        left_name = left.get("zone_name", left.get(label, "first"))
+        right_name = right.get("zone_name", right.get(label, "second"))
+        metric_name = (
+            (
+                "frecuencia de demanda HIGH"
+                if metric == "high_share"
+                else "promedio de conexiones para la próxima hora"
+            )
+            if language == "es"
+            else ("HIGH-demand rate" if metric == "high_share" else "average next-hour connections")
+        )
+        if label == "period":
+            left_name, right_name = left.get("time_period"), right.get("time_period")
+        elif label == "weekend":
+            left_name = "weekend" if left.get("is_weekend") else "weekday"
+            right_name = "weekend" if right.get("is_weekend") else "weekday"
+        winner = left_name if left_value >= right_value else right_name
+        if language == "es":
+            return (
+                f"En los registros sintéticos, {left_name} tiene {metric_name} de {left_value:.1%}"
+                f" frente a {right_name} con {right_value:.1%}; {winner} es mayor."
+                if metric == "high_share"
+                else f"En los registros sintéticos, {left_name} tiene {metric_name} de {left_value:.1f} conexiones"
+                f" frente a {right_name} con {right_value:.1f}; {winner} es mayor."
+            )
+        return (
+            f"Historically in the synthetic records, {left_name} has {metric_name} of {left_value:.1%}"
+            f" versus {right_name} at {right_value:.1%}; {winner} is higher."
+            if metric == "high_share"
+            else f"Historically in the synthetic records, {left_name} has {metric_name} of {left_value:.1f} connections"
+            f" versus {right_name} at {right_value:.1f}; {winner} is higher."
+        )
+
+    def _historical_change(
+        self, zone_id: str | None, filters: dict[str, Any], language: str
+    ) -> dict[str, Any]:
+        if zone_id:
+            filters = {**filters, "zone_id": zone_id}
+        rows = self._history_stats(group_by=("year", "month"), filters=filters)
+        rows.sort(key=lambda row: (row.get("year", 0), row.get("month", 0)))
+        if len(rows) < 2:
+            return self._empty_history(
+                language,
+                (
+                    "No hay suficientes periodos mensuales sintéticos distintos para calcular un cambio histórico."
+                    if language == "es"
+                    else "There are not enough distinct monthly periods in the synthetic dataset to calculate a historical change."
+                ),
+            )
+        first, last = rows[0], rows[-1]
+        delta = (last.get("mean_connections") or 0) - (first.get("mean_connections") or 0)
+        answer = (
+            f"Entre {first['year']}-{first['month']:02d} y {last['year']}-{last['month']:02d}, el promedio sintético de conexiones para la próxima hora {'aumentó' if delta >= 0 else 'disminuyó'} en {abs(delta):.1f}."
+            if language == "es"
+            else f"From {first['year']}-{first['month']:02d} to {last['year']}-{last['month']:02d}, the synthetic average next-hour connections {'increased' if delta >= 0 else 'decreased'} by {abs(delta):.1f}."
+        )
+        return {"answer": answer + self._synthetic_suffix(language), "rows": rows}
+
+    @staticmethod
+    def _empty_history(language: str, detail: str | None = None) -> dict[str, Any]:
+        answer = detail or (
+            "No hay observaciones históricas sintéticas que coincidan con esos filtros."
+            if language == "es"
+            else "There are no matching synthetic historical observations for those filters."
+        )
+        return {"answer": answer, "rows": []}
+
+    @staticmethod
+    def _synthetic_suffix(language: str) -> str:
+        return (
+            " Es un patrón simulado, no uso real de WiFi en Tunja."
+            if language == "es"
+            else " This is a simulated historical pattern, not real Tunja WiFi usage."
+        )
 
     def _natural_query(
         self, message: str, parsed: ParsedMessage, state: dict[str, Any]
