@@ -58,6 +58,16 @@ def suggestions() -> dict[str, list[str]]:
             "Which synthetic zone has historically shown higher demand at 7 PM?",
             "What is the test F1 score?",
             "Explain the dashboard.",
+            "How is demand historically?",
+            "When is demand usually highest?",
+            "Compare two zones.",
+            "Which zone has higher demand?",
+            "What day has the highest demand?",
+            "¿Cómo es históricamente la demanda?",
+            "¿Cuándo suele ser más alta?",
+            "Compara dos zonas.",
+            "¿Qué zona tiene mayor demanda?",
+            "¿Qué día tiene mayor demanda?",
         ]
     }
 

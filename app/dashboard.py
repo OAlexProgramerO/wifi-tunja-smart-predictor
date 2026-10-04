@@ -634,11 +634,23 @@ def render_assistant() -> None:
         "¿Qué significa esta predicción?",
         "¿Por qué la demanda es alta?",
         "¿Qué muestra este gráfico?",
+        "How is demand historically?",
+        "When is demand usually highest?",
+        "Compare two zones.",
+        "Which zone has higher demand?",
+        "What day has the highest demand?",
+        "¿Cómo es históricamente la demanda?",
+        "¿Cuándo suele ser más alta?",
+        "Compara dos zonas.",
+        "¿Qué zona tiene mayor demanda?",
+        "¿Qué día tiene mayor demanda?",
     ]
-    columns = st.columns(len(suggestions))
-    for column, suggestion in zip(columns, suggestions):
-        if column.button(suggestion, key=f"suggest_{suggestion}"):
-            st.session_state["assistant_pending"] = suggestion
+    for start in range(0, len(suggestions), 5):
+        row = suggestions[start : start + 5]
+        columns = st.columns(len(row))
+        for column, suggestion in zip(columns, row):
+            if column.button(suggestion, key=f"suggest_{suggestion}"):
+                st.session_state["assistant_pending"] = suggestion
     for message in st.session_state["assistant_messages"]:
         with st.chat_message(message["role"]):
             st.markdown(message["content"])
