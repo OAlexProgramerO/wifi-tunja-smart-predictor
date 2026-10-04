@@ -14,6 +14,7 @@ from wifi_tunja_smart_predictor.exceptions import AssistantQueryError
 Metric = Literal["count", "mean", "median", "min", "max", "nunique", "high_share"]
 GROUPABLE_COLUMNS = {
     "zone_id",
+    "zone_name",
     "zone_type",
     "wifi_id",
     "hour",
@@ -23,6 +24,9 @@ GROUPABLE_COLUMNS = {
     "traffic_level",
     "demand_level",
     "month",
+    "year",
+    "day_name",
+    "time_period",
 }
 FILTERABLE_COLUMNS = GROUPABLE_COLUMNS | {"date", "timestamp", "date_start", "date_end"}
 QUERYABLE_COLUMNS = set(REQUIRED_COLUMNS) - {"timestamp"}
