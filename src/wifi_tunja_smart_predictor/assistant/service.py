@@ -565,6 +565,8 @@ class AssistantService:
                     "noche",
                     "que zona",
                     "que dia",
+                    "entre semana",
+                    "fin de semana",
                 )
             )
             else "en"
@@ -614,7 +616,9 @@ class AssistantService:
             ("morning" in text and ("evening" in text or "night" in text))
             or ("manana" in text and "noche" in text)
         ) and any(term in text for term in (" or ", " o ", "higher", "mayor", "more"))
-        weekday_weekend = "weekday" in text and "weekend" in text
+        weekday_weekend = ("weekday" in text and "weekend" in text) or (
+            "entre semana" in text and "fin de semana" in text
+        )
         if not period_comparison and ("morning" in text or "manana" in text):
             filters["time_period"] = "MORNING"
         elif not period_comparison and ("afternoon" in text or "tarde" in text):
@@ -652,6 +656,7 @@ class AssistantService:
                 return self._empty_history(language)
             answer = self._comparison_answer(selected, "mean_connections", language)
             answer += " " + self._comparison_answer(selected, "high_share", language)
+            answer += " " + self._comparison_answer(selected, "low_share", language)
             return {"answer": answer + self._synthetic_suffix(language), "rows": selected}
         if (
             kind == "HISTORICAL_COMPARISON"
@@ -667,15 +672,15 @@ class AssistantService:
             }
 
         if kind in {"HISTORICAL_PEAK", "HISTORICAL_TIME_ANALYSIS"}:
-            if any(term in text for term in ("day", "weekday", "dia", "semana")):
+            if weekday_weekend:
+                group_by = ("is_weekend",)
+                label = "weekend"
+            elif any(term in text for term in ("day", "weekday", "dia", "semana")):
                 group_by = ("day_name",)
                 label = "day"
             elif period_comparison:
                 group_by = ("time_period",)
                 label = "period"
-            elif weekday_weekend:
-                group_by = ("is_weekend",)
-                label = "weekend"
             elif kind == "HISTORICAL_TIME_ANALYSIS" and filters.get("time_period"):
                 group_by = ()
                 label = "period"
@@ -837,31 +842,39 @@ class AssistantService:
         right_name = right.get("zone_name", right.get(label, "second"))
         metric_name = (
             (
-                "frecuencia de demanda HIGH"
-                if metric == "high_share"
+                f"frecuencia de demanda {metric.removesuffix('_share').upper()}"
+                if metric in {"high_share", "low_share"}
                 else "promedio de conexiones para la próxima hora"
             )
             if language == "es"
-            else ("HIGH-demand rate" if metric == "high_share" else "average next-hour connections")
+            else (
+                f"{metric.removesuffix('_share').upper()}-demand rate"
+                if metric in {"high_share", "low_share"}
+                else "average next-hour connections"
+            )
         )
         if label == "period":
             left_name, right_name = left.get("time_period"), right.get("time_period")
         elif label == "weekend":
-            left_name = "weekend" if left.get("is_weekend") else "weekday"
-            right_name = "weekend" if right.get("is_weekend") else "weekday"
+            if language == "es":
+                left_name = "fin de semana" if left.get("is_weekend") else "entre semana"
+                right_name = "fin de semana" if right.get("is_weekend") else "entre semana"
+            else:
+                left_name = "weekend" if left.get("is_weekend") else "weekday"
+                right_name = "weekend" if right.get("is_weekend") else "weekday"
         winner = left_name if left_value >= right_value else right_name
         if language == "es":
             return (
                 f"En los registros sintéticos, {left_name} tiene {metric_name} de {left_value:.1%}"
                 f" frente a {right_name} con {right_value:.1%}; {winner} es mayor."
-                if metric == "high_share"
+                if metric in {"high_share", "low_share"}
                 else f"En los registros sintéticos, {left_name} tiene {metric_name} de {left_value:.1f} conexiones"
                 f" frente a {right_name} con {right_value:.1f}; {winner} es mayor."
             )
         return (
             f"Historically in the synthetic records, {left_name} has {metric_name} of {left_value:.1%}"
             f" versus {right_name} at {right_value:.1%}; {winner} is higher."
-            if metric == "high_share"
+            if metric in {"high_share", "low_share"}
             else f"Historically in the synthetic records, {left_name} has {metric_name} of {left_value:.1f} connections"
             f" versus {right_name} at {right_value:.1f}; {winner} is higher."
         )

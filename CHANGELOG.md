@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.4] - 2026-10-05
+
+### Added
+
+- Deterministic historical analysis of average next-hour connections and LOW/HIGH demand rates.
+- Historical zone and time-period comparisons, peak-hour and peak-weekday analysis, and month-over-month span summaries.
+- English and Spanish historical question suggestions and focused assistant tests.
+
+### Improved
+
+- Historical questions reuse the allowlisted dataset query engine and remembered zone context without replacing scenario state.
+- Demand Explorer assistant prompts are arranged in compact rows.
+- Bumped package version to 0.3.4.
+
 ## [0.3.3] - 2026-10-03
 
 ### Added

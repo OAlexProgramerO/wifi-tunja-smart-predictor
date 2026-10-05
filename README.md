@@ -9,9 +9,11 @@
 
 Read this in [Español](README.es.md)
 
-**Current release: 0.3.3 (V3.3 — Dashboard-Aware Assistant).** V3 is a synthetic decision-support prototype that turns a location and time into a LOW/HIGH WiFi demand class, next-hour connection estimate, validation-calibrated prediction interval, capacity proxy, and local model-sensitivity summary. The deterministic assistant now explains the active dashboard section, current scenario output, indicators, and model metrics in English and Spanish, while keeping synthetic-data and non-causality limits explicit.
+**Current release: 0.3.4 (V3.4 — Historical Demand Analysis).** V3 is a synthetic decision-support prototype that turns a location and time into a LOW/HIGH WiFi demand class, next-hour connection estimate, validation-calibrated prediction interval, capacity proxy, and local model-sensitivity summary. The deterministic assistant now analyzes historical connection averages and HIGH/LOW rates by zone and time, compares zones, and finds peak periods while preserving dashboard-aware responses and explicit synthetic-data limits.
 
 **V3.2 release note:** The deterministic assistant now answers natural English and Spanish demand questions using synthetic zone and time context, and reuses the location in follow-up questions.
+
+**V3.4 release note:** The assistant now computes historical averages, HIGH/LOW rates, zone comparisons, and peak hours/days from synthetic observations. These analyses are separate from model-generated scenario forecasts.
 
 > **Synthetic data only.** Access points, coordinates, demand, weather, events, network metrics, and historical values are simulated. They do not represent actual public WiFi usage or municipal infrastructure in Tunja.
 
@@ -32,6 +34,7 @@ The project explores how an hourly WiFi demand classification system can be stru
 - English and Spanish greetings, assistant identity, and capability questions with case- and punctuation-insensitive matching.
 - Context-aware natural demand questions in English and Spanish, including zone/time aliases and follow-up location reuse through the existing scenario service.
 - Dashboard-aware assistant explanations for all nine sections, current scenario results, indicators, and model metrics in English and Spanish.
+- Historical demand analysis in English and Spanish, including zone comparisons, HIGH-demand rates, peak hours/weekdays, time-of-day comparisons, and supported monthly change summaries.
 - Nine dashboard sections: Overview, Live Scenario, Demand Explorer, Geographic Analysis, Network Analysis, Model Performance, AI Assistant, Advanced Prediction, and About.
 - pytest, Ruff, Black, and GitHub Actions configuration.
 

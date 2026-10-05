@@ -297,6 +297,8 @@ def _historical_kind(text: str, zones: tuple[str, ...], hour: int | None) -> str
             "noche",
             "weekday",
             "weekend",
+            "entre semana",
+            "fin de semana",
             "day of the week",
             "dia de la semana",
             "hour",
@@ -360,6 +362,8 @@ def _historical_kind(text: str, zones: tuple[str, ...], hour: int | None) -> str
             "suele",
             "weekday",
             "weekend",
+            "entre semana",
+            "fin de semana",
         )
     )
     if len(zones) > 1 or comparison:

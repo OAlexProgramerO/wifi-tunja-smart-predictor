@@ -4,9 +4,11 @@
 
 Leer en [English](README.md)
 
-**Versión actual: 0.3.3 (V3.3 — Asistente consciente del panel).** V3 es un prototipo de apoyo a decisiones con datos sintéticos. A partir de una ubicación y hora estima demanda LOW/HIGH, conexiones para la próxima hora, intervalo calibrado con validación, uso aproximado de capacidad y sensibilidad local del modelo. El asistente determinista ahora explica la sección activa, el escenario mostrado, indicadores y métricas en inglés y español, manteniendo explícitos los límites de los datos sintéticos y la causalidad.
+**Versión actual: 0.3.4 (V3.4 — Análisis histórico de demanda).** V3 es un prototipo de apoyo a decisiones con datos sintéticos. A partir de una ubicación y hora estima demanda LOW/HIGH, conexiones para la próxima hora, intervalo calibrado con validación, uso aproximado de capacidad y sensibilidad local del modelo. El asistente determinista ahora analiza promedios de conexiones y frecuencias HIGH/LOW por zona y periodo, compara zonas y detecta periodos pico, manteniendo los límites de datos sintéticos.
 
 **Novedad V3.2:** El asistente determinista responde consultas naturales de demanda en inglés y español con contexto de zona y hora, y reutiliza la ubicación en preguntas posteriores.
+
+**Novedad V3.4:** El asistente calcula promedios históricos, frecuencias HIGH/LOW, comparaciones de zonas y horas/días pico sobre observaciones sintéticas. Estos análisis son distintos de las predicciones de escenarios del modelo.
 
 > **Solo datos sintéticos.** Los puntos de acceso, coordenadas, demanda, clima, eventos, métricas de red y valores históricos son simulados. No representan uso real de WiFi ni infraestructura municipal en Tunja.
 
@@ -26,6 +28,7 @@ El proyecto demuestra un flujo mantenible de clasificación y regresión con con
 - Conversación básica en inglés y español para saludos, identidad y capacidades, sin distinguir mayúsculas ni puntuación externa.
 - Consultas naturales de demanda con zonas, horas y contexto de ubicación reutilizado en preguntas posteriores.
 - Explicaciones deterministas del asistente para las nueve secciones, escenarios actuales, indicadores y métricas, en inglés y español.
+- Análisis histórico de demanda en inglés y español: comparación de zonas, frecuencia HIGH, horas/días pico y periodos del día.
 - Nueve secciones: resumen, escenario, explorador, análisis geográfico y de red, rendimiento, asistente, predicción avanzada y acerca de.
 
 ## Inicio rápido V3

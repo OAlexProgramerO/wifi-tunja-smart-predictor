@@ -33,3 +33,9 @@ The existing chat context accepts optional `dashboard_section` and `scenario_res
 The assistant explains Overview, Live Scenario, Demand Explorer, Geographic Analysis, Network Analysis, Model Performance, AI Assistant, Advanced Prediction, and About in English and Spanish. It also describes accuracy, precision, recall, F1, ROC-AUC, MAE, RMSE, and R² conceptually. No metric values are fabricated. Scenario explanations use the supplied or previously returned scenario result rather than running inference again. Local sensitivity factors are described as associations, not causes. All data, locations, outcomes, and performance metrics remain synthetic and do not represent real Tunja WiFi telemetry.
 
 The Streamlit page passes the last visited dashboard section and the currently displayed scenario result through the existing chat context. The assistant remains deterministic and requires no LLM credential.
+
+## Historical demand analysis (0.3.4)
+
+Historical questions use the existing allowlisted `DatasetQueryEngine` over loaded synthetic observations. The assistant can report average `connections_next_hour` separately from the `demand_level` HIGH rate, compare two resolved synthetic zones, rank zone demand, compare morning/evening or weekday/weekend, and identify peak hours or weekdays. “How has demand changed?” compares the earliest and latest available year/month groups and reports only when at least two distinct periods exist. A single remembered zone is reused for a historical follow-up; comparisons do not overwrite the active scenario location/time or run prediction inference.
+
+Unknown zones are rejected instead of mapped to an arbitrary place, and unsupported/empty time filters receive a deterministic clarification. Historical responses explicitly identify simulated records and are not claims about real Tunja WiFi use. Classification frequency and next-hour connection averages are labeled separately.
