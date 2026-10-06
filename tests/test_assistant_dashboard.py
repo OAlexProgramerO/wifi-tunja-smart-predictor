@@ -1,6 +1,7 @@
 """Dashboard-aware deterministic assistant behavior."""
 
 import pytest
+from pydantic import ValidationError
 
 from wifi_tunja_smart_predictor.assistant.intents import parse_message
 from wifi_tunja_smart_predictor.assistant.schemas import AssistantContext, ChatRequest
@@ -69,13 +70,8 @@ def test_section_context_is_stored_and_reused(mini_frame):
 
 
 def test_unknown_dashboard_section_is_not_assumed(mini_frame):
-    response = AssistantService(mini_frame).handle(
-        ChatRequest(
-            message="Explain this", context=AssistantContext(dashboard_section="Forecast Lab")
-        )
-    )
-
-    assert "Which dashboard section" in response.answer
+    with pytest.raises(ValidationError, match="supported dashboard section"):
+        AssistantContext(dashboard_section="Forecast Lab")
 
 
 @pytest.mark.parametrize(
