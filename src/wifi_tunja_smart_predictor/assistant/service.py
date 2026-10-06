@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, time, timedelta
+from html import escape
 from threading import RLock
 from typing import Any
 from uuid import uuid4
@@ -286,13 +287,13 @@ class AssistantService:
             state["zone"] = parsed.zone
         try:
             intent, result, sources, scenario = self._dispatch(parsed, request.message, state)
-        except (AssistantQueryError, LocationResolutionError, ValueError) as exc:
+        except (AssistantQueryError, LocationResolutionError, ValueError):
             return ChatResponse(
-                answer=str(exc),
+                answer="I couldn't process that request with the supported project tools.",
                 intent=parsed.intent,
                 sources=["validated_project_tools"],
                 scenario=None,
-                structured_result={"error": str(exc)},
+                structured_result={"error": "unsupported_or_invalid_request"},
                 session_id=session_id,
             )
         self.sessions.put(session_id, state)
@@ -433,7 +434,7 @@ class AssistantService:
                     return (
                         parsed.intent,
                         {
-                            "answer": f"I couldn't match '{parsed.zone}' to a synthetic zone. Choose a listed project zone such as downtown, north, south, or university."
+                            "answer": f"I couldn't match '{escape(parsed.zone)}' to a synthetic zone. Choose a listed project zone such as downtown, north, south, or university."
                         },
                         ["scenario_clarification"],
                         None,
@@ -592,6 +593,7 @@ class AssistantService:
         zone_ids: list[str] = []
         zone_labels: dict[str, str] = {}
         for zone in explicit_zones:
+            display_zone = escape(zone)
             try:
                 resolved = (
                     self.locations.resolve(zone_id=zone)
@@ -601,9 +603,9 @@ class AssistantService:
             except LocationResolutionError as exc:
                 return {
                     "answer": (
-                        f"No encontré la zona sintética '{zone}'. Elige una zona disponible del conjunto de datos."
+                        f"No encontré la zona sintética '{display_zone}'. Elige una zona disponible del conjunto de datos."
                         if language == "es"
-                        else f"I couldn't match '{zone}' to a synthetic zone. Choose a zone available in the dataset."
+                        else f"I couldn't match '{display_zone}' to a synthetic zone. Choose a zone available in the dataset."
                     ),
                     "error": str(exc),
                 }
