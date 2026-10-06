@@ -4,11 +4,13 @@
 
 Leer en [English](README.md)
 
-**Versión actual: 0.3.4 (V3.4 — Análisis histórico de demanda).** V3 es un prototipo de apoyo a decisiones con datos sintéticos. A partir de una ubicación y hora estima demanda LOW/HIGH, conexiones para la próxima hora, intervalo calibrado con validación, uso aproximado de capacidad y sensibilidad local del modelo. El asistente determinista ahora analiza promedios de conexiones y frecuencias HIGH/LOW por zona y periodo, compara zonas y detecta periodos pico, manteniendo los límites de datos sintéticos.
+**Versión actual: 0.3.5 (V3.5 — Refuerzo de seguridad y protección de API).** V3.5 añade límites al cuerpo de las solicitudes y al contexto del asistente, validación más estricta, filtros de consulta permitidos, CORS configurable y restrictivo, encabezados de seguridad, errores más seguros y pruebas de regresión. El proyecto sigue siendo una demostración con datos sintéticos y no está certificado para producción.
 
 **Novedad V3.2:** El asistente determinista responde consultas naturales de demanda en inglés y español con contexto de zona y hora, y reutiliza la ubicación en preguntas posteriores.
 
 **Novedad V3.4:** El asistente calcula promedios históricos, frecuencias HIGH/LOW, comparaciones de zonas y horas/días pico sobre observaciones sintéticas. Estos análisis son distintos de las predicciones de escenarios del modelo.
+
+**Seguridad V3.5:** Las protecciones de API son una base práctica. No se incluyen autenticación, autorización, limitación de velocidad para producción, WAF ni despliegue probado mediante pentesting.
 
 > **Solo datos sintéticos.** Los puntos de acceso, coordenadas, demanda, clima, eventos, métricas de red y valores históricos son simulados. No representan uso real de WiFi ni infraestructura municipal en Tunja.
 
@@ -25,6 +27,7 @@ El proyecto demuestra un flujo mantenible de clasificación y regresión con con
 - Constructor determinista de escenarios, resolución de AP sintéticos y contexto histórico; sin telemetría en vivo ni clave de mapas de pago.
 - Clasificador y regresor separados, entrenados con las mismas particiones cronológicas.
 - Asistente determinista basado en herramientas y API independiente en el puerto 8001; no requiere credenciales LLM.
+- Protecciones básicas de API: límites de solicitudes, CORS controlado, encabezados de seguridad, errores de validación saneados y contexto restringido.
 - Conversación básica en inglés y español para saludos, identidad y capacidades, sin distinguir mayúsculas ni puntuación externa.
 - Consultas naturales de demanda con zonas, horas y contexto de ubicación reutilizado en preguntas posteriores.
 - Explicaciones deterministas del asistente para las nueve secciones, escenarios actuales, indicadores y métricas, en inglés y español.
@@ -35,7 +38,7 @@ El proyecto demuestra un flujo mantenible de clasificación y regresión con con
 
 Instale con `python -m pip install -r requirements-dev.txt`, entrene ambos modelos con `python scripts/train_model.py` y evalúe con `python scripts/evaluate_model.py`. Inicie el dashboard con `streamlit run app/dashboard.py`, la API principal con `uvicorn api.main:app --reload --port 8000` y el asistente con `uvicorn assistant_api.main:app --reload --port 8001`.
 
-Consulte [Predicción de escenarios](docs/scenario_prediction.md), [Asistente](docs/assistant.md), [Geoespacial](docs/geospatial.md) y [Limitaciones, privacidad y seguridad](docs/limitations.md).
+Consulte [Predicción de escenarios](docs/scenario_prediction.md), [Asistente](docs/assistant.md), [Geoespacial](docs/geospatial.md), [Seguridad](docs/security.md) y [Limitaciones, privacidad y seguridad](docs/limitations.md).
 
 ## 3. Problema
 

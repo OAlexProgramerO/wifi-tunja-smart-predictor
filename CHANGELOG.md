@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.5] - 2026-10-06
+
+### Added
+
+- Bounded request bodies, assistant messages, session identifiers, and scenario context.
+- Restrictive configurable CORS defaults, API security headers, and sanitized validation errors.
+- Security regression coverage for schemas, query filters, HTTP behavior, and CORS.
+
+### Improved
+
+- Dataset filters now validate supported scalar types, values, and ranges as well as allowlisted columns.
+- Assistant context sections and session identifiers are constrained, while in-memory sessions remain bounded by count and TTL.
+- Bumped package version to 0.3.5.
+
 ## [0.3.4] - 2026-10-05
 
 ### Added

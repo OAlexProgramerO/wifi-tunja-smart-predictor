@@ -9,11 +9,13 @@
 
 Read this in [Español](README.es.md)
 
-**Current release: 0.3.4 (V3.4 — Historical Demand Analysis).** V3 is a synthetic decision-support prototype that turns a location and time into a LOW/HIGH WiFi demand class, next-hour connection estimate, validation-calibrated prediction interval, capacity proxy, and local model-sensitivity summary. The deterministic assistant now analyzes historical connection averages and HIGH/LOW rates by zone and time, compares zones, and finds peak periods while preserving dashboard-aware responses and explicit synthetic-data limits.
+**Current release: 0.3.5 (V3.5 — Security Hardening & API Protection).** V3.5 adds bounded request bodies and assistant context, stricter input validation, allowlisted query filters, configurable restrictive CORS, security headers, safer errors, and regression tests. The project remains a synthetic demonstration system and is not production-certified.
 
 **V3.2 release note:** The deterministic assistant now answers natural English and Spanish demand questions using synthetic zone and time context, and reuses the location in follow-up questions.
 
 **V3.4 release note:** The assistant now computes historical averages, HIGH/LOW rates, zone comparisons, and peak hours/days from synthetic observations. These analyses are separate from model-generated scenario forecasts.
+
+**V3.5 security note:** API protections are a practical baseline. Authentication, authorization, production rate limiting, WAF protection, and penetration-tested deployment are not provided.
 
 > **Synthetic data only.** Access points, coordinates, demand, weather, events, network metrics, and historical values are simulated. They do not represent actual public WiFi usage or municipal infrastructure in Tunja.
 
@@ -28,6 +30,7 @@ The project explores how an hourly WiFi demand classification system can be stru
 - Chronological train, validation, and test periods.
 - Five scikit-learn baselines and a persisted preprocessing/model pipeline.
 - FastAPI endpoints with typed request and response contracts.
+- Baseline API protections: bounded request bodies, controlled CORS, security headers, sanitized validation errors, and constrained assistant context.
 - A deterministic scenario builder, synthetic access-point resolver, and historical analog context; no live telemetry or paid map key is required.
 - Separate classification and regression artifacts trained and evaluated on the same chronological split.
 - A deterministic tool-grounded assistant with a separate API on port 8001; no LLM credential is required.
@@ -44,7 +47,7 @@ Install with `python -m pip install -r requirements-dev.txt`, train both models 
 
 The scenario endpoint is `POST /scenario/predict` on port 8000. The assistant provides `GET /health`, `GET /suggestions`, `POST /chat`, and `POST /dataset/query` on port 8001. OpenAPI docs are available at each service's `/docs` path.
 
-See [Scenario Prediction](docs/scenario_prediction.md), [Assistant](docs/assistant.md), [Geospatial Resolution](docs/geospatial.md), and [Limitations, Privacy, and Security](docs/limitations.md).
+See [Scenario Prediction](docs/scenario_prediction.md), [Assistant](docs/assistant.md), [Geospatial Resolution](docs/geospatial.md), [Security Baseline](docs/security.md), and [Limitations, Privacy, and Security](docs/limitations.md).
 
 ## 3. Problem statement
 
