@@ -13,3 +13,5 @@ The project does not request personal identifiers or precise real user location.
 ## Security and operational notes
 
 Request schemas reject extra prediction fields. Assistant aggregate queries use fixed allowlists and do not execute arbitrary code or SQL. Keep local `.env` and `.streamlit/secrets.toml` files out of version control. The development servers are intended for local demonstration; production deployment needs authentication, TLS, rate limiting, monitoring, and durable-state/privacy review.
+
+See [Security baseline](security.md) for the V3.5 controls and remaining deployment work.
