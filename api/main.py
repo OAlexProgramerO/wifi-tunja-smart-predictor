@@ -5,9 +5,11 @@ from __future__ import annotations
 import logging
 
 from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from api.routes.prediction import router as prediction_router
+from api.security import install_api_security
 from wifi_tunja_smart_predictor.config import (
     PROJECT_NAME,
     PROJECT_VERSION,
@@ -26,16 +28,41 @@ app = FastAPI(
         + " Do not interpret outputs as forecasts of real municipal infrastructure."
     ),
 )
+install_api_security(app, max_body_bytes=256 * 1024)
+
+
+@app.exception_handler(RequestValidationError)
+def _invalid_request(_: Request, exc: RequestValidationError) -> JSONResponse:
+    return JSONResponse(
+        status_code=422,
+        content={"detail": {"code": "invalid_request", "message": "Request validation failed."}},
+    )
 
 
 @app.exception_handler(ModelNotFoundError)
 def _missing_model(_: Request, exc: ModelNotFoundError) -> JSONResponse:
-    return JSONResponse(status_code=503, content={"detail": str(exc)})
+    return JSONResponse(
+        status_code=503,
+        content={
+            "detail": {
+                "code": "model_unavailable",
+                "message": "Required model artifacts are unavailable.",
+            }
+        },
+    )
 
 
 @app.exception_handler(PredictionError)
 def _bad_prediction(_: Request, exc: PredictionError) -> JSONResponse:
-    return JSONResponse(status_code=400, content={"detail": str(exc)})
+    return JSONResponse(
+        status_code=400,
+        content={
+            "detail": {
+                "code": "prediction_input_error",
+                "message": "Prediction inputs could not be processed.",
+            }
+        },
+    )
 
 
 @app.get("/")

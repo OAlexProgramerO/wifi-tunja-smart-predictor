@@ -5,8 +5,11 @@ from __future__ import annotations
 import logging
 from functools import lru_cache
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 
+from api.security import install_api_security
 from wifi_tunja_smart_predictor.assistant.queries import DatasetQuery, DatasetQueryEngine
 from wifi_tunja_smart_predictor.assistant.schemas import ChatRequest, ChatResponse
 from wifi_tunja_smart_predictor.assistant.service import AssistantService
@@ -27,6 +30,15 @@ app = FastAPI(
         + SYNTHETIC_DATA_DISCLAIMER
     ),
 )
+install_api_security(app, max_body_bytes=64 * 1024)
+
+
+@app.exception_handler(RequestValidationError)
+def _invalid_request(_: Request, exc: RequestValidationError) -> JSONResponse:
+    return JSONResponse(
+        status_code=422,
+        content={"detail": {"code": "invalid_request", "message": "Request validation failed."}},
+    )
 
 
 @lru_cache(maxsize=1)
@@ -110,5 +122,8 @@ def dataset_query(query: DatasetQuery) -> dict:
     except ValueError as exc:
         raise HTTPException(
             status_code=422,
-            detail={"code": "unsupported_dataset_query", "message": str(exc)},
+            detail={
+                "code": "unsupported_dataset_query",
+                "message": "The dataset query contains an unsupported filter or value.",
+            },
         ) from exc

@@ -109,9 +109,21 @@ def predict(payload: PredictRequest) -> PredictResponse:
         labels = predict_demand(features, model=model)
         probabilities = predict_probability(features, model=model)
     except ModelNotFoundError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "model_unavailable",
+                "message": "Required model artifacts are unavailable.",
+            },
+        ) from exc
     except PredictionError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "prediction_input_error",
+                "message": "Prediction inputs could not be processed.",
+            },
+        ) from exc
     except Exception:
         logger.exception("Prediction failed while applying the model pipeline.")
         raise HTTPException(
@@ -161,19 +173,35 @@ def scenario_predict(payload: ScenarioPredictRequest) -> ScenarioPredictionRespo
         return ScenarioPredictionResponse(**result.to_dict())
     except ModelNotFoundError as exc:
         raise HTTPException(
-            status_code=503, detail={"code": "model_unavailable", "message": str(exc)}
+            status_code=503,
+            detail={
+                "code": "model_unavailable",
+                "message": "Required model artifacts are unavailable.",
+            },
         ) from exc
     except LocationResolutionError as exc:
         raise HTTPException(
-            status_code=422, detail={"code": "unknown_location", "message": str(exc)}
+            status_code=422,
+            detail={
+                "code": "unknown_location",
+                "message": "Location is not in the synthetic catalog.",
+            },
         ) from exc
     except ScenarioBuildError as exc:
         raise HTTPException(
-            status_code=422, detail={"code": "scenario_unavailable", "message": str(exc)}
+            status_code=422,
+            detail={
+                "code": "scenario_unavailable",
+                "message": "The requested scenario is unavailable.",
+            },
         ) from exc
     except PredictionError as exc:
         raise HTTPException(
-            status_code=503, detail={"code": "prediction_failed", "message": str(exc)}
+            status_code=503,
+            detail={
+                "code": "prediction_failed",
+                "message": "Scenario prediction could not be completed.",
+            },
         ) from exc
     except Exception:
         logger.exception("Scenario prediction failed in the model pipeline.")
