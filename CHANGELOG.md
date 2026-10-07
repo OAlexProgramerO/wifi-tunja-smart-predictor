@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.6] - 2026-10-07
+
+### Improved
+
+- Assistant dataset queries reuse the assistant service's validated, normalized query engine instead of rebuilding and copying its full dataframe per request.
+- Scenario explanations reuse analog baselines computed during scenario construction and avoid reconstructing/scanning the complete historical dataframe for each prediction.
+- Feature sensitivity scoring reuses its object-converted feature row while isolating each model input row.
+- Bumped package version to 0.3.6.
+
+### Performance audit
+
+- Added structural regression checks for query-frame reuse and single analog selection per prediction; no machine-specific timing thresholds or query-result cache were added.
+
 ## [0.3.5] - 2026-10-06
 
 ### Added

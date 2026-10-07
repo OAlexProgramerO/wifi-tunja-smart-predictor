@@ -9,13 +9,13 @@
 
 Read this in [Español](README.es.md)
 
-**Current release: 0.3.5 (V3.5 — Security Hardening & API Protection).** V3.5 adds bounded request bodies and assistant context, stricter input validation, allowlisted query filters, configurable restrictive CORS, security headers, safer errors, and regression tests. The project remains a synthetic demonstration system and is not production-certified.
+**Current release: 0.3.6 (V3.6 — Performance Optimization & Resource Efficiency).** V3.6 reduces repeated dataframe work in assistant dataset queries and scenario explanations while preserving the model methodology, API contracts, and synthetic-data scope. The project remains a synthetic demonstration system and is not production-certified.
 
 **V3.2 release note:** The deterministic assistant now answers natural English and Spanish demand questions using synthetic zone and time context, and reuses the location in follow-up questions.
 
 **V3.4 release note:** The assistant now computes historical averages, HIGH/LOW rates, zone comparisons, and peak hours/days from synthetic observations. These analyses are separate from model-generated scenario forecasts.
 
-**V3.5 security note:** API protections are a practical baseline. Authentication, authorization, production rate limiting, WAF protection, and penetration-tested deployment are not provided.
+**V3.5 security note (preserved):** API protections are a practical baseline. Authentication, authorization, production rate limiting, WAF protection, and penetration-tested deployment are not provided.
 
 > **Synthetic data only.** Access points, coordinates, demand, weather, events, network metrics, and historical values are simulated. They do not represent actual public WiFi usage or municipal infrastructure in Tunja.
 
@@ -47,7 +47,7 @@ Install with `python -m pip install -r requirements-dev.txt`, train both models 
 
 The scenario endpoint is `POST /scenario/predict` on port 8000. The assistant provides `GET /health`, `GET /suggestions`, `POST /chat`, and `POST /dataset/query` on port 8001. OpenAPI docs are available at each service's `/docs` path.
 
-See [Scenario Prediction](docs/scenario_prediction.md), [Assistant](docs/assistant.md), [Geospatial Resolution](docs/geospatial.md), [Security Baseline](docs/security.md), and [Limitations, Privacy, and Security](docs/limitations.md).
+See [Scenario Prediction](docs/scenario_prediction.md), [Assistant](docs/assistant.md), [Performance](docs/performance.md), [Geospatial Resolution](docs/geospatial.md), [Security Baseline](docs/security.md), and [Limitations, Privacy, and Security](docs/limitations.md).
 
 ## 3. Problem statement
 

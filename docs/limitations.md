@@ -15,3 +15,7 @@ The project does not request personal identifiers or precise real user location.
 Request schemas reject extra prediction fields. Assistant aggregate queries use fixed allowlists and do not execute arbitrary code or SQL. Keep local `.env` and `.streamlit/secrets.toml` files out of version control. The development servers are intended for local demonstration; production deployment needs authentication, TLS, rate limiting, monitoring, and durable-state/privacy review.
 
 See [Security baseline](security.md) for the V3.5 controls and remaining deployment work.
+
+## Runtime performance limits
+
+V3.6 removes repeated full-frame query-engine setup from assistant dataset-query requests and repeated full-history analog selection from scenario explanations. Actual request latency still depends on dataset size, hardware, model inference, and concurrent load. There is no query-result cache, process-wide cross-worker cache, production load test, or latency guarantee. See [performance notes](performance.md).

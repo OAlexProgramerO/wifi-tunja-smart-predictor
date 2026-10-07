@@ -1,4 +1,4 @@
-"""Central configuration for WiFi Tunja Smart Predictor (VERSION 0.3.5).
+"""Central configuration for WiFi Tunja Smart Predictor (VERSION 0.3.6).
 
 Paths are resolved relative to the repository root so the project works on any
 machine as long as it is executed from a clone of this repository.
@@ -17,7 +17,7 @@ load_dotenv()
 try:
     PROJECT_VERSION = version("wifi-tunja-smart-predictor")
 except PackageNotFoundError:
-    PROJECT_VERSION = "0.3.5"
+    PROJECT_VERSION = "0.3.6"
 PROJECT_NAME = "WiFi Tunja Smart Predictor"
 RANDOM_SEED = int(os.getenv("RANDOM_SEED", "42"))
 
