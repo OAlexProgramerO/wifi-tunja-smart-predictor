@@ -39,6 +39,7 @@ class ScenarioContext:
     analog_strategy: str
     analog_period_start: str
     analog_period_end: str
+    _analog_baseline: dict[str, Any] = field(default_factory=dict, repr=False, compare=False)
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize scenario context without exposing target columns."""
@@ -137,6 +138,7 @@ class ScenarioBuilder:
         candidates, strategy = self.analogs.select(location, when)
         analog_features = candidates[MODEL_INPUT_COLUMNS]
         features: dict[str, Any] = {}
+        analog_baseline: dict[str, Any] = {}
         categorical = {
             column
             for column, dtype in analog_features.dtypes.items()
@@ -151,6 +153,15 @@ class ScenarioBuilder:
                 features[column] = str(modes.sort_values().iloc[0]) if len(modes) else ""
             else:
                 features[column] = float(pd.to_numeric(values, errors="coerce").median())
+
+            # Match the pre-optimization explanation baseline calculation exactly; it used
+            # pandas' numeric dtype check, which also recognizes newer pandas string dtypes.
+            if pd.api.types.is_numeric_dtype(analog_features[column]):
+                baseline = float(pd.to_numeric(values, errors="coerce").median())
+            else:
+                modes = values.astype(str).mode().sort_values()
+                baseline = str(modes.iloc[0]) if len(modes) else features[column]
+            analog_baseline[column] = baseline
 
         is_weekend = int(when.weekday() >= 5)
         features.update(
@@ -182,6 +193,7 @@ class ScenarioBuilder:
             analog_strategy=strategy,
             analog_period_start=str(candidates["timestamp"].min()),
             analog_period_end=str(candidates["timestamp"].max()),
+            _analog_baseline=analog_baseline,
         )
 
 

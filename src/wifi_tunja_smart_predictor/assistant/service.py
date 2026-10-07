@@ -268,7 +268,7 @@ class AssistantService:
         self.frame = frame if frame is not None else load_analysis_dataset()
         self.predictions = prediction_service
         self.sessions = sessions or ChatSessionStore()
-        self.queries = DatasetQueryEngine(self.frame)
+        self.queries = DatasetQueryEngine(self.frame, copy_frame=False)
         self.locations = LocationResolver(self.frame)
         self.provider = DeterministicProvider()
 

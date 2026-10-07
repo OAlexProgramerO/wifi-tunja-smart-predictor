@@ -10,7 +10,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from api.security import install_api_security
-from wifi_tunja_smart_predictor.assistant.queries import DatasetQuery, DatasetQueryEngine
+from wifi_tunja_smart_predictor.assistant.queries import DatasetQuery
 from wifi_tunja_smart_predictor.assistant.schemas import ChatRequest, ChatResponse
 from wifi_tunja_smart_predictor.assistant.service import AssistantService
 from wifi_tunja_smart_predictor.assistant.tools import dataset_query_tool
@@ -113,9 +113,8 @@ def dataset_query(query: DatasetQuery) -> dict:
     """Run a validated allowlisted query for clients that need structured aggregates."""
     try:
         service = _assistant()
-        engine = DatasetQueryEngine(service.frame)
         return {
-            "result": dataset_query_tool(engine, query),
+            "result": dataset_query_tool(service.queries, query),
             "disclaimer": SYNTHETIC_DATA_DISCLAIMER,
             "query": query.model_dump(),
         }

@@ -29,7 +29,6 @@ from wifi_tunja_smart_predictor.config import (
 from wifi_tunja_smart_predictor.data.loader import load_analysis_dataset
 from wifi_tunja_smart_predictor.exceptions import ModelNotFoundError, PredictionError
 from wifi_tunja_smart_predictor.scenarios.builder import (
-    HistoricalAnalogEngine,
     ScenarioBuilder,
     ScenarioContext,
     ScenarioRequest,
@@ -171,27 +170,16 @@ class ScenarioPredictionService:
         predicted_connections: float,
     ) -> list[dict[str, Any]]:
         """Approximate local model sensitivity with deterministic feature replacement."""
-        candidates, _ = HistoricalAnalogEngine(self.frame).select(
-            context.location, context.scenario_time
-        )
-        analogs = candidates[MODEL_INPUT_COLUMNS]
-        baseline: dict[str, Any] = {}
-        for column in MODEL_INPUT_COLUMNS:
-            values = analogs[column].dropna()
-            if pd.api.types.is_numeric_dtype(analogs[column]):
-                baseline[column] = float(pd.to_numeric(values, errors="coerce").median())
-            else:
-                modes = values.astype(str).mode().sort_values()
-                baseline[column] = str(modes.iloc[0]) if len(modes) else context.features[column]
-
-        ranked: list[dict[str, Any]] = []
+        baseline = context._analog_baseline
         original = pd.DataFrame([context.features], columns=MODEL_INPUT_COLUMNS)
+        object_features = original.astype(object)
+        ranked: list[dict[str, Any]] = []
         for column in MODEL_INPUT_COLUMNS:
             reference = baseline[column]
             observed = context.features[column]
             if pd.isna(reference) or observed == reference:
                 continue
-            changed = original.astype(object).copy()
+            changed = object_features.copy()
             changed.at[changed.index[0], column] = reference
             alternative = float(
                 self.classifier.predict_proba(changed)[0][

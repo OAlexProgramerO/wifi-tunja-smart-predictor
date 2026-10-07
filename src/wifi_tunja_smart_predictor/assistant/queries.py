@@ -133,11 +133,17 @@ class DatasetQuery(BaseModel):
 class DatasetQueryEngine:
     """Execute safe aggregate queries against a provided frame."""
 
-    def __init__(self, frame: pd.DataFrame) -> None:
-        self.frame = frame.copy()
-        if "timestamp" in self.frame:
+    def __init__(self, frame: pd.DataFrame, *, copy_frame: bool = True) -> None:
+        needs_datetime_parse = any(
+            column in frame and not pd.api.types.is_datetime64_any_dtype(frame[column])
+            for column in ("timestamp", "date")
+        )
+        self.frame = frame.copy() if copy_frame or needs_datetime_parse else frame
+        if "timestamp" in self.frame and not pd.api.types.is_datetime64_any_dtype(
+            self.frame["timestamp"]
+        ):
             self.frame["timestamp"] = pd.to_datetime(self.frame["timestamp"], errors="coerce")
-        if "date" in self.frame:
+        if "date" in self.frame and not pd.api.types.is_datetime64_any_dtype(self.frame["date"]):
             self.frame["date"] = pd.to_datetime(self.frame["date"], errors="coerce")
 
     def execute(self, query: DatasetQuery) -> dict[str, Any] | list[dict[str, Any]]:
