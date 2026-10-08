@@ -1,6 +1,6 @@
 # Architecture
 
-VERSION **0.3.6** of WiFi Tunja Smart Predictor is an installable package under `src/`, command-line training/evaluation scripts, a backward-compatible main FastAPI service, an independent deterministic assistant API, and a nine-section Streamlit dashboard.
+VERSION **0.3.7** of WiFi Tunja Smart Predictor is an installable package under `src/`, command-line training/evaluation scripts, a backward-compatible main FastAPI service, an independent deterministic assistant API, and a nine-section Streamlit dashboard.
 
 **The dataset is synthetic and was generated for software development, machine learning experimentation, demonstration, and portfolio purposes.** Coordinates and access-point identifiers do not correspond to real public WiFi infrastructure in Tunja.
 
@@ -106,3 +106,7 @@ VERSION **0.3.6** of WiFi Tunja Smart Predictor is an installable package under 
 ## Runtime resource reuse (V3.6)
 
 The API and dashboard retain their existing bounded service/model/data caches. The assistant owns one normalized `DatasetQueryEngine` and the dataset query route reuses it; it does not rebuild a full frame for each request. Scenario construction computes deterministic analog feature baselines alongside the scenario features, and the explanation step consumes those values rather than reselecting analog rows from a copied historical frame. No prediction model, features, endpoint schema, or dashboard behavior changed. See [performance notes](performance.md).
+
+## Observability (V3.7)
+
+Both FastAPI services install the shared request observability middleware outside the existing body-limit, security-header, and CORS middleware. It validates or generates a request ID, places it in a request-scoped context, returns it in `X-Request-ID`, and emits one monotonic-timed lifecycle event. API routes and the assistant service emit safe business-operation events using that context. The shared formatter writes JSON records; no request body or conversation is persisted. See [observability](observability.md).

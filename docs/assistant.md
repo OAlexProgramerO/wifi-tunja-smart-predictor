@@ -43,3 +43,7 @@ Unknown zones are rejected instead of mapped to an arbitrary place, and unsuppor
 ## Request boundaries (0.3.5)
 
 Chat messages are limited to 1,000 characters, whitespace-only messages and unsafe session identifiers are rejected, and the assistant API accepts request bodies up to 64 KiB. Context sections are restricted to supported dashboard names. Scenario results must use the known result envelope and are bounded by depth, item count, text length, numeric magnitude, and serialized size. Sessions retain structured context in bounded process memory for at most one hour; the assistant service does not retain message transcripts.
+
+## Operation traceability (0.3.7)
+
+The assistant emits structured operation events for chat handling, scenario requests, historical analysis, and dataset queries. An HTTP request ID is included when the assistant is called through the API; direct service calls omit the field. Logs record bounded intent/operation categories and timing, never the message, transcript, session ID, or query result rows. See [observability](observability.md).

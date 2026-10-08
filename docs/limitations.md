@@ -19,3 +19,7 @@ See [Security baseline](security.md) for the V3.5 controls and remaining deploym
 ## Runtime performance limits
 
 V3.6 removes repeated full-frame query-engine setup from assistant dataset-query requests and repeated full-history analog selection from scenario explanations. Actual request latency still depends on dataset size, hardware, model inference, and concurrent load. There is no query-result cache, process-wide cross-worker cache, production load test, or latency guarantee. See [performance notes](performance.md).
+
+## Observability limits
+
+V3.7 emits structured JSON diagnostics to the configured application logging destination and correlates requests in process. It does not provide durable audit retention, centralized log aggregation, distributed tracing, metrics dashboards, log rotation, or a production monitoring service. Request IDs are correlation labels, not credentials. Avoid forwarding logs to an external system without reviewing its privacy and retention behavior. See [observability](observability.md).
