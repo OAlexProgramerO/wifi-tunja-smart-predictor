@@ -4,11 +4,15 @@
 
 Leer en [English](README.md)
 
-**Versión actual: 0.3.6 (V3.6 — Optimización del rendimiento y eficiencia de recursos).** V3.6 reduce trabajo repetido con dataframes en consultas del asistente y explicaciones de escenarios, preservando la metodología del modelo, los contratos de API y el alcance de datos sintéticos. El proyecto sigue siendo una demostración con datos sintéticos y no está certificado para producción.
+**Versión actual: 0.3.7 (V3.7 — Observabilidad y trazabilidad de predicciones).** V3.7 añade registros JSON con protección de privacidad, correlación mediante `X-Request-ID`, tiempos de ciclo de solicitud y eventos de operaciones del asistente y las predicciones. El proyecto sigue siendo una demostración con datos sintéticos y no está certificado para producción.
+
+**Rendimiento V3.6:** Se conserva la reutilización acotada de recursos; las consultas del asistente y los escenarios evitan trabajo repetido sobre dataframes completos. Consulte [rendimiento](docs/performance.md).
 
 **Novedad V3.2:** El asistente determinista responde consultas naturales de demanda en inglés y español con contexto de zona y hora, y reutiliza la ubicación en preguntas posteriores.
 
 **Novedad V3.4:** El asistente calcula promedios históricos, frecuencias HIGH/LOW, comparaciones de zonas y horas/días pico sobre observaciones sintéticas. Estos análisis son distintos de las predicciones de escenarios del modelo.
+
+**Observabilidad V3.7:** Los registros locales son diagnósticos de la aplicación, no almacenamiento durable de auditoría ni una plataforma de trazas o monitoreo distribuido. Consulte [observabilidad](docs/observability.md).
 
 **Seguridad V3.5 (preservada):** Las protecciones de API son una base práctica. No se incluyen autenticación, autorización, limitación de velocidad para producción, WAF ni despliegue probado mediante pentesting.
 
@@ -27,6 +31,7 @@ El proyecto demuestra un flujo mantenible de clasificación y regresión con con
 - Constructor determinista de escenarios, resolución de AP sintéticos y contexto histórico; sin telemetría en vivo ni clave de mapas de pago.
 - Clasificador y regresor separados, entrenados con las mismas particiones cronológicas.
 - Asistente determinista basado en herramientas y API independiente en el puerto 8001; no requiere credenciales LLM.
+- Registros JSON de ciclo de solicitud y eventos operativos correlacionados con `X-Request-ID`, sin guardar mensajes ni cuerpos de solicitud.
 - Protecciones básicas de API: límites de solicitudes, CORS controlado, encabezados de seguridad, errores de validación saneados y contexto restringido.
 - Conversación básica en inglés y español para saludos, identidad y capacidades, sin distinguir mayúsculas ni puntuación externa.
 - Consultas naturales de demanda con zonas, horas y contexto de ubicación reutilizado en preguntas posteriores.

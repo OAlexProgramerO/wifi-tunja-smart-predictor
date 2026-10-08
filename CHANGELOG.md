@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.3.7] - 2026-10-08
+
+### Added
+
+- Shared JSON application logging, request correlation through `X-Request-ID`, and monotonic request lifecycle timing for both APIs.
+- Traceable standard/scenario prediction, assistant, historical, and dataset-query operation events with privacy-safe metadata.
+- Observability tests for correlation, log parsing, privacy, error handling, and handler idempotence.
+
+### Improved
+
+- Safe diagnostic correlation across requests and service operations while retaining sanitized client errors.
+- Bumped package version to 0.3.7.
+
 ## [0.3.6] - 2026-10-07
 
 ### Improved

@@ -1,4 +1,4 @@
-"""WiFi Tunja Smart Predictor — synthetic-data decision-support prototype (v0.3.6)."""
+"""WiFi Tunja Smart Predictor — synthetic-data decision-support prototype (v0.3.7)."""
 
 from wifi_tunja_smart_predictor.config import PROJECT_VERSION, SYNTHETIC_DATA_DISCLAIMER
 
