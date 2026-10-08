@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import logging
-
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
@@ -17,8 +15,6 @@ from wifi_tunja_smart_predictor.config import (
 )
 from wifi_tunja_smart_predictor.exceptions import ModelNotFoundError, PredictionError
 
-logging.basicConfig(level=logging.INFO)
-
 app = FastAPI(
     title=PROJECT_NAME,
     version=PROJECT_VERSION,
@@ -28,7 +24,7 @@ app = FastAPI(
         + " Do not interpret outputs as forecasts of real municipal infrastructure."
     ),
 )
-install_api_security(app, max_body_bytes=256 * 1024)
+install_api_security(app, max_body_bytes=256 * 1024, service="main_api")
 
 
 @app.exception_handler(RequestValidationError)

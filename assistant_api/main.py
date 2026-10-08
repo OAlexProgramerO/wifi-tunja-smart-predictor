@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from functools import lru_cache
+from time import perf_counter
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -20,6 +21,11 @@ from wifi_tunja_smart_predictor.config import (
     SYNTHETIC_DATA_DISCLAIMER,
 )
 from wifi_tunja_smart_predictor.exceptions import ModelNotFoundError
+from wifi_tunja_smart_predictor.observability import (
+    current_request_id,
+    emit_event,
+    exception_diagnostics,
+)
 
 logger = logging.getLogger(__name__)
 app = FastAPI(
@@ -30,7 +36,7 @@ app = FastAPI(
         + SYNTHETIC_DATA_DISCLAIMER
     ),
 )
-install_api_security(app, max_body_bytes=64 * 1024)
+install_api_security(app, max_body_bytes=64 * 1024, service="assistant_api")
 
 
 @app.exception_handler(RequestValidationError)
@@ -87,9 +93,21 @@ def suggestions() -> dict[str, list[str]]:
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest) -> ChatResponse:
     """Answer with project tools and source metadata; no LLM or user code execution."""
+    started = perf_counter()
     try:
         return _assistant().handle(request)
     except ModelNotFoundError as exc:
+        emit_event(
+            logger,
+            "assistant.scenario.failed",
+            level=logging.ERROR,
+            request_id=current_request_id(),
+            operation="scenario",
+            outcome="failed",
+            error_category="model_unavailable",
+            exception_type=type(exc).__name__,
+            duration_ms=round((perf_counter() - started) * 1000, 3),
+        )
         raise HTTPException(
             status_code=503,
             detail={
@@ -97,8 +115,18 @@ def chat(request: ChatRequest) -> ChatResponse:
                 "message": "Train both models before requesting a scenario.",
             },
         ) from exc
-    except Exception:
-        logger.exception("Assistant request failed while executing a project tool.")
+    except Exception as exc:
+        emit_event(
+            logger,
+            "assistant.chat.failed",
+            level=logging.ERROR,
+            request_id=current_request_id(),
+            operation="chat",
+            outcome="failed",
+            error_category="internal_error",
+            duration_ms=round((perf_counter() - started) * 1000, 3),
+            **exception_diagnostics(exc),
+        )
         raise HTTPException(
             status_code=500,
             detail={
@@ -111,14 +139,38 @@ def chat(request: ChatRequest) -> ChatResponse:
 @app.post("/dataset/query")
 def dataset_query(query: DatasetQuery) -> dict:
     """Run a validated allowlisted query for clients that need structured aggregates."""
+    started = perf_counter()
     try:
         service = _assistant()
+        result = dataset_query_tool(service.queries, query)
+        emit_event(
+            logger,
+            "assistant.dataset_query.completed",
+            request_id=current_request_id(),
+            operation="dataset_query",
+            outcome="completed",
+            duration_ms=round((perf_counter() - started) * 1000, 3),
+            metric=query.metric,
+            column=query.column,
+            group_by=query.group_by,
+        )
         return {
-            "result": dataset_query_tool(service.queries, query),
+            "result": result,
             "disclaimer": SYNTHETIC_DATA_DISCLAIMER,
             "query": query.model_dump(),
         }
     except ValueError as exc:
+        emit_event(
+            logger,
+            "assistant.dataset_query.rejected",
+            level=logging.WARNING,
+            request_id=current_request_id(),
+            operation="dataset_query",
+            outcome="rejected",
+            duration_ms=round((perf_counter() - started) * 1000, 3),
+            error_category="unsupported_dataset_query",
+            exception_type=type(exc).__name__,
+        )
         raise HTTPException(
             status_code=422,
             detail={

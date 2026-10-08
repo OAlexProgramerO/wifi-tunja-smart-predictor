@@ -11,6 +11,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from wifi_tunja_smart_predictor.observability import RequestObservabilityMiddleware
+
 DEFAULT_CORS_ORIGINS = ("http://localhost:8501", "http://127.0.0.1:8501")
 
 
@@ -126,7 +128,7 @@ class SecurityHeadersMiddleware:
         await self.app(scope, receive, send_with_headers)
 
 
-def install_api_security(app: FastAPI, *, max_body_bytes: int) -> None:
+def install_api_security(app: FastAPI, *, max_body_bytes: int, service: str = "api") -> None:
     """Install restrictive CORS, bounded request bodies, and response headers."""
     app.add_middleware(RequestBodyLimitMiddleware, max_bytes=max_body_bytes)
     app.add_middleware(SecurityHeadersMiddleware)
@@ -135,5 +137,11 @@ def install_api_security(app: FastAPI, *, max_body_bytes: int) -> None:
         allow_origins=_cors_origins(),
         allow_credentials=False,
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type"],
+        allow_headers=["Content-Type", "X-Request-ID"],
+        expose_headers=["X-Request-ID"],
+    )
+    # Added last so correlation also covers security middleware rejections.
+    app.add_middleware(
+        RequestObservabilityMiddleware,
+        service=service,
     )
