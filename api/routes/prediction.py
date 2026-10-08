@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 from functools import lru_cache
+from time import perf_counter
 
 from fastapi import APIRouter, HTTPException
 
@@ -36,11 +37,41 @@ from wifi_tunja_smart_predictor.models.predict import (
     predict_demand,
     predict_probability,
 )
+from wifi_tunja_smart_predictor.observability import (
+    current_request_id,
+    emit_event,
+    exception_diagnostics,
+)
 from wifi_tunja_smart_predictor.scenarios.builder import ScenarioRequest
 from wifi_tunja_smart_predictor.scenarios.service import ScenarioPredictionService
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def _prediction_event(
+    operation: str,
+    outcome: str,
+    started: float,
+    *,
+    error_category: str | None = None,
+    exception_type: str | None = None,
+    model_version: str | None = None,
+    selected_model: str | None = None,
+) -> None:
+    emit_event(
+        logger,
+        f"prediction.{operation}.{outcome}",
+        level=logging.ERROR if outcome == "failed" else logging.INFO,
+        request_id=current_request_id(),
+        operation=operation,
+        outcome=outcome,
+        duration_ms=round((perf_counter() - started) * 1000, 3),
+        error_category=error_category,
+        exception_type=exception_type,
+        model_version=model_version,
+        selected_model=selected_model,
+    )
 
 
 @lru_cache(maxsize=1)
@@ -103,12 +134,14 @@ def model_info() -> ModelInfoResponse:
 
 @router.post("/predict", response_model=PredictResponse)
 def predict(payload: PredictRequest) -> PredictResponse:
+    started = perf_counter()
     try:
         model = load_model()
         features = payload.model_dump()
         labels = predict_demand(features, model=model)
         probabilities = predict_probability(features, model=model)
     except ModelNotFoundError as exc:
+        _prediction_event("standard", "failed", started, error_category="model_unavailable")
         raise HTTPException(
             status_code=503,
             detail={
@@ -117,6 +150,7 @@ def predict(payload: PredictRequest) -> PredictResponse:
             },
         ) from exc
     except PredictionError as exc:
+        _prediction_event("standard", "failed", started, error_category="prediction_input_error")
         raise HTTPException(
             status_code=400,
             detail={
@@ -124,20 +158,34 @@ def predict(payload: PredictRequest) -> PredictResponse:
                 "message": "Prediction inputs could not be processed.",
             },
         ) from exc
-    except Exception:
-        logger.exception("Prediction failed while applying the model pipeline.")
+    except Exception as exc:
+        _prediction_event(
+            "standard",
+            "failed",
+            started,
+            error_category="internal_error",
+            **exception_diagnostics(exc),
+        )
         raise HTTPException(
             status_code=500,
             detail="Prediction failed. Check that the request matches the trained feature contract.",
         ) from None
 
     meta = _metadata()
+    selected_model = meta.get("selected_model")
+    _prediction_event(
+        "standard",
+        "completed",
+        started,
+        model_version=str(meta.get("project_version", PROJECT_VERSION)),
+        selected_model=selected_model if isinstance(selected_model, str) else None,
+    )
     proba = probabilities[0] if probabilities else None
     return PredictResponse(
         prediction=labels[0],  # type: ignore[arg-type]
         prediction_probability=proba,
         model_version=PROJECT_VERSION,
-        selected_model=meta.get("selected_model"),
+        selected_model=selected_model,
         disclaimer=SYNTHETIC_DATA_DISCLAIMER,
     )
 
@@ -168,10 +216,21 @@ def scenario_predict(payload: ScenarioPredictRequest) -> ScenarioPredictionRespo
         longitude=location.longitude,
         context_overrides=context,
     )
+    started = perf_counter()
     try:
         result = _scenario_service().predict(request)
+        metadata = _metadata()
+        selected_model = metadata.get("selected_model")
+        _prediction_event(
+            "scenario",
+            "completed",
+            started,
+            model_version=str(metadata.get("project_version", PROJECT_VERSION)),
+            selected_model=selected_model if isinstance(selected_model, str) else None,
+        )
         return ScenarioPredictionResponse(**result.to_dict())
     except ModelNotFoundError as exc:
+        _prediction_event("scenario", "failed", started, error_category="model_unavailable")
         raise HTTPException(
             status_code=503,
             detail={
@@ -180,6 +239,7 @@ def scenario_predict(payload: ScenarioPredictRequest) -> ScenarioPredictionRespo
             },
         ) from exc
     except LocationResolutionError as exc:
+        _prediction_event("scenario", "failed", started, error_category="unknown_location")
         raise HTTPException(
             status_code=422,
             detail={
@@ -188,6 +248,7 @@ def scenario_predict(payload: ScenarioPredictRequest) -> ScenarioPredictionRespo
             },
         ) from exc
     except ScenarioBuildError as exc:
+        _prediction_event("scenario", "failed", started, error_category="scenario_unavailable")
         raise HTTPException(
             status_code=422,
             detail={
@@ -196,6 +257,7 @@ def scenario_predict(payload: ScenarioPredictRequest) -> ScenarioPredictionRespo
             },
         ) from exc
     except PredictionError as exc:
+        _prediction_event("scenario", "failed", started, error_category="prediction_failed")
         raise HTTPException(
             status_code=503,
             detail={
@@ -203,8 +265,14 @@ def scenario_predict(payload: ScenarioPredictRequest) -> ScenarioPredictionRespo
                 "message": "Scenario prediction could not be completed.",
             },
         ) from exc
-    except Exception:
-        logger.exception("Scenario prediction failed in the model pipeline.")
+    except Exception as exc:
+        _prediction_event(
+            "scenario",
+            "failed",
+            started,
+            error_category="internal_error",
+            **exception_diagnostics(exc),
+        )
         raise HTTPException(
             status_code=500,
             detail={

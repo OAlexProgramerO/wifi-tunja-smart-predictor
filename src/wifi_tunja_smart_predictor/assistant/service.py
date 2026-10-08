@@ -6,6 +6,7 @@ import logging
 from datetime import datetime, time, timedelta
 from html import escape
 from threading import RLock
+from time import perf_counter
 from typing import Any
 from uuid import uuid4
 
@@ -33,10 +34,22 @@ from wifi_tunja_smart_predictor.assistant.tools import (
 from wifi_tunja_smart_predictor.data.loader import load_analysis_dataset
 from wifi_tunja_smart_predictor.exceptions import AssistantQueryError, LocationResolutionError
 from wifi_tunja_smart_predictor.geospatial.locations import LocationResolver
+from wifi_tunja_smart_predictor.observability import current_request_id, emit_event
 from wifi_tunja_smart_predictor.scenarios.builder import ScenarioRequest
 from wifi_tunja_smart_predictor.scenarios.service import ScenarioPredictionService
 
 logger = logging.getLogger(__name__)
+
+
+def _assistant_operation(intent: str) -> str:
+    if intent.startswith("HISTORICAL"):
+        return "historical_query"
+    if intent == "DATA_QUERY":
+        return "dataset_query"
+    if intent in {"PREDICTION", "DEMAND_SCENARIO", "FOLLOW_UP", "EXPLANATION"}:
+        return "scenario"
+    return "chat"
+
 
 _SECTION_ALIASES = {
     "overview": "overview",
@@ -274,6 +287,7 @@ class AssistantService:
 
     def handle(self, request: ChatRequest) -> ChatResponse:
         """Interpret a supported project question and compose an answer from tool output."""
+        started = perf_counter()
         session_id = request.session_id or str(uuid4())
         state = self.sessions.get(session_id)
         self._merge_context(state, request.context)
@@ -288,6 +302,17 @@ class AssistantService:
         try:
             intent, result, sources, scenario = self._dispatch(parsed, request.message, state)
         except (AssistantQueryError, LocationResolutionError, ValueError):
+            operation = _assistant_operation(parsed.intent)
+            emit_event(
+                logger,
+                f"assistant.{operation}.rejected",
+                request_id=current_request_id(),
+                operation=operation,
+                intent=parsed.intent,
+                outcome="rejected",
+                error_category="unsupported_or_invalid_request",
+                duration_ms=round((perf_counter() - started) * 1000, 3),
+            )
             return ChatResponse(
                 answer="I couldn't process that request with the supported project tools.",
                 intent=parsed.intent,
@@ -298,6 +323,16 @@ class AssistantService:
             )
         self.sessions.put(session_id, state)
         answer = self.provider.compose(intent, result)
+        operation = _assistant_operation(intent)
+        emit_event(
+            logger,
+            f"assistant.{operation}.completed",
+            request_id=current_request_id(),
+            operation=operation,
+            intent=intent,
+            outcome="completed",
+            duration_ms=round((perf_counter() - started) * 1000, 3),
+        )
         return ChatResponse(
             answer=answer,
             intent=intent,
