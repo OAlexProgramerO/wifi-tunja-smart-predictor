@@ -1,0 +1,78 @@
+name: wifi-tunja-smart-predictor
+
+x-app: &app
+  image: wifi-tunja-smart-predictor:0.3.8
+  build:
+    context: .
+    dockerfile: Dockerfile
+  init: true
+  user: "10001:10001"
+  read_only: true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+  environment: &app-environment
+    RANDOM_SEED: ${RANDOM_SEED:-42}
+    LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:8501,http://127.0.0.1:8501}
+  volumes:
+    - ./data:/app/data:ro
+    - ./models:/app/models:ro
+
+services:
+  main-api:
+    <<: *app
+    command: ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    ports:
+      - "127.0.0.1:${MAIN_API_HOST_PORT:-8000}:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  assistant-api:
+    <<: *app
+    command: ["uvicorn", "assistant_api.main:app", "--host", "0.0.0.0", "--port", "8001"]
+    ports:
+      - "127.0.0.1:${ASSISTANT_API_HOST_PORT:-8001}:8001"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8001/ready', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  dashboard:
+    <<: *app
+    command:
+      - streamlit
+      - run
+      - app/dashboard.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+      - --browser.gatherUsageStats=false
+    ports:
+      - "127.0.0.1:${DASHBOARD_HOST_PORT:-8501}:8501"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=3)"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
