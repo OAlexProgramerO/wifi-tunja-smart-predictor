@@ -5,6 +5,7 @@
 Start with `uvicorn api.main:app --reload --port 8000`; interactive OpenAPI is at `/docs`.
 
 - `GET /health` returns project/version status.
+- `GET /ready` returns `200` when the raw dataset and both model artifacts are present; otherwise it returns a path-safe `503`. It checks file presence only.
 - `GET /model-info` reports classifier and regressor artifacts plus temporal periods.
 - `GET /locations` returns the compact synthetic AP/zone/coordinate catalog.
 - `POST /predict` preserves the V2 40-field classification contract. Extra fields and either target are rejected.

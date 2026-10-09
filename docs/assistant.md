@@ -1,6 +1,6 @@
 # Deterministic assistant
 
-The assistant is a separate FastAPI app, started with `uvicorn assistant_api.main:app --reload --port 8001`. It provides `/health`, `/suggestions`, `/chat`, and `/dataset/query`. It runs without an LLM key and reports the internal tool sources used for each answer.
+The assistant is a separate FastAPI app, started with `uvicorn assistant_api.main:app --reload --port 8001`. It provides `/health`, `/ready`, `/suggestions`, `/chat`, and `/dataset/query`. `/health` remains a process/provider liveness check; `/ready` checks that the raw synthetic dataset and both model artifacts exist. It performs no model loading or training. The app runs without an LLM key and reports the internal tool sources used for each answer. For container operation see [deployment](deployment.md).
 
 `POST /chat` accepts a message, an optional session ID, and structured location/time context. The process-local bounded session store retains resolved location and scenario details for follow-up questions; it is not durable across restarts or shared between workers. Supported questions route to fixed location, historical aggregate, model metadata, scenario prediction, explanation, limitations, and dashboard-help tools.
 

@@ -1,6 +1,6 @@
 # Architecture
 
-VERSION **0.3.7** of WiFi Tunja Smart Predictor is an installable package under `src/`, command-line training/evaluation scripts, a backward-compatible main FastAPI service, an independent deterministic assistant API, and a nine-section Streamlit dashboard.
+VERSION **0.3.8** of WiFi Tunja Smart Predictor is an installable package under `src/`, command-line training/evaluation scripts, a backward-compatible main FastAPI service, an independent deterministic assistant API, and a nine-section Streamlit dashboard. Compose runs these applications from one shared image; the APIs and dashboard mount the same local data and model directories read-only. The dashboard invokes shared Python services directly and does not call the API containers.
 
 **The dataset is synthetic and was generated for software development, machine learning experimentation, demonstration, and portfolio purposes.** Coordinates and access-point identifiers do not correspond to real public WiFi infrastructure in Tunja.
 

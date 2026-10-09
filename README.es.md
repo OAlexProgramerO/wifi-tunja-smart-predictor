@@ -4,7 +4,7 @@
 
 Leer en [English](README.md)
 
-**Versión actual: 0.3.7 (V3.7 — Observabilidad y trazabilidad de predicciones).** V3.7 añade registros JSON con protección de privacidad, correlación mediante `X-Request-ID`, tiempos de ciclo de solicitud y eventos de operaciones del asistente y las predicciones. El proyecto sigue siendo una demostración con datos sintéticos y no está certificado para producción.
+**Versión actual: 0.3.8 (V3.8 — Despliegue reproducible y preparación operativa).** V3.8 añade Docker Compose para las tres aplicaciones y verificaciones de disponibilidad de datos/modelos, conservando los registros y la trazabilidad de V3.7. El proyecto sigue siendo una demostración con datos sintéticos y no está certificado para producción.
 
 **Rendimiento V3.6:** Se conserva la reutilización acotada de recursos; las consultas del asistente y los escenarios evitan trabajo repetido sobre dataframes completos. Consulte [rendimiento](docs/performance.md).
 
@@ -44,6 +44,10 @@ El proyecto demuestra un flujo mantenible de clasificación y regresión con con
 Instale con `python -m pip install -r requirements-dev.txt`, entrene ambos modelos con `python scripts/train_model.py` y evalúe con `python scripts/evaluate_model.py`. Inicie el dashboard con `streamlit run app/dashboard.py`, la API principal con `uvicorn api.main:app --reload --port 8000` y el asistente con `uvicorn assistant_api.main:app --reload --port 8001`.
 
 Consulte [Predicción de escenarios](docs/scenario_prediction.md), [Asistente](docs/assistant.md), [Rendimiento](docs/performance.md), [Geoespacial](docs/geospatial.md), [Seguridad](docs/security.md) y [Limitaciones, privacidad y seguridad](docs/limitations.md).
+
+## Inicio rápido con contenedores (V3.8)
+
+Genere el dataset sintético, prepárelo y entrene los modelos existentes localmente antes de iniciar Compose; los datos y modelos de ejecución se excluyen de la imagen y se montan en modo solo lectura. Luego ejecute `docker compose up --build`. Abra el dashboard en <http://127.0.0.1:8501>, la documentación de la API principal en <http://127.0.0.1:8000/docs> y la del asistente en <http://127.0.0.1:8001/docs>. Consulte la [guía de despliegue](docs/deployment.md) para los pasos completos y solución de problemas. El dashboard usa los servicios Python existentes en el mismo proceso, sin llamadas HTTP entre contenedores.
 
 ## 3. Problema
 

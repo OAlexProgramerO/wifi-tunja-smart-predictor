@@ -9,7 +9,7 @@
 
 Read this in [Español](README.es.md)
 
-**Current release: 0.3.7 (V3.7 — Observability & Prediction Traceability).** V3.7 adds privacy-conscious JSON application logs, request correlation through `X-Request-ID`, lifecycle timing, and prediction/assistant operation events. The project remains a synthetic demonstration system and is not production-certified.
+**Current release: 0.3.8 (V3.8 — Reproducible Deployment & Operational Readiness).** V3.8 adds a Docker Compose setup for all three applications and data/model-aware readiness checks, while retaining V3.7 privacy-conscious logs and request tracing. The project remains a synthetic demonstration system and is not production-certified.
 
 **V3.6 performance note:** Existing bounded resource reuse is preserved; the assistant query engine and scenario analog baselines avoid repeated full-frame work. See [performance notes](docs/performance.md).
 
@@ -53,6 +53,10 @@ Install with `python -m pip install -r requirements-dev.txt`, train both models 
 The scenario endpoint is `POST /scenario/predict` on port 8000. The assistant provides `GET /health`, `GET /suggestions`, `POST /chat`, and `POST /dataset/query` on port 8001. OpenAPI docs are available at each service's `/docs` path.
 
 See [Scenario Prediction](docs/scenario_prediction.md), [Assistant](docs/assistant.md), [Performance](docs/performance.md), [Geospatial Resolution](docs/geospatial.md), [Security Baseline](docs/security.md), and [Limitations, Privacy, and Security](docs/limitations.md).
+
+## Container quick start (V3.8)
+
+Generate the synthetic dataset, prepare it, and train the existing models locally before starting Compose; runtime data and models are intentionally excluded from the image and mounted read-only. Then run `docker compose up --build`. Open the dashboard at <http://127.0.0.1:8501>, the main API docs at <http://127.0.0.1:8000/docs>, and assistant docs at <http://127.0.0.1:8001/docs>. See [deployment guide](docs/deployment.md) for the complete setup and troubleshooting steps. Dashboard functions use the existing in-process services, not HTTP calls between containers.
 
 ## 3. Problem statement
 

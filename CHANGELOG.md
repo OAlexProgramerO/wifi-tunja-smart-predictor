@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.3.8] - 2026-10-09
+
+### Added
+
+- Reusable Python 3.12 application image and Docker Compose services for the main API, assistant API, and Streamlit dashboard.
+- Read-only mounts for local synthetic data and model artifacts; services run non-root with dropped capabilities and loopback-only host ports.
+- Safe `/ready` endpoints and service health checks that verify required local data/model files without loading or retraining them.
+- Readiness tests, deployment documentation, and Compose environment port examples.
+
+### Improved
+
+- Documented local/container setup, operational troubleshooting, and the dashboard's actual in-process shared-service topology in English and Spanish.
+- Bumped package version to 0.3.8.
+
+### Validation
+
+- All 153 Python tests pass; Ruff, Black, Python compilation, Compose YAML parsing, and `git diff --check` pass.
+- Docker CLI is unavailable in the implementation environment, so Compose CLI validation, image build, health checks, and container smoke tests remain unverified.
+- Model behavior, artifacts, and synthetic data are unchanged; deployment checks do not establish real-world forecast validity.
+
 ## [0.3.7] - 2026-10-08
 
 ### Added
