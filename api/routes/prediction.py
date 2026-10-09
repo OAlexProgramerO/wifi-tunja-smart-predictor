@@ -8,6 +8,7 @@ from functools import lru_cache
 from time import perf_counter
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import JSONResponse
 
 from api.schemas import (
     HealthResponse,
@@ -20,8 +21,10 @@ from api.schemas import (
 from wifi_tunja_smart_predictor.config import (
     MODEL_INPUT_COLUMNS,
     MODEL_METADATA_PATH,
+    MODEL_PATH,
     PROJECT_NAME,
     PROJECT_VERSION,
+    RAW_DATASET_PATH,
     REGRESSION_MODEL_PATH,
     SYNTHETIC_DATA_DISCLAIMER,
 )
@@ -47,6 +50,11 @@ from wifi_tunja_smart_predictor.scenarios.service import ScenarioPredictionServi
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def runtime_assets_available() -> bool:
+    """Return whether the local dataset and both inference artifacts exist."""
+    return RAW_DATASET_PATH.is_file() and MODEL_PATH.is_file() and REGRESSION_MODEL_PATH.is_file()
 
 
 def _prediction_event(
@@ -108,6 +116,20 @@ def _metadata() -> dict:
 @router.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse(project=PROJECT_NAME, version=PROJECT_VERSION)
+
+
+@router.get("/ready")
+def readiness() -> JSONResponse:
+    """Report whether the data and model files needed by prediction are present."""
+    if not runtime_assets_available():
+        return JSONResponse(
+            status_code=503,
+            content={
+                "status": "not_ready",
+                "message": "Required synthetic data or model artifacts are unavailable.",
+            },
+        )
+    return JSONResponse(status_code=200, content={"status": "ready"})
 
 
 @router.get("/model-info", response_model=ModelInfoResponse)
