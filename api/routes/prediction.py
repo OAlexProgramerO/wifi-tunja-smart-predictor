@@ -21,14 +21,13 @@ from api.schemas import (
 from wifi_tunja_smart_predictor.config import (
     MODEL_INPUT_COLUMNS,
     MODEL_METADATA_PATH,
-    MODEL_PATH,
     PROJECT_NAME,
     PROJECT_VERSION,
-    RAW_DATASET_PATH,
     REGRESSION_MODEL_PATH,
     SYNTHETIC_DATA_DISCLAIMER,
 )
 from wifi_tunja_smart_predictor.data.loader import load_raw_dataset
+from wifi_tunja_smart_predictor.deployment import runtime_assets_available
 from wifi_tunja_smart_predictor.exceptions import (
     LocationResolutionError,
     ModelNotFoundError,
@@ -50,11 +49,6 @@ from wifi_tunja_smart_predictor.scenarios.service import ScenarioPredictionServi
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
-def runtime_assets_available() -> bool:
-    """Return whether the local dataset and both inference artifacts exist."""
-    return RAW_DATASET_PATH.is_file() and MODEL_PATH.is_file() and REGRESSION_MODEL_PATH.is_file()
 
 
 def _prediction_event(

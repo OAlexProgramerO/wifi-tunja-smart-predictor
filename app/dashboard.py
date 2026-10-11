@@ -9,8 +9,12 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from wifi_tunja_smart_predictor.api_client import (
+    ApiClientError,
+    assistant_api_request,
+    main_api_request,
+)
 from wifi_tunja_smart_predictor.assistant.schemas import AssistantContext, ChatRequest
-from wifi_tunja_smart_predictor.assistant.service import AssistantService
 from wifi_tunja_smart_predictor.config import (
     CATEGORICAL_ALLOWED_VALUES,
     MODEL_COMPARISON_PATH,
@@ -51,9 +55,9 @@ def _prediction_service() -> ScenarioPredictionService:
     return ScenarioPredictionService(_load_frame())
 
 
-@st.cache_resource(max_entries=1)
-def _assistant_service() -> AssistantService:
-    return AssistantService(_load_frame(), _prediction_service())
+@st.cache_data(show_spinner=False, ttl="5m", max_entries=1)
+def _load_location_catalog() -> pd.DataFrame:
+    return pd.DataFrame(main_api_request("/locations")["locations"])
 
 
 def _json_file(path: Path) -> dict:
@@ -515,8 +519,11 @@ def render_scenario(frame: pd.DataFrame) -> None:
         "Scenario prediction",
         "Choose where and when; context comes from deterministic synthetic historical analogs.",
     )
-    service = _prediction_service()
-    catalog = service.builder.resolver.catalog
+    try:
+        catalog = _load_location_catalog()
+    except ApiClientError as exc:
+        st.error(str(exc))
+        return
     zones = catalog[["zone_id", "zone_name"]].drop_duplicates().sort_values("zone_name")
     dates = pd.to_datetime(frame["timestamp"]).dt.date
     today = pd.Timestamp.now(tz="America/Bogota").date()
@@ -557,8 +564,19 @@ def render_scenario(frame: pd.DataFrame) -> None:
             context_overrides=overrides,
         )
         try:
-            st.session_state["last_scenario_result"] = service.predict(request).to_dict()
-        except (ModelNotFoundError, ValueError) as exc:
+            st.session_state["last_scenario_result"] = main_api_request(
+                "/scenario/predict",
+                {
+                    "datetime": request.datetime.isoformat(),
+                    "location": (
+                        {"access_point_id": request.access_point_id}
+                        if request.access_point_id
+                        else {"zone_id": request.zone_id}
+                    ),
+                    "advanced_context": overrides,
+                },
+            )
+        except (ApiClientError, ModelNotFoundError, ValueError) as exc:
             st.error(str(exc))
     result = st.session_state.get("last_scenario_result")
     if result:
@@ -593,7 +611,11 @@ def render_geography(frame: pd.DataFrame) -> None:
     _section_header(
         "Geographic analysis", "Select a simulated access point marker for the scenario builder."
     )
-    catalog = _prediction_service().builder.resolver.catalog
+    try:
+        catalog = _load_location_catalog()
+    except ApiClientError as exc:
+        st.error(str(exc))
+        return
     fig = PlotlyOpenStreetMapProvider().build_map(catalog)
     selection = st.plotly_chart(
         fig, width="stretch", on_select="rerun", selection_mode="points", key="geography_map"
@@ -672,11 +694,16 @@ def render_assistant() -> None:
                 scenario_result=scenario,
             )
         context = AssistantContext(**context_values) if context_values else None
-        answer = _assistant_service().handle(
-            ChatRequest(
-                message=prompt, session_id=st.session_state["assistant_session_id"], context=context
-            )
+        chat_request = ChatRequest(
+            message=prompt, session_id=st.session_state["assistant_session_id"], context=context
         )
+        try:
+            answer = assistant_api_request(
+                "/chat", chat_request.model_dump(mode="json", exclude_none=True)
+            )
+        except ApiClientError as exc:
+            st.error(str(exc))
+            return
         st.session_state["assistant_session_id"] = answer.session_id
         st.session_state["assistant_messages"].append(
             {"role": "assistant", "content": answer.answer, "sources": answer.sources}

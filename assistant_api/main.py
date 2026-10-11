@@ -16,13 +16,11 @@ from wifi_tunja_smart_predictor.assistant.schemas import ChatRequest, ChatRespon
 from wifi_tunja_smart_predictor.assistant.service import AssistantService
 from wifi_tunja_smart_predictor.assistant.tools import dataset_query_tool
 from wifi_tunja_smart_predictor.config import (
-    MODEL_PATH,
     PROJECT_NAME,
     PROJECT_VERSION,
-    RAW_DATASET_PATH,
-    REGRESSION_MODEL_PATH,
     SYNTHETIC_DATA_DISCLAIMER,
 )
+from wifi_tunja_smart_predictor.deployment import runtime_assets_available
 from wifi_tunja_smart_predictor.exceptions import ModelNotFoundError
 from wifi_tunja_smart_predictor.observability import (
     current_request_id,
@@ -70,9 +68,7 @@ def health() -> dict[str, str | bool]:
 @app.get("/ready")
 def readiness() -> JSONResponse:
     """Report whether the dataset and model resources used by chat are present."""
-    if not (
-        RAW_DATASET_PATH.is_file() and MODEL_PATH.is_file() and REGRESSION_MODEL_PATH.is_file()
-    ):
+    if not runtime_assets_available():
         return JSONResponse(
             status_code=503,
             content={

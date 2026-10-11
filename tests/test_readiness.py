@@ -1,39 +1,35 @@
 from fastapi.testclient import TestClient
 
 from api.main import app as main_app
-from api.routes import prediction
 from assistant_api import main as assistant_main
+from wifi_tunja_smart_predictor import deployment
 
 
-def _set_runtime_assets(monkeypatch, tmp_path, *, dataset=True, classifier=True, regressor=True):
-    paths = {
-        "RAW_DATASET_PATH": dataset,
-        "MODEL_PATH": classifier,
-        "REGRESSION_MODEL_PATH": regressor,
-    }
-    for name, present in paths.items():
-        path = tmp_path / name
-        if present:
+def _set_runtime_assets(monkeypatch, tmp_path, *, missing=()):
+    paths = tuple(
+        tmp_path / f"asset-{index}" for index in range(len(deployment.REQUIRED_DEMO_ASSETS))
+    )
+    for index, path in enumerate(paths):
+        if index not in missing:
             path.touch()
         elif path.exists():
             path.unlink()
-        monkeypatch.setattr(prediction, name, path)
-        monkeypatch.setattr(assistant_main, name, path)
+    monkeypatch.setattr(deployment, "REQUIRED_DEMO_ASSETS", paths)
 
 
 def test_readiness_requires_dataset_and_both_models(monkeypatch, tmp_path):
-    _set_runtime_assets(monkeypatch, tmp_path, dataset=False)
-    assert prediction.runtime_assets_available() is False
+    _set_runtime_assets(monkeypatch, tmp_path, missing=(0,))
+    assert deployment.runtime_assets_available() is False
 
     _set_runtime_assets(monkeypatch, tmp_path)
-    assert prediction.runtime_assets_available() is True
+    assert deployment.runtime_assets_available() is True
 
-    _set_runtime_assets(monkeypatch, tmp_path, regressor=False)
-    assert prediction.runtime_assets_available() is False
+    _set_runtime_assets(monkeypatch, tmp_path, missing=(5,))
+    assert deployment.runtime_assets_available() is False
 
 
 def test_main_api_readiness_is_sanitized_and_health_contract_remains(monkeypatch, tmp_path):
-    _set_runtime_assets(monkeypatch, tmp_path, dataset=False)
+    _set_runtime_assets(monkeypatch, tmp_path, missing=(0,))
     client = TestClient(main_app)
 
     response = client.get("/ready")
@@ -50,7 +46,7 @@ def test_main_api_readiness_is_sanitized_and_health_contract_remains(monkeypatch
 
 
 def test_assistant_readiness_uses_same_assets_and_preserves_health(monkeypatch, tmp_path):
-    _set_runtime_assets(monkeypatch, tmp_path, classifier=False)
+    _set_runtime_assets(monkeypatch, tmp_path, missing=(2,))
     client = TestClient(assistant_main.app)
 
     response = client.get("/ready")
