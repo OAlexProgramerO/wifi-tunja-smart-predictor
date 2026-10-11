@@ -23,6 +23,20 @@ Read this in [Español](README.es.md)
 
 > **Synthetic data only.** Access points, coordinates, demand, weather, events, network metrics, and historical values are simulated. They do not represent actual public WiFi usage or municipal infrastructure in Tunja.
 
+## One-command Docker quick start (V3.9 implementation)
+
+Prerequisite: install and start Docker Desktop (or Docker Engine with Compose). No host Python, virtual environment, manual data generation, or model training is needed for the container demo.
+
+```powershell
+git clone https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor.git
+cd wifi-tunja-smart-predictor
+docker compose up --build
+```
+
+On its first run, the `runtime-init` service creates the project's synthetic dataset and trains both existing models once in Compose-managed volumes. Wait for the APIs and dashboard to become healthy. Open the dashboard at <http://localhost:8501>, the main API docs at <http://localhost:8000/docs>, and assistant API docs at <http://localhost:8001/docs>. Inspect with `docker compose ps`, follow logs with `docker compose logs -f`, run the HTTP smoke checks from the dashboard container with `docker compose exec -T dashboard python scripts/smoke_test.py`, and stop with `docker compose down`. Data/model volumes persist after `down`; `docker compose down -v` removes only this Compose project's generated volumes.
+
+The V3.9 Docker implementation is present in this worktree but has not yet been built or run in a Docker-capable environment. See the [deployment guide](docs/deployment.md) for configuration and validation details.
+
 ## 1. Project overview
 
 The project explores how an hourly WiFi demand classification system can be structured as maintainable software. A user can generate data, validate and prepare it, train and evaluate candidate classifiers, then use the selected pipeline through an API or dashboard.
@@ -53,10 +67,6 @@ Install with `python -m pip install -r requirements-dev.txt`, train both models 
 The scenario endpoint is `POST /scenario/predict` on port 8000. The assistant provides `GET /health`, `GET /suggestions`, `POST /chat`, and `POST /dataset/query` on port 8001. OpenAPI docs are available at each service's `/docs` path.
 
 See [Scenario Prediction](docs/scenario_prediction.md), [Assistant](docs/assistant.md), [Performance](docs/performance.md), [Geospatial Resolution](docs/geospatial.md), [Security Baseline](docs/security.md), and [Limitations, Privacy, and Security](docs/limitations.md).
-
-## Container quick start (V3.8)
-
-Generate the synthetic dataset, prepare it, and train the existing models locally before starting Compose; runtime data and models are intentionally excluded from the image and mounted read-only. Then run `docker compose up --build`. Open the dashboard at <http://127.0.0.1:8501>, the main API docs at <http://127.0.0.1:8000/docs>, and assistant docs at <http://127.0.0.1:8001/docs>. See [deployment guide](docs/deployment.md) for the complete setup and troubleshooting steps. Dashboard functions use the existing in-process services, not HTTP calls between containers.
 
 ## 3. Problem statement
 

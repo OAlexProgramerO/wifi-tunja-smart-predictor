@@ -1,89 +1,119 @@
-# Reproducible deployment (V3.8)
+# One-command Docker deployment (V3.9)
 
-This guide runs the existing main FastAPI API, deterministic assistant API, and Streamlit dashboard locally or with Docker Compose. Runtime data and trained model artifacts remain local inputs; the image contains application code and dependencies only. All observations and predictions remain synthetic and do not validate real-world Tunja WiFi demand.
+This setup runs the existing main FastAPI API, deterministic assistant API, and Streamlit dashboard from one application image. A fresh clone needs Docker Desktop or Docker Engine with Compose v2 running; it does not need host Python, local package installation, generated data, model files, or an `.env` file.
 
-## Prerequisites and runtime assets
+> The dataset and all reported predictions are synthetic demonstrations. Container startup and synthetic holdout metrics do not validate real-world WiFi demand in Tunja.
 
-- Local development: Python 3.11 or newer, as declared in `pyproject.toml`.
-- Containers: Docker Engine with Docker Compose v2 (`docker compose`). The image uses the pinned `python:3.12.14-slim-bookworm` base.
-- A generated raw dataset, prepared dataset, and both trained model artifacts. Starting from a fresh clone, create them using the existing workflow:
+## First run
+
+```powershell
+git clone https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor.git
+cd wifi-tunja-smart-predictor
+docker compose up --build
+```
+
+The first startup runs the `runtime-init` service. It uses the existing deterministic generator, preparation, and training scripts to create the raw and processed datasets, both model artifacts and metadata, and model-comparison reports. The initializer runs only when its named volumes are empty. The APIs and dashboard start after initialization completes; the dashboard waits for both APIs to pass their readiness checks.
+
+Open these local URLs after Compose reports the services healthy:
+
+- Dashboard: <http://localhost:8501>
+- Main API documentation: <http://localhost:8000/docs>
+- Assistant API documentation: <http://localhost:8001/docs>
+
+The Compose ports bind to loopback. API calls made by the dashboard server use `http://main-api:8000` and `http://assistant-api:8001` on the Compose network. Browser access remains through the dashboard's localhost URL. Live scenario/location actions use the main API; assistant chat uses the assistant API. Dataset visualization and model-performance pages use the same shared read-only runtime files.
+
+## Inspect, smoke-test, and stop
+
+```powershell
+docker compose ps
+docker compose logs -f
+docker compose exec -T dashboard python scripts/smoke_test.py
+docker compose down
+```
+
+The smoke test checks both API health and readiness, classifier/regressor loading, a valid standard prediction, a scenario prediction, an assistant greeting, and dashboard HTTP health. Run it inside the dashboard container so requests to API service DNS names come from the Compose network, matching the dashboard's server-side HTTP clients. It exits nonzero for any failed check and avoids printing request bodies or full service diagnostics.
+
+`docker compose down` stops/removes the containers but retains the generated `runtime-data`, `runtime-models`, and `runtime-reports` named volumes, so later starts do not repeat training. To reset only this project's generated synthetic demo resources, run:
+
+```powershell
+docker compose down -v
+```
+
+This removes the Compose project's named data/model/report volumes; it does not delete repository source files. The next `docker compose up --build` initializes those resources again.
+
+## Runtime resources and initialization safety
+
+Raw/processed CSV files, classifier and regressor artifacts, their metadata, and classifier/regressor comparison reports are generated into named volumes by one initialization service. They are not tracked in Git, copied from the developer machine, baked into the image, or mounted from host `data/`, `models/`, or `reports/` directories. App services use those volumes read-only. The root filesystem is read-only, the application runs as UID 10001, all Linux capabilities are dropped, and `no-new-privileges` is enabled.
+
+The initializer checks the full required file set. If it finds a partial volume, it stops without overwriting existing files and prints instructions to inspect its logs and explicitly reset demo volumes if appropriate. If generator/preparation/training fails, Compose dependency conditions prevent the APIs/dashboard from starting. Normal restarts skip generation and training when all files are present. There is no persistent logging volume.
+
+## Configuration
+
+Compose defaults are safe for a clean clone. A root `.env` is optional; `.env.example` has example values and no credentials. Compose interpolation checks the shell environment and optional `.env` before applying the defaults below.
+
+| Setting | Compose default | Use |
+| --- | --- | --- |
+| `RANDOM_SEED` | `42` | Existing app seed setting. The existing generator uses its deterministic seed. |
+| `LOG_LEVEL` | `INFO` | Existing log-level setting. |
+| `CORS_ALLOWED_ORIGINS` | `http://localhost:8501,http://127.0.0.1:8501` | Existing explicit browser CORS origins. |
+| `MAIN_API_HOST_PORT` | `8000` | Host-side loopback port; container port remains 8000. |
+| `ASSISTANT_API_HOST_PORT` | `8001` | Host-side loopback port; container port remains 8001. |
+| `DASHBOARD_HOST_PORT` | `8501` | Host-side loopback port; container port remains 8501. |
+| `MAIN_API_URL` | `http://main-api:8000` in Compose; `http://127.0.0.1:8000` outside Compose | Dashboard server's main API destination. |
+| `ASSISTANT_API_URL` | `http://assistant-api:8001` in Compose; `http://127.0.0.1:8001` outside Compose | Dashboard server's assistant API destination. |
+
+Change a host port by creating/editing `.env`, for example `DASHBOARD_HOST_PORT=8510`. Internal service addresses continue using Compose service names and fixed container ports. The two API URL overrides must be absolute HTTP(S) origins without credentials, paths, query strings, or fragments. Invalid explicit values fail with a safe configuration message rather than silently switching destinations. Do not set `MAIN_API_URL` to `localhost` in the dashboard container.
+
+When running the dashboard directly on the host, keep the local defaults and start both APIs as described below. The optional Compose URL values are for container networking; they are not the URLs the browser opens. Local API CORS continues using its existing configured-origin policy.
+
+## Local Python development
+
+The existing local workflow remains available and requires Python 3.11+:
 
 ```powershell
 python -m pip install -r requirements-dev.txt
 python scripts/generate_synthetic_dataset.py
 python scripts/prepare_data.py
 python scripts/train_model.py
-```
-
-These commands use the established synthetic generator and training pipeline. They are setup steps, not part of container startup. Do not retrain or regenerate when you intend to retain existing artifacts.
-
-## Local development
-
-Existing commands remain supported:
-
-```powershell
-python -m pip install -r requirements-dev.txt
-streamlit run app/dashboard.py
 uvicorn api.main:app --reload --port 8000
 uvicorn assistant_api.main:app --reload --port 8001
+streamlit run app/dashboard.py
 ```
 
-The dashboard invokes shared Python services directly and reads the same local dataset/model files; it does not make HTTP calls to either API. API endpoints remain available to other clients.
+For local development, the dashboard's server-side API clients default to loopback ports 8000 and 8001. Keep the APIs running while using dashboard scenario prediction or chat.
 
-## Docker Compose
+## Health, troubleshooting, and rebuilds
 
-From the repository root, optionally copy `.env.example` to `.env` and edit safe local settings. Then:
+`GET /health` retains its V3.8 contract. API `GET /ready` keeps the existing `{"status":"ready"}`/sanitized `503` response shape and now checks the runtime files used by the supported prediction, assistant, and dashboard views: both datasets, both models, model metadata, and classifier/regressor comparison files. The check only checks file presence; `/model-info`, scenario smoke tests, and smoke-check predictions exercise artifact loading/inference. Streamlit's process health check uses its bundled `/_stcore/health` endpoint.
+
+| Symptom | Checks and action |
+| --- | --- |
+| Docker daemon unavailable | Start Docker Desktop/Engine, then run `docker info` and `docker compose version`. The project cannot install the host Docker engine. |
+| Port already occupied | Set the corresponding `*_HOST_PORT` in optional `.env` to an unused local port, then recreate with `docker compose up --build --force-recreate`. |
+| Image build/dependency resolution failure | Inspect build output; run `docker compose build --no-cache`. The runtime dependency lock uses exact versions and hashes; update it from `pyproject.toml` using the command below only when dependencies intentionally change. |
+| Initializer exits unsuccessfully | Run `docker compose logs runtime-init`. It shows which existing generation/preparation/training stage failed. Do not delete source files; if the volume is partial and disposable, reset with `docker compose down -v` and retry. |
+| API stays unhealthy | Check `docker compose ps`, `docker compose logs main-api assistant-api runtime-init`, and the API `/ready` route. Verify initializer completed and volumes were not externally altered. |
+| Dashboard cannot reach an API | Run the smoke command from the dashboard container. Ensure Compose URLs use `main-api` and `assistant-api`, not `localhost`; inspect dashboard and API logs. |
+| App source changed but old data/model volume remains | Normal startup intentionally reuses existing resources and never retrains over them. Rebuild the image with `docker compose build --no-cache`; reset the generated volumes only when you explicitly want fresh synthetic resources. |
+
+To regenerate the pinned runtime dependency lock (requires `uv`):
+
+```powershell
+uv pip compile pyproject.toml --python-version 3.12 --python-platform x86_64-unknown-linux-gnu --generate-hashes -o requirements.lock
+```
+
+Validate the resolved deployment and rebuild with:
 
 ```powershell
 docker compose config
-docker compose build
-docker compose up -d
-docker compose ps
-docker compose logs -f main-api assistant-api dashboard
+docker compose build --no-cache
+docker compose up --build --wait --wait-timeout 900
+docker compose exec -T dashboard python scripts/smoke_test.py
+docker compose logs --no-color
 docker compose down
 ```
 
-`docker compose up --build` combines build and startup. Compose publishes only loopback host ports by default:
-
-- Dashboard: <http://127.0.0.1:8501>
-- Main API: <http://127.0.0.1:8000>; OpenAPI docs at `/docs`.
-- Assistant API: <http://127.0.0.1:8001>; OpenAPI docs at `/docs`.
-
-The three services share one image. They run as UID 10001, with a read-only root filesystem, dropped Linux capabilities, and `no-new-privileges`. The `data/` and `models/` directories are mounted read-only from the host. No data volume is created or modified by Compose. The dashboard uses in-process services and shared files, so no API URL settings or API startup dependency is required.
-
-## Configuration
-
-Compose reads an optional root `.env`; `.env` is ignored by Git and must not contain values placed in the image. Safe defaults are also provided in `compose.yaml`.
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `RANDOM_SEED` | `42` | Existing deterministic data/configuration seed. |
-| `LOG_LEVEL` | `INFO` | Existing application logging setting. |
-| `CORS_ALLOWED_ORIGINS` | `http://localhost:8501,http://127.0.0.1:8501` | Explicit browser origins accepted by the APIs. Set to the exact dashboard origin if its host port or hostname is changed. |
-| `MAIN_API_HOST_PORT` | `8000` | Loopback host port mapped to main API container port 8000. |
-| `ASSISTANT_API_HOST_PORT` | `8001` | Loopback host port mapped to assistant container port 8001. |
-| `DASHBOARD_HOST_PORT` | `8501` | Loopback host port mapped to dashboard container port 8501. |
-
-The host port variables change only the published host side; the container ports are fixed. Compose environment values override defaults. Local development retains the current application defaults and does not require the host port variables.
-
-## Health and troubleshooting
-
-`GET /health` retains its existing liveness contract. The new `GET /ready` on each API returns `200` only when the raw dataset and both model files are present; otherwise it returns a sanitized `503`. It checks file presence only: it does not load artifacts, validate their contents, or prove a prediction can run. Streamlit's health check uses its built-in `/_stcore/health` endpoint. Compose does not wait for APIs before starting the dashboard because the dashboard does not depend on them over HTTP.
-
-Inspect service status and logs with:
-
-```powershell
-docker compose ps
-docker compose logs --tail=100 main-api
-docker compose logs --tail=100 assistant-api
-docker compose logs --tail=100 dashboard
-```
-
-For an unhealthy API, verify the required dataset and both model files exist on the host in their expected `data/` and `models/` locations, then inspect its logs. Files are ignored by Git and must be prepared locally. For a port binding error, set the relevant `*_HOST_PORT` to an unused port; if the browser-visible dashboard origin changes, update `CORS_ALLOWED_ORIGINS` to match. Validate resolved settings with `docker compose config`. API logs remain structured JSON on standard output and preserve V3.7 request IDs; request bodies and chat transcripts are not logged.
-
-## Validation
-
-Run the Python checks from the root:
+The repository's unit suite remains independent of Docker:
 
 ```powershell
 pytest -q
@@ -91,8 +121,6 @@ ruff check .
 black --check .
 ```
 
-When Docker is available, validate configuration/build/startup and health using the Compose commands above, then call `GET /ready`, a representative API prediction, and assistant `/chat`; confirm dashboard availability at its URL and stop cleanly with `docker compose down`. A successful readiness response alone verifies only required-file presence. Container startup or local synthetic predictions do not demonstrate forecast accuracy on real Tunja data.
+## Validation status and limitations
 
-## Limitations
-
-This setup is for reproducible local development and demonstration. It does not add authentication, TLS termination, durable logs, external monitoring, distributed tracing, multi-host networking, automatic data/model provisioning, or a production deployment guarantee. Data is synthetic and is not verified operational telemetry from Tunja.
+The V3.9 Compose implementation and smoke tooling are intended for local synthetic demonstration. This worktree has not yet been validated with Docker because the Docker CLI/daemon is unavailable here; configuration parsing, image build, service health, networking, persistence after restart, and live smoke tests must be confirmed on a Docker-capable system or by the new CI job. The setup does not add authentication, TLS termination, hosted deployment, automatic updates, durable audit logs, or external monitoring. It does not establish model accuracy on actual Tunja WiFi data.

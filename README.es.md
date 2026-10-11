@@ -18,6 +18,20 @@ Leer en [English](README.md)
 
 > **Solo datos sintéticos.** Los puntos de acceso, coordenadas, demanda, clima, eventos, métricas de red y valores históricos son simulados. No representan uso real de WiFi ni infraestructura municipal en Tunja.
 
+## Inicio rápido con Docker en un comando (implementación V3.9)
+
+Requisito: instale e inicie Docker Desktop (o Docker Engine con Compose). La demostración en contenedores no requiere instalar Python en el host, crear un entorno virtual, generar los datos ni entrenar los modelos manualmente.
+
+```powershell
+git clone https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor.git
+cd wifi-tunja-smart-predictor
+docker compose up --build
+```
+
+En el primer inicio, el servicio `runtime-init` genera el dataset sintético del proyecto y entrena los dos modelos existentes una sola vez en volúmenes administrados por Compose. Espere a que las API y el dashboard estén disponibles. Abra el dashboard en <http://localhost:8501>, la documentación de la API principal en <http://localhost:8000/docs> y la del asistente en <http://localhost:8001/docs>. Revise `docker compose ps`, siga los registros con `docker compose logs -f`, ejecute las pruebas HTTP desde el contenedor del dashboard con `docker compose exec -T dashboard python scripts/smoke_test.py` y detenga con `docker compose down`. Los volúmenes de datos/modelos persisten después de `down`; `docker compose down -v` elimina solo los volúmenes generados de este proyecto.
+
+La implementación Docker V3.9 está en este árbol de trabajo, pero aún no se ha construido ni ejecutado en un entorno con Docker. Consulte la [guía de despliegue](docs/deployment.md) para la configuración y validación.
+
 ## 1. Descripción del proyecto
 
 El proyecto demuestra un flujo mantenible de clasificación y regresión con construcción de escenarios por ubicación y hora, evaluación temporal y uso mediante API o dashboard.
@@ -44,10 +58,6 @@ El proyecto demuestra un flujo mantenible de clasificación y regresión con con
 Instale con `python -m pip install -r requirements-dev.txt`, entrene ambos modelos con `python scripts/train_model.py` y evalúe con `python scripts/evaluate_model.py`. Inicie el dashboard con `streamlit run app/dashboard.py`, la API principal con `uvicorn api.main:app --reload --port 8000` y el asistente con `uvicorn assistant_api.main:app --reload --port 8001`.
 
 Consulte [Predicción de escenarios](docs/scenario_prediction.md), [Asistente](docs/assistant.md), [Rendimiento](docs/performance.md), [Geoespacial](docs/geospatial.md), [Seguridad](docs/security.md) y [Limitaciones, privacidad y seguridad](docs/limitations.md).
-
-## Inicio rápido con contenedores (V3.8)
-
-Genere el dataset sintético, prepárelo y entrene los modelos existentes localmente antes de iniciar Compose; los datos y modelos de ejecución se excluyen de la imagen y se montan en modo solo lectura. Luego ejecute `docker compose up --build`. Abra el dashboard en <http://127.0.0.1:8501>, la documentación de la API principal en <http://127.0.0.1:8000/docs> y la del asistente en <http://127.0.0.1:8001/docs>. Consulte la [guía de despliegue](docs/deployment.md) para los pasos completos y solución de problemas. El dashboard usa los servicios Python existentes en el mismo proceso, sin llamadas HTTP entre contenedores.
 
 ## 3. Problema
 

@@ -1,6 +1,6 @@
 # Architecture
 
-VERSION **0.3.8** of WiFi Tunja Smart Predictor is an installable package under `src/`, command-line training/evaluation scripts, a backward-compatible main FastAPI service, an independent deterministic assistant API, and a nine-section Streamlit dashboard. Compose runs these applications from one shared image; the APIs and dashboard mount the same local data and model directories read-only. The dashboard invokes shared Python services directly and does not call the API containers.
+VERSION **0.3.8** of WiFi Tunja Smart Predictor is an installable package under `src/`, command-line training/evaluation scripts, a backward-compatible main FastAPI service, an independent deterministic assistant API, and a nine-section Streamlit dashboard. The V3.9 Compose implementation builds one locked-dependency image, initializes synthetic resources once into named volumes, then mounts those volumes read-only in all application services. The dashboard uses the main API for locations and live scenario requests and the assistant API for chat through validated server-side HTTP clients. Its existing advanced feature-vector analysis still uses the shared in-process inference service. Local API client defaults use loopback; Compose sets service DNS URLs.
 
 **The dataset is synthetic and was generated for software development, machine learning experimentation, demonstration, and portfolio purposes.** Coordinates and access-point identifiers do not correspond to real public WiFi infrastructure in Tunja.
 
@@ -106,6 +106,32 @@ VERSION **0.3.8** of WiFi Tunja Smart Predictor is an installable package under 
 ## Runtime resource reuse (V3.6)
 
 The API and dashboard retain their existing bounded service/model/data caches. The assistant owns one normalized `DatasetQueryEngine` and the dataset query route reuses it; it does not rebuild a full frame for each request. Scenario construction computes deterministic analog feature baselines alongside the scenario features, and the explanation step consumes those values rather than reselecting analog rows from a copied historical frame. No prediction model, features, endpoint schema, or dashboard behavior changed. See [performance notes](performance.md).
+
+## Local container topology and runtime resources (V3.9 implementation)
+
+```text
+docker compose up --build
+          |
+          v
+ runtime-init (only for empty named volumes)
+   generate → prepare → train existing pipeline
+          |
+     successful exit
+       /       \
+      v         v
+ main-api    assistant-api
+   |  \          |
+   |   \         | /chat
+   |    v        v
+   +-- dashboard (server-side Compose DNS clients)
+
+runtime-data, runtime-models, runtime-reports
+       initialized once, mounted read-only by app services
+```
+
+The initializer refuses to overwrite a partially initialized volume. A failed initialization blocks API and dashboard startup; its stage output is available with `docker compose logs runtime-init`. Normal `docker compose down` preserves generated volumes and avoids retraining on the next start. `docker compose down -v` removes the Compose project's generated volumes for an explicit synthetic-data reset. See [deployment](deployment.md) for commands and failure recovery.
+
+Both APIs retain `/health`; `/ready` checks the required dataset, model, metadata, and model-comparison files. Compose starts APIs after the initializer succeeds and the dashboard only after both APIs pass health checks. A separate standard-library smoke script exercises the real HTTP APIs from the dashboard container's network context. This setup remains a local synthetic demonstration and does not imply real-world forecast validity.
 
 ## Observability (V3.7)
 
