@@ -20,7 +20,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements-dev.txt
+          python -m pip install -e ".[dev]"
 
       - name: Ruff
         run: ruff check .
@@ -46,6 +46,13 @@ jobs:
 
       - name: Exercise APIs and dashboard from dashboard network context
         run: docker compose exec -T dashboard python scripts/smoke_test.py
+
+      - name: Verify generated resources persist across shutdown and startup
+        run: |
+          docker compose down
+          docker compose up -d --build --wait --wait-timeout 900
+          docker compose logs runtime-init
+          docker compose exec -T dashboard python scripts/smoke_test.py
 
       - name: Show service logs on failure
         if: failure()

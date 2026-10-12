@@ -2,6 +2,7 @@ name: wifi-tunja-smart-predictor
 
 x-app: &app
   image: wifi-tunja-smart-predictor:0.3.8
+  platform: linux/amd64
   build:
     context: .
     dockerfile: Dockerfile
