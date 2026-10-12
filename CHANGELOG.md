@@ -5,6 +5,7 @@
 ### Added
 
 - Python 3.12 runtime dependency lock with hashes, one-time runtime resource initialization using the existing synthetic data/preparation/training scripts, and persistent Compose-managed data, model, and report volumes.
+- Compatibility requirements files now delegate to the `pyproject.toml` runtime/dev extras; CI and local development install the same project extra. The Starlette test client uses its supported `httpx2` dependency.
 - Validated server-side API clients, a deployment smoke-test script, initialization and HTTP-client tests, and a Docker Compose CI validation job.
 
 ### Improved
@@ -12,6 +13,7 @@
 - Compose now waits for runtime initialization and API health; API readiness covers the dataset, model artifacts and metadata, and dashboard comparison reports.
 - Dashboard live scenario/location actions call the main API, and assistant chat calls the assistant API using loopback defaults locally and Compose DNS inside containers. The advanced feature-vector view retains the shared in-process inference path.
 - English and Spanish quick starts describe the one-command Docker flow, persisted generated resources, health checks, recovery, and the synthetic-data limitations.
+- Compose explicitly targets the Linux x86-64 architecture represented by the hash lock, including under ARM Docker Desktop emulation. The CI workflow now includes a persistence check across a Compose shutdown and restart.
 
 ### Release status
 

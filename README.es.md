@@ -55,7 +55,7 @@ El proyecto demuestra un flujo mantenible de clasificación y regresión con con
 
 ## Inicio rápido V3
 
-Instale con `python -m pip install -r requirements-dev.txt`, entrene ambos modelos con `python scripts/train_model.py` y evalúe con `python scripts/evaluate_model.py`. Inicie el dashboard con `streamlit run app/dashboard.py`, la API principal con `uvicorn api.main:app --reload --port 8000` y el asistente con `uvicorn assistant_api.main:app --reload --port 8001`.
+Para desarrollo local, instale con `python -m pip install -e ".[dev]"`, entrene ambos modelos con `python scripts/train_model.py` y evalúe con `python scripts/evaluate_model.py`. Inicie el dashboard con `streamlit run app/dashboard.py`, la API principal con `uvicorn api.main:app --reload --port 8000` y el asistente con `uvicorn assistant_api.main:app --reload --port 8001`. `pyproject.toml` es la fuente única de dependencias; los dos archivos `requirements` son entradas de compatibilidad. El desarrollo local admite Python 3.11 o posterior; CI y el contenedor usan Python 3.12. Las dependencias de ejecución bloqueadas con hashes se dirigen a Linux x86-64; Compose selecciona `linux/amd64` para permitir emulación en Docker Desktop sobre equipos ARM.
 
 Consulte [Predicción de escenarios](docs/scenario_prediction.md), [Asistente](docs/assistant.md), [Rendimiento](docs/performance.md), [Geoespacial](docs/geospatial.md), [Seguridad](docs/security.md) y [Limitaciones, privacidad y seguridad](docs/limitations.md).
 
@@ -117,7 +117,7 @@ Requiere Python 3.11+.
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -r requirements-dev.txt
+python -m pip install -e ".[dev]"
 ```
 
 ## 15. Generar datos

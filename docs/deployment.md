@@ -1,6 +1,6 @@
 # One-command Docker deployment (V3.9)
 
-This setup runs the existing main FastAPI API, deterministic assistant API, and Streamlit dashboard from one application image. A fresh clone needs Docker Desktop or Docker Engine with Compose v2 running; it does not need host Python, local package installation, generated data, model files, or an `.env` file.
+This setup runs the existing main FastAPI API, deterministic assistant API, and Streamlit dashboard from one application image. A fresh clone needs Docker Desktop or Docker Engine with Compose v2 running; it does not need host Python, local package installation, generated data, model files, or an `.env` file. Compose targets `linux/amd64`, matching the Python 3.12 Bookworm image and hash lock; Docker Desktop can emulate this target on ARM hosts.
 
 > The dataset and all reported predictions are synthetic demonstrations. Container startup and synthetic holdout metrics do not validate real-world WiFi demand in Tunja.
 
@@ -68,10 +68,10 @@ When running the dashboard directly on the host, keep the local defaults and sta
 
 ## Local Python development
 
-The existing local workflow remains available and requires Python 3.11+:
+The existing local workflow remains available and requires Python 3.11+. `pyproject.toml` is the authoritative dependency declaration. `requirements.txt` and `requirements-dev.txt` are compatibility wrappers (`-e .` and `-e .[dev]`) and do not carry a second dependency list. Development/test tools (including `httpx2` for Starlette's `TestClient`) are in the `dev` optional dependency group; they are excluded from the container runtime lock.
 
 ```powershell
-python -m pip install -r requirements-dev.txt
+python -m pip install -e ".[dev]"
 python scripts/generate_synthetic_dataset.py
 python scripts/prepare_data.py
 python scripts/train_model.py
@@ -96,11 +96,15 @@ For local development, the dashboard's server-side API clients default to loopba
 | Dashboard cannot reach an API | Run the smoke command from the dashboard container. Ensure Compose URLs use `main-api` and `assistant-api`, not `localhost`; inspect dashboard and API logs. |
 | App source changed but old data/model volume remains | Normal startup intentionally reuses existing resources and never retrains over them. Rebuild the image with `docker compose build --no-cache`; reset the generated volumes only when you explicitly want fresh synthetic resources. |
 
-To regenerate the pinned runtime dependency lock (requires `uv`):
+`requirements.lock` is the generated, runtime-only resolution of the dependencies in `pyproject.toml`; it targets Python 3.12 on Linux x86-64, includes exact transitive versions and hashes, and omits the development extra and the project itself. Docker installs that file with pip's `--require-hashes`; the image imports the source tree using `PYTHONPATH`.
+
+Regenerate the runtime lock only as part of a deliberate dependency update (requires `uv`):
 
 ```powershell
 uv pip compile pyproject.toml --python-version 3.12 --python-platform x86_64-unknown-linux-gnu --generate-hashes -o requirements.lock
 ```
+
+Update the dependency ranges in `pyproject.toml` first, regenerate the lock, review all resolved versions and markers, then verify a clean container build, imports, tests, and smoke checks before accepting the change. Do not edit the generated lock by hand. The runtime lock is for Docker; local development installs the `dev` extra from the same project metadata and currently resolves for the active operating system.
 
 Validate the resolved deployment and rebuild with:
 
