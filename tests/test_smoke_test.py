@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from api.schemas import PredictRequest
 from scripts import smoke_test
 
 
@@ -8,7 +9,11 @@ def _stub_services(monkeypatch, *, main_ready="ready"):
         responses = {
             "/health": {"status": "ok"},
             "/ready": {"status": main_ready},
-            "/model-info": {"model_loaded": True, "regression_model_loaded": True},
+            "/model-info": {
+                "model_loaded": True,
+                "regression_model_loaded": True,
+                "project_version": smoke_test.PROJECT_VERSION,
+            },
             "/predict": {"prediction": "HIGH"},
             "/scenario/predict": {"classification": {"predicted_demand_level": "HIGH"}},
         }
@@ -41,3 +46,25 @@ def test_smoke_test_returns_nonzero_for_unready_service(monkeypatch, capsys):
 
     assert smoke_test.run_smoke_tests("http://127.0.0.1:8501") == 1
     assert "FAIL Main API readiness" in capsys.readouterr().err
+
+
+def test_smoke_test_rejects_mismatched_package_version(monkeypatch, capsys):
+    _stub_services(monkeypatch)
+    original_request = smoke_test.main_api_request
+
+    def mismatched_model_info(path, payload=None):
+        response = original_request(path, payload)
+        if path == "/model-info":
+            response["project_version"] = "0.0.0"
+        return response
+
+    monkeypatch.setattr(smoke_test, "main_api_request", mismatched_model_info)
+
+    assert smoke_test.run_smoke_tests("http://127.0.0.1:8501") == 1
+    assert "FAIL Model information" in capsys.readouterr().err
+
+
+def test_smoke_prediction_payload_matches_the_api_contract():
+    payload = smoke_test._valid_prediction_payload()
+
+    assert PredictRequest.model_validate(payload).model_dump() == payload

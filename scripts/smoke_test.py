@@ -15,7 +15,11 @@ from wifi_tunja_smart_predictor.api_client import (
     assistant_api_request,
     main_api_request,
 )
-from wifi_tunja_smart_predictor.config import CATEGORICAL_ALLOWED_VALUES, MODEL_INPUT_COLUMNS
+from wifi_tunja_smart_predictor.config import (
+    CATEGORICAL_ALLOWED_VALUES,
+    MODEL_INPUT_COLUMNS,
+    PROJECT_VERSION,
+)
 
 DEFAULT_DASHBOARD_URL = "http://127.0.0.1:8501"
 
@@ -34,6 +38,10 @@ def _valid_prediction_payload() -> dict:
         )
         for feature in MODEL_INPUT_COLUMNS
     }
+    payload["month"] = 1
+    payload["time_period"] = "NIGHT"
+    payload["traffic_level"] = "LOW"
+    payload["event_type"] = "NONE"
     payload["access_point_capacity"] = 150
     payload["signal_strength_dbm"] = -60
     return payload
@@ -90,11 +98,7 @@ def _checks(dashboard_url: str) -> tuple[tuple[str, object], ...]:
         ),
         (
             "Model information",
-            lambda: _require(
-                (info := main_api_request("/model-info")).get("model_loaded") is True
-                and info.get("regression_model_loaded") is True,
-                "one or more trained artifacts could not be loaded",
-            ),
+            _check_model_info,
         ),
         (
             "Standard prediction",
@@ -121,6 +125,15 @@ def _checks(dashboard_url: str) -> tuple[tuple[str, object], ...]:
         ),
         ("Dashboard HTTP and backend network", lambda: _dashboard_health(dashboard_url)),
     )
+
+
+def _check_model_info() -> None:
+    info = main_api_request("/model-info")
+    _require(
+        info.get("model_loaded") is True and info.get("regression_model_loaded") is True,
+        "one or more trained artifacts could not be loaded",
+    )
+    _require(info.get("project_version") == PROJECT_VERSION, "package version does not match")
 
 
 def run_smoke_tests(dashboard_url: str | None = None) -> int:
