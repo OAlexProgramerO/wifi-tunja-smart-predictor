@@ -200,7 +200,9 @@ def predict(payload: PredictRequest) -> PredictResponse:
     return PredictResponse(
         prediction=labels[0],  # type: ignore[arg-type]
         prediction_probability=proba,
-        model_version=PROJECT_VERSION,
+        # The artifact can outlive the application image in persisted volumes.
+        # Report the version recorded at training, as scenario predictions do.
+        model_version=str(meta.get("project_version", PROJECT_VERSION)),
         selected_model=selected_model,
         disclaimer=SYNTHETIC_DATA_DISCLAIMER,
     )

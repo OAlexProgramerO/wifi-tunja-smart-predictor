@@ -66,6 +66,24 @@ def test_predict_valid(client: TestClient) -> None:
         assert abs(sum(body["prediction_probability"].values()) - 1.0) < 1e-5
 
 
+def test_predict_reports_version_from_trained_model_metadata(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import api.routes.prediction as prediction_routes
+
+    monkeypatch.setattr(
+        prediction_routes,
+        "_metadata",
+        lambda: {"project_version": "0.3.7", "selected_model": "stored_classifier"},
+    )
+
+    response = client.post("/predict", json=_valid_payload())
+
+    assert response.status_code == 200
+    assert response.json()["model_version"] == "0.3.7"
+    assert response.json()["selected_model"] == "stored_classifier"
+
+
 def test_predict_invalid_rejected(client: TestClient) -> None:
     payload = _valid_payload()
     payload["hour"] = 99

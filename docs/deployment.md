@@ -127,4 +127,8 @@ black --check .
 
 ## Validation status and limitations
 
-The V3.9 Compose implementation and smoke tooling are intended for local synthetic demonstration. This worktree has not yet been validated with Docker because the Docker CLI/daemon is unavailable here; configuration parsing, image build, service health, networking, persistence after restart, and live smoke tests must be confirmed on a Docker-capable system or by the new CI job. The setup does not add authentication, TLS termination, hosted deployment, automatic updates, durable audit logs, or external monitoring. It does not establish model accuracy on actual Tunja WiFi data.
+The V3.9 Compose implementation and smoke tooling are intended for local synthetic demonstration. During the 2026-10-13 audit, Docker CLI 29.8.2 and Compose 5.6.0 were installed, but the Docker Desktop Linux engine pipe was unavailable. `docker compose config --quiet` can be checked independently; image build, service health, networking, persistence after restart, and live smoke tests require a running engine. A previous successful run was reported in the project brief, but its logs are not in this checkout and were not independently reproduced in this session. The setup does not add authentication, TLS termination, hosted deployment, automatic updates, durable audit logs, or external monitoring. It does not establish model accuracy on actual Tunja WiFi data.
+
+## Version and release references
+
+The remote Git tag `v3.9.0` points to `16128ff` and is present on `origin`. The package in `pyproject.toml` and image in `compose.yaml` remain `0.3.8`; no workflow publishes GitHub Releases. GitHub's public Releases page currently says there are no releases. The README's former “current release: 0.3.8 (V3.8)” line was stale and has been corrected. See [release history and V4.0 readiness](release-history.md) for the evidence and the proposed version map. No tag or release was created or changed during this audit.

@@ -4,7 +4,7 @@
 
 Leer en [English](README.md)
 
-**Versión actual: 0.3.8 (V3.8 — Despliegue reproducible y preparación operativa).** V3.8 añade Docker Compose para las tres aplicaciones y verificaciones de disponibilidad de datos/modelos, conservando los registros y la trazabilidad de V3.7. El proyecto sigue siendo una demostración con datos sintéticos y no está certificado para producción.
+**Última etiqueta del proyecto: V3.9.0.** El paquete Python y la imagen Docker aún informan `0.3.8`; no se actualizaron junto con la etiqueta del proyecto. La página pública de GitHub Releases no contiene publicaciones, por lo que `v3.9.0` es una etiqueta Git y no un GitHub Release. V3.9 incorpora Compose, inicialización de recursos, verificaciones de disponibilidad, lock de dependencias y validaciones smoke/CI, descritos en el [historial de versiones](docs/release-history.md). El proyecto sigue siendo una demostración con datos sintéticos y no está certificado para producción.
 
 **Rendimiento V3.6:** Se conserva la reutilización acotada de recursos; las consultas del asistente y los escenarios evitan trabajo repetido sobre dataframes completos. Consulte [rendimiento](docs/performance.md).
 
@@ -13,6 +13,8 @@ Leer en [English](README.md)
 **Novedad V3.4:** El asistente calcula promedios históricos, frecuencias HIGH/LOW, comparaciones de zonas y horas/días pico sobre observaciones sintéticas. Estos análisis son distintos de las predicciones de escenarios del modelo.
 
 **Observabilidad V3.7:** Los registros locales son diagnósticos de la aplicación, no almacenamiento durable de auditoría ni una plataforma de trazas o monitoreo distribuido. Consulte [observabilidad](docs/observability.md).
+
+Consulte el [historial de versiones](docs/release-history.md) para diferenciar las etiquetas V3.8/V3.9/V4.0, la versión del paquete, la imagen y las publicaciones. La [guía de Docker para desarrolladores](docs/docker-for-developers.md) explica los conceptos, el consumo de recursos y la persistencia segura de volúmenes.
 
 **Seguridad V3.5 (preservada):** Las protecciones de API son una base práctica. No se incluyen autenticación, autorización, limitación de velocidad para producción, WAF ni despliegue probado mediante pentesting.
 
@@ -30,7 +32,7 @@ docker compose up --build
 
 En el primer inicio, el servicio `runtime-init` genera el dataset sintético del proyecto y entrena los dos modelos existentes una sola vez en volúmenes administrados por Compose. Espere a que las API y el dashboard estén disponibles. Abra el dashboard en <http://localhost:8501>, la documentación de la API principal en <http://localhost:8000/docs> y la del asistente en <http://localhost:8001/docs>. Revise `docker compose ps`, siga los registros con `docker compose logs -f`, ejecute las pruebas HTTP desde el contenedor del dashboard con `docker compose exec -T dashboard python scripts/smoke_test.py` y detenga con `docker compose down`. Los volúmenes de datos/modelos persisten después de `down`; `docker compose down -v` elimina solo los volúmenes generados de este proyecto.
 
-La implementación Docker V3.9 está en este árbol de trabajo, pero aún no se ha construido ni ejecutado en un entorno con Docker. Consulte la [guía de despliegue](docs/deployment.md) para la configuración y validación.
+La implementación Docker V3.9 está disponible. En la auditoría actual se puede inspeccionar la configuración de Compose, pero el daemon de Docker no está iniciado; por eso no se pueden repetir aquí la construcción de la imagen, el arranque de servicios ni las pruebas smoke dentro de contenedores. Consulte la [guía de despliegue](docs/deployment.md) y la [guía de Docker para desarrolladores](docs/docker-for-developers.md) para conocer las comprobaciones y limitaciones actuales.
 
 ## 1. Descripción del proyecto
 

@@ -9,7 +9,7 @@
 
 Read this in [Español](README.es.md)
 
-**Current release: 0.3.8 (V3.8 — Reproducible Deployment & Operational Readiness).** V3.8 adds a Docker Compose setup for all three applications and data/model-aware readiness checks, while retaining V3.7 privacy-conscious logs and request tracing. The project remains a synthetic demonstration system and is not production-certified.
+**Latest project tag: V3.9.0.** The Python package and Docker image still report `0.3.8`; they were not bumped with the project tag. The public GitHub Releases page currently has no published releases, so `v3.9.0` is a Git tag rather than a GitHub Release. V3.9 adds the Compose deployment, runtime initialization, readiness checks, dependency lock, and smoke/CI validation described in [release history](docs/release-history.md). The project remains a synthetic demonstration and is not production-certified.
 
 **V3.6 performance note:** Existing bounded resource reuse is preserved; the assistant query engine and scenario analog baselines avoid repeated full-frame work. See [performance notes](docs/performance.md).
 
@@ -18,6 +18,8 @@ Read this in [Español](README.es.md)
 **V3.4 release note:** The assistant now computes historical averages, HIGH/LOW rates, zone comparisons, and peak hours/days from synthetic observations. These analyses are separate from model-generated scenario forecasts.
 
 **V3.7 observability note:** Logs are local application diagnostics, not durable audit storage or a distributed tracing/monitoring platform. See [observability](docs/observability.md).
+
+For the V3.8/V3.9/V4.0 tag, package, image, and release status, see [release history](docs/release-history.md). For Docker concepts, resource inspection, and safe volume handling, see the [developer Docker guide](docs/docker-for-developers.md).
 
 **V3.5 security note (preserved):** API protections are a practical baseline. Authentication, authorization, production rate limiting, WAF protection, and penetration-tested deployment are not provided.
 
@@ -35,7 +37,7 @@ docker compose up --build
 
 On its first run, the `runtime-init` service creates the project's synthetic dataset and trains both existing models once in Compose-managed volumes. Wait for the APIs and dashboard to become healthy. Open the dashboard at <http://localhost:8501>, the main API docs at <http://localhost:8000/docs>, and assistant API docs at <http://localhost:8001/docs>. Inspect with `docker compose ps`, follow logs with `docker compose logs -f`, run the HTTP smoke checks from the dashboard container with `docker compose exec -T dashboard python scripts/smoke_test.py`, and stop with `docker compose down`. Data/model volumes persist after `down`; `docker compose down -v` removes only this Compose project's generated volumes.
 
-The V3.9 Docker implementation is present in this worktree but has not yet been built or run in a Docker-capable environment. See the [deployment guide](docs/deployment.md) for configuration and validation details.
+The V3.9 Docker implementation is present. In the current audit session, Compose configuration can be inspected, but the Docker daemon is not running, so image build, service startup, and container smoke checks cannot be independently repeated. See the [deployment guide](docs/deployment.md) for current verification status and the [Docker guide for developers](docs/docker-for-developers.md).
 
 ## 1. Project overview
 
