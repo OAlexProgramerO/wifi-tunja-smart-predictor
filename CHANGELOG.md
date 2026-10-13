@@ -1,6 +1,12 @@
 # Changelog
 
-## Unreleased — V3.9 One-Command Docker Setup & Reliability
+## Unreleased — V4.0.0 preparation
+
+### Fixed
+
+- Standard classification responses now report the package version recorded in the trained artifact metadata, matching scenario predictions and prediction trace logs when persistent model volumes outlive the application image.
+
+## V3.9.0 — One-Command Docker Setup & Reliability (Git tag)
 
 ### Added
 
@@ -15,9 +21,10 @@
 - English and Spanish quick starts describe the one-command Docker flow, persisted generated resources, health checks, recovery, and the synthetic-data limitations.
 - Compose explicitly targets the Linux x86-64 architecture represented by the hash lock, including under ARM Docker Desktop emulation. The CI workflow now includes a persistence check across a Compose shutdown and restart.
 
-### Release status
+### Version and verification status
 
-- Package version remains 0.3.8 until Docker clean-build, startup, health, network, persistence, and smoke acceptance checks can be confirmed. The Docker CLI is unavailable in the current implementation environment; no Docker runtime result is claimed.
+- The remote `v3.9.0` tag points to commit `16128ff`; the Python package and Compose image remain `0.3.8`. The public GitHub Releases page has no published releases, so this tag is not a GitHub Release. The repository README previously called V3.8 current, which accounts for the stale version shown on the repository landing page.
+- Docker CLI and Compose are installed in the current audit environment, but the Docker Desktop Linux engine pipe is unavailable. Configuration parsing is available; this session cannot verify image build, startup, container health, network smoke checks, or persistence. A prior successful Docker run was described in the project request, but its logs are not present in this checkout and could not be independently repeated.
 
 ## [0.3.8] - 2026-10-09
 
