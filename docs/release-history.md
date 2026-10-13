@@ -34,6 +34,10 @@ The GitHub webpage evidence is the public [Releases page](https://github.com/OAl
 
 The review found one confirmed, user-facing traceability defect with a bounded, backward-compatible fix: `POST /predict` returned the installed package version as `model_version`, while its event log used the persisted classifier's training metadata and scenario predictions already used that metadata. Persistent model volumes deliberately survive image rebuilds, so those versions can differ. The response now reports the classifier artifact's recorded version (falling back to the package version when metadata lacks it), and a regression test demonstrates the differing-version case.
 
+The ignored local artifacts provide direct evidence of the mismatch: model metadata records project version `0.3.0`, classifier `random_forest`, regressor `random_forest_regressor`, dataset `synthetic_seed_42_v1`, and training time `2026-09-30T15:53:25-05:00`; the installed package reports `0.3.8`. A local FastAPI `TestClient` prediction against that persisted classifier returned HTTP 200 and `model_version: 0.3.0`, while `/health` and `/model-info` returned application version `0.3.8`.
+
+The checked-in local metric artifacts describe a 7,574-row synthetic temporal test set from 2025-10-01 through 2025-12-31: classification F1 for `HIGH` 0.9049 and ROC-AUC 0.9804; regression MAE 27.906, RMSE 52.860, and R² 0.8358. The nominal 90% interval's empirical synthetic holdout coverage is 0.8957. These are stored results from the artifact generation dated 2026-09-30, not metrics regenerated or independently reevaluated for V4.0 and not evidence of real-world WiFi performance.
+
 | Functionality | Confirmed issue | Chosen improvement | Acceptance check |
 | --- | --- | --- | --- |
 | Standard prediction response | `model_version` could describe a newer app image than the persisted model that made the prediction | Return the artifact's training `project_version`, like scenario responses and trace events | Test with artifact metadata version `0.3.7` while the installed package is `0.3.8`; response must say `0.3.7`. |
