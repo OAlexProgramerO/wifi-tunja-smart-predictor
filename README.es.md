@@ -6,6 +6,8 @@ Leer en [English](README.md)
 
 **Última etiqueta del proyecto: V3.9.0.** El paquete Python y la imagen Docker aún informan `0.3.8`; no se actualizaron junto con la etiqueta del proyecto. La página pública de GitHub Releases no contiene publicaciones, por lo que `v3.9.0` es una etiqueta Git y no un GitHub Release. V3.9 incorpora Compose, inicialización de recursos, verificaciones de disponibilidad, lock de dependencias y validaciones smoke/CI, descritos en el [historial de versiones](docs/release-history.md). El proyecto sigue siendo una demostración con datos sintéticos y no está certificado para producción.
 
+**Preparación de V4.0:** Las respuestas de predicción ahora identifican la versión del clasificador persistido y readiness valida la carga de modelos y la consistencia de metadatos. Las versiones del paquete y de la imagen siguen en `0.3.8`; faltan las pruebas runtime de Docker, smoke en vivo, auditoría de dependencias y evidencia de CI. Consulte la [auditoría y disponibilidad de V4.0](docs/release-history.md) antes de considerar una publicación.
+
 **Rendimiento V3.6:** Se conserva la reutilización acotada de recursos; las consultas del asistente y los escenarios evitan trabajo repetido sobre dataframes completos. Consulte [rendimiento](docs/performance.md).
 
 **Novedad V3.2:** El asistente determinista responde consultas naturales de demanda en inglés y español con contexto de zona y hora, y reutiliza la ubicación en preguntas posteriores.

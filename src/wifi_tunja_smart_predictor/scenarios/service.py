@@ -3,12 +3,10 @@
 from __future__ import annotations
 
 import json
-import logging
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-import joblib
 import numpy as np
 import pandas as pd
 
@@ -27,14 +25,18 @@ from wifi_tunja_smart_predictor.config import (
     TARGET_LABELS,
 )
 from wifi_tunja_smart_predictor.data.loader import load_analysis_dataset
-from wifi_tunja_smart_predictor.exceptions import ModelNotFoundError, PredictionError
+from wifi_tunja_smart_predictor.exceptions import ModelMetadataError, PredictionError
+from wifi_tunja_smart_predictor.models.artifacts import (
+    load_classifier_metadata,
+    load_regression_metadata,
+    load_regression_model,
+)
+from wifi_tunja_smart_predictor.models.predict import load_model
 from wifi_tunja_smart_predictor.scenarios.builder import (
     ScenarioBuilder,
     ScenarioContext,
     ScenarioRequest,
 )
-
-logger = logging.getLogger(__name__)
 
 FEATURE_LABELS = {
     "connections_same_hour_previous_day": "Connections at the same hour yesterday",
@@ -89,11 +91,23 @@ class ScenarioPredictionService:
     ) -> None:
         self.frame = frame if frame is not None else load_analysis_dataset()
         self.builder = ScenarioBuilder(self.frame)
-        self.classifier = classifier if classifier is not None else _load_artifact(classifier_path)
-        self.regressor = regressor if regressor is not None else _load_artifact(regressor_path)
-        self.classification_metadata = _json_metadata(CLASSIFICATION_METADATA_PATH)
-        self.regression_metadata = _json_metadata(REGRESSION_METADATA_PATH)
-        self.model_metadata = _json_metadata(MODEL_METADATA_PATH)
+        self.classifier = classifier if classifier is not None else load_model(str(classifier_path))
+        self.regressor = (
+            regressor if regressor is not None else load_regression_model(regressor_path)
+        )
+        if classifier is None and regressor is None:
+            self.classification_metadata = load_classifier_metadata()
+            self.regression_metadata = load_regression_metadata()
+            if (
+                self.classification_metadata["project_version"]
+                != self.regression_metadata["project_version"]
+            ):
+                raise ModelMetadataError("Classifier and regressor metadata are inconsistent.")
+            self.model_metadata = self.classification_metadata
+        else:
+            self.classification_metadata = _json_metadata(CLASSIFICATION_METADATA_PATH)
+            self.regression_metadata = _json_metadata(REGRESSION_METADATA_PATH)
+            self.model_metadata = _json_metadata(MODEL_METADATA_PATH)
 
     def predict(self, request: ScenarioRequest) -> PredictionResult:
         """Build the scenario and return both model estimates plus calibrated interval."""
@@ -127,7 +141,7 @@ class ScenarioPredictionService:
                 **context.to_dict(),
                 "scenario_location": context.location.zone_name,
                 "classification_threshold": CLASSIFICATION_THRESHOLD,
-                "model_version": self.classification_metadata.get("project_version", "unknown"),
+                "model_version": self.classification_metadata.get("project_version"),
                 "dataset_version": self.regression_metadata.get("dataset_version", DATASET_VERSION),
                 "preprocessing_version": self.regression_metadata.get(
                     "preprocessing_version", PREPROCESSING_VERSION
@@ -139,7 +153,8 @@ class ScenarioPredictionService:
                 "probability_low": probability_low,
                 "probability_high": probability_high,
                 "classification_threshold": CLASSIFICATION_THRESHOLD,
-                "model_version": self.classification_metadata.get("project_version", "unknown"),
+                "model_version": self.classification_metadata.get("project_version"),
+                "selected_model": self.classification_metadata.get("selected_model"),
             },
             regression={
                 "predicted_connections_next_hour": predicted_connections,
@@ -219,10 +234,3 @@ def _python_value(value: Any) -> Any:
     if isinstance(value, np.generic):
         return value.item()
     return value
-
-
-def _load_artifact(path: Path) -> Any:
-    if not path.is_file():
-        raise ModelNotFoundError(f"Required model artifact not found at '{path}'.")
-    logger.info("Loading prediction artifact from %s", path)
-    return joblib.load(path)

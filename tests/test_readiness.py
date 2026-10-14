@@ -30,6 +30,7 @@ def test_readiness_requires_dataset_and_both_models(monkeypatch, tmp_path):
 
 def test_main_api_readiness_is_sanitized_and_health_contract_remains(monkeypatch, tmp_path):
     _set_runtime_assets(monkeypatch, tmp_path, missing=(0,))
+    monkeypatch.setattr(deployment, "model_artifacts_available", lambda: True)
     client = TestClient(main_app)
 
     response = client.get("/ready")
@@ -44,9 +45,15 @@ def test_main_api_readiness_is_sanitized_and_health_contract_remains(monkeypatch
     _set_runtime_assets(monkeypatch, tmp_path)
     assert client.get("/ready").json() == {"status": "ready"}
 
+    monkeypatch.setattr(deployment, "model_artifacts_available", lambda: False)
+    response = client.get("/ready")
+    assert response.status_code == 503
+    assert client.get("/health").json()["status"] == "ok"
+
 
 def test_assistant_readiness_uses_same_assets_and_preserves_health(monkeypatch, tmp_path):
     _set_runtime_assets(monkeypatch, tmp_path, missing=(2,))
+    monkeypatch.setattr(deployment, "model_artifacts_available", lambda: True)
     client = TestClient(assistant_main.app)
 
     response = client.get("/ready")
@@ -56,3 +63,8 @@ def test_assistant_readiness_uses_same_assets_and_preserves_health(monkeypatch, 
 
     _set_runtime_assets(monkeypatch, tmp_path)
     assert client.get("/ready").json() == {"status": "ready"}
+
+    monkeypatch.setattr(deployment, "model_artifacts_available", lambda: False)
+    response = client.get("/ready")
+    assert response.status_code == 503
+    assert client.get("/health").json()["status"] == "ok"

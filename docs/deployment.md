@@ -84,7 +84,7 @@ For local development, the dashboard's server-side API clients default to loopba
 
 ## Health, troubleshooting, and rebuilds
 
-`GET /health` retains its V3.8 contract. API `GET /ready` keeps the existing `{"status":"ready"}`/sanitized `503` response shape and now checks the runtime files used by the supported prediction, assistant, and dashboard views: both datasets, both models, model metadata, and classifier/regressor comparison files. The check only checks file presence; `/model-info`, scenario smoke tests, and smoke-check predictions exercise artifact loading/inference. Streamlit's process health check uses its bundled `/_stcore/health` endpoint.
+`GET /health` reports process health and application version; it does not claim models are usable. API `GET /ready` keeps the existing `{"status":"ready"}`/sanitized `503` response shape and checks the runtime files used by the supported prediction, assistant, and dashboard views: both datasets, both models, model metadata, and classifier/regressor comparison files. It also deserializes both model artifacts and validates required metadata fields, feature contracts, and cross-model version consistency. `/model-info` distinguishes application and classifier artifact versions. These checks establish loadability and metadata consistency, not prediction quality or real-world accuracy. Streamlit's process health check uses its bundled `/_stcore/health` endpoint.
 
 | Symptom | Checks and action |
 | --- | --- |

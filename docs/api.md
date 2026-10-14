@@ -4,9 +4,9 @@
 
 Start with `uvicorn api.main:app --reload --port 8000`; interactive OpenAPI is at `/docs`.
 
-- `GET /health` returns project/version status.
-- `GET /ready` returns `200` when runtime data, both model artifacts and metadata, and model comparison reports are present; otherwise it returns a path-safe `503`. It checks file presence only.
-- `GET /model-info` reports classifier and regressor artifacts plus temporal periods.
+- `GET /health` reports that the API process is responding and returns the installed application version. It does not claim models are usable.
+- `GET /ready` returns `200` only when runtime files and complete, mutually consistent classifier/regressor metadata exist and both model artifacts can be deserialized with the expected prediction methods; otherwise it returns a sanitized `503`.
+- `GET /model-info` distinguishes `project_version` (running application package) from `model_version` (classifier training metadata). `model_loaded` and `regression_model_loaded` report deserialization/metadata validity, not scientific model quality.
 - `GET /locations` returns the compact synthetic AP/zone/coordinate catalog.
 - `POST /predict` preserves the V2 40-field classification contract. Extra fields and either target are rejected. Its `model_version` and `selected_model` identify the loaded classifier artifact using its training metadata; `/health` and `/model-info.project_version` identify the running application package.
 - `POST /scenario/predict` accepts a date/time and one synthetic location, then builds context and returns classification, regression, conformal interval, capacity proxy, and sensitivity factors.
@@ -26,7 +26,7 @@ Location may identify `zone`, `zone_id`, `access_point_id`, or paired `latitude`
 
 Start with `uvicorn assistant_api.main:app --reload --port 8001`; OpenAPI is at `/docs`.
 
-- `GET /health` reports deterministic provider status; `llm_enabled` is false.
+- `GET /health` reports deterministic provider process status; `llm_enabled` is false. `/ready` checks runtime files and model-bundle loadability.
 - `GET /suggestions` returns example questions.
 - `POST /chat` accepts `message`, optional `session_id`, and structured scenario `context`.
 - `POST /dataset/query` accepts allowlisted metrics, columns, filters, and groupings.

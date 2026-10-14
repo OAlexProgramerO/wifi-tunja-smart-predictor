@@ -13,6 +13,14 @@ class ModelNotFoundError(FileNotFoundError):
     """Raised when a persisted model artifact is missing."""
 
 
+class ModelArtifactError(RuntimeError):
+    """Raised when a persisted model artifact cannot be deserialized or used."""
+
+
+class ModelMetadataError(ValueError):
+    """Raised when model metadata is absent, malformed, or inconsistent."""
+
+
 class PredictionError(ValueError):
     """Raised when inference inputs are incompatible with the trained pipeline."""
 

@@ -11,6 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from api.security import install_api_security
+from wifi_tunja_smart_predictor import deployment
 from wifi_tunja_smart_predictor.assistant.queries import DatasetQuery
 from wifi_tunja_smart_predictor.assistant.schemas import ChatRequest, ChatResponse
 from wifi_tunja_smart_predictor.assistant.service import AssistantService
@@ -20,7 +21,6 @@ from wifi_tunja_smart_predictor.config import (
     PROJECT_VERSION,
     SYNTHETIC_DATA_DISCLAIMER,
 )
-from wifi_tunja_smart_predictor.deployment import runtime_assets_available
 from wifi_tunja_smart_predictor.exceptions import ModelNotFoundError
 from wifi_tunja_smart_predictor.observability import (
     current_request_id,
@@ -67,8 +67,8 @@ def health() -> dict[str, str | bool]:
 
 @app.get("/ready")
 def readiness() -> JSONResponse:
-    """Report whether the dataset and model resources used by chat are present."""
-    if not runtime_assets_available():
+    """Report whether the dataset and model resources used by chat are usable."""
+    if not deployment.runtime_assets_available() or not deployment.model_artifacts_available():
         return JSONResponse(
             status_code=503,
             content={

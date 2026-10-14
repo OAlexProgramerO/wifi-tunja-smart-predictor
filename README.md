@@ -11,6 +11,8 @@ Read this in [Español](README.es.md)
 
 **Latest project tag: V3.9.0.** The Python package and Docker image still report `0.3.8`; they were not bumped with the project tag. The public GitHub Releases page currently has no published releases, so `v3.9.0` is a Git tag rather than a GitHub Release. V3.9 adds the Compose deployment, runtime initialization, readiness checks, dependency lock, and smoke/CI validation described in [release history](docs/release-history.md). The project remains a synthetic demonstration and is not production-certified.
 
+**V4.0 release preparation:** Prediction responses now trace the persisted classifier version, and readiness checks model loading and metadata consistency. Package/image versions remain `0.3.8`; Docker runtime, live smoke, dependency scan, and CI evidence remain pending. See [V4.0 audit and release readiness](docs/release-history.md) before considering a release.
+
 **V3.6 performance note:** Existing bounded resource reuse is preserved; the assistant query engine and scenario analog baselines avoid repeated full-frame work. See [performance notes](docs/performance.md).
 
 **V3.2 release note:** The deterministic assistant now answers natural English and Spanish demand questions using synthetic zone and time context, and reuses the location in follow-up questions.

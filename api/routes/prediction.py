@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import logging
 from functools import lru_cache
 from time import perf_counter
@@ -18,21 +17,27 @@ from api.schemas import (
     ScenarioPredictionResponse,
     ScenarioPredictRequest,
 )
+from wifi_tunja_smart_predictor import deployment
 from wifi_tunja_smart_predictor.config import (
+    CLASSIFICATION_METADATA_PATH,
     MODEL_INPUT_COLUMNS,
     MODEL_METADATA_PATH,
     PROJECT_NAME,
     PROJECT_VERSION,
-    REGRESSION_MODEL_PATH,
     SYNTHETIC_DATA_DISCLAIMER,
 )
 from wifi_tunja_smart_predictor.data.loader import load_raw_dataset
-from wifi_tunja_smart_predictor.deployment import runtime_assets_available
 from wifi_tunja_smart_predictor.exceptions import (
     LocationResolutionError,
+    ModelArtifactError,
+    ModelMetadataError,
     ModelNotFoundError,
     PredictionError,
     ScenarioBuildError,
+)
+from wifi_tunja_smart_predictor.models.artifacts import (
+    load_classifier_metadata,
+    load_regression_model,
 )
 from wifi_tunja_smart_predictor.models.predict import (
     load_model,
@@ -102,9 +107,7 @@ def _location_catalog() -> list[dict]:
 
 
 def _metadata() -> dict:
-    if MODEL_METADATA_PATH.is_file():
-        return json.loads(MODEL_METADATA_PATH.read_text(encoding="utf-8"))
-    return {}
+    return load_classifier_metadata(MODEL_METADATA_PATH, CLASSIFICATION_METADATA_PATH)
 
 
 @router.get("/health", response_model=HealthResponse)
@@ -114,8 +117,8 @@ def health() -> HealthResponse:
 
 @router.get("/ready")
 def readiness() -> JSONResponse:
-    """Report whether the data and model files needed by prediction are present."""
-    if not runtime_assets_available():
+    """Report whether required runtime files and model artifacts are usable."""
+    if not deployment.runtime_assets_available() or not deployment.model_artifacts_available():
         return JSONResponse(
             status_code=503,
             content={
@@ -128,22 +131,31 @@ def readiness() -> JSONResponse:
 
 @router.get("/model-info", response_model=ModelInfoResponse)
 def model_info() -> ModelInfoResponse:
-    meta = _metadata()
+    meta = {}
+    loaded = False
     try:
-        load_model()
-        loaded = True
-    except ModelNotFoundError:
-        loaded = False
+        meta = _metadata()
+        loaded_model = load_model()
+        loaded = callable(getattr(loaded_model, "predict", None)) and callable(
+            getattr(loaded_model, "predict_proba", None)
+        )
+    except (ModelArtifactError, ModelMetadataError, ModelNotFoundError, OSError, ValueError):
+        pass
+    try:
+        regression_loaded = callable(getattr(load_regression_model(), "predict", None))
+    except (ModelArtifactError, ModelNotFoundError, OSError):
+        regression_loaded = False
     return ModelInfoResponse(
         model_loaded=loaded,
         project_version=PROJECT_VERSION,
+        model_version=meta.get("project_version") if loaded else None,
         selected_model=meta.get("selected_model"),
         feature_count=len(MODEL_INPUT_COLUMNS),
         disclaimer=SYNTHETIC_DATA_DISCLAIMER,
         train_period=meta.get("train_period"),
         validation_period=meta.get("validation_period"),
         test_period=meta.get("test_period"),
-        regression_model_loaded=REGRESSION_MODEL_PATH.is_file(),
+        regression_model_loaded=regression_loaded,
         regression_model=meta.get("regression", {}).get("selected_model"),
     )
 
@@ -152,6 +164,7 @@ def model_info() -> ModelInfoResponse:
 def predict(payload: PredictRequest) -> PredictResponse:
     started = perf_counter()
     try:
+        meta = _metadata()
         model = load_model()
         features = payload.model_dump()
         labels = predict_demand(features, model=model)
@@ -163,6 +176,26 @@ def predict(payload: PredictRequest) -> PredictResponse:
             detail={
                 "code": "model_unavailable",
                 "message": "Required model artifacts are unavailable.",
+            },
+        ) from exc
+    except ModelArtifactError as exc:
+        _prediction_event("standard", "failed", started, error_category="model_unavailable")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "model_unavailable",
+                "message": "Required model artifacts are unavailable.",
+            },
+        ) from exc
+    except ModelMetadataError as exc:
+        _prediction_event(
+            "standard", "failed", started, error_category="model_metadata_unavailable"
+        )
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "model_metadata_unavailable",
+                "message": "Required model metadata is unavailable or invalid.",
             },
         ) from exc
     except PredictionError as exc:
@@ -187,13 +220,12 @@ def predict(payload: PredictRequest) -> PredictResponse:
             detail="Prediction failed. Check that the request matches the trained feature contract.",
         ) from None
 
-    meta = _metadata()
     selected_model = meta.get("selected_model")
     _prediction_event(
         "standard",
         "completed",
         started,
-        model_version=str(meta.get("project_version", PROJECT_VERSION)),
+        model_version=meta["project_version"],
         selected_model=selected_model if isinstance(selected_model, str) else None,
     )
     proba = probabilities[0] if probabilities else None
@@ -202,7 +234,7 @@ def predict(payload: PredictRequest) -> PredictResponse:
         prediction_probability=proba,
         # The artifact can outlive the application image in persisted volumes.
         # Report the version recorded at training, as scenario predictions do.
-        model_version=str(meta.get("project_version", PROJECT_VERSION)),
+        model_version=meta["project_version"],
         selected_model=selected_model,
         disclaimer=SYNTHETIC_DATA_DISCLAIMER,
     )
@@ -237,16 +269,18 @@ def scenario_predict(payload: ScenarioPredictRequest) -> ScenarioPredictionRespo
     started = perf_counter()
     try:
         result = _scenario_service().predict(request)
-        metadata = _metadata()
-        selected_model = metadata.get("selected_model")
+        result_payload = result.to_dict()
+        classification = result_payload.get("classification", {})
+        model_version = classification.get("model_version")
+        selected_model = classification.get("selected_model")
         _prediction_event(
             "scenario",
             "completed",
             started,
-            model_version=str(metadata.get("project_version", PROJECT_VERSION)),
+            model_version=model_version if isinstance(model_version, str) else None,
             selected_model=selected_model if isinstance(selected_model, str) else None,
         )
-        return ScenarioPredictionResponse(**result.to_dict())
+        return ScenarioPredictionResponse(**result_payload)
     except ModelNotFoundError as exc:
         _prediction_event("scenario", "failed", started, error_category="model_unavailable")
         raise HTTPException(
@@ -254,6 +288,15 @@ def scenario_predict(payload: ScenarioPredictRequest) -> ScenarioPredictionRespo
             detail={
                 "code": "model_unavailable",
                 "message": "Required model artifacts are unavailable.",
+            },
+        ) from exc
+    except (ModelArtifactError, ModelMetadataError) as exc:
+        _prediction_event("scenario", "failed", started, error_category="model_unavailable")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "model_unavailable",
+                "message": "Required model artifacts or metadata are unavailable.",
             },
         ) from exc
     except LocationResolutionError as exc:

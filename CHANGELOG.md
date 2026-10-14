@@ -5,6 +5,8 @@
 ### Fixed
 
 - Standard classification responses now report the package version recorded in the trained artifact metadata, matching scenario predictions and prediction trace logs when persistent model volumes outlive the application image.
+- Missing, malformed, incomplete, or inconsistent classifier metadata now prevents a prediction and returns a sanitized `503`; model metadata is checked against the persisted feature contract and the separate classifier record.
+- API `/ready` now verifies that classifier and regressor artifacts can be deserialized and that their metadata versions agree. `/health` remains a process liveness check, while `/model-info` reports application and classifier artifact versions separately.
 
 ## V3.9.0 — One-Command Docker Setup & Reliability (Git tag)
 

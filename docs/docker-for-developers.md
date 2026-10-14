@@ -34,7 +34,7 @@ docker compose up -d --build --wait --wait-timeout 900
 
 ## Health checks and readiness
 
-Compose checks the main API at `/ready`, the assistant at `/ready`, and Streamlit at `/_stcore/health`. A health check reports whether a process/resource check responds; it is different from `GET /health`, which reports process identity/version. Current API readiness checks required runtime files exist. The smoke command also exercises model-info, prediction, scenario prediction, assistant chat, and dashboard HTTP. Passing health alone does not prove the model is scientifically valid or accurate on real WiFi data.
+Compose checks the main API at `/ready`, the assistant at `/ready`, and Streamlit at `/_stcore/health`. A health check reports whether a process/resource check responds; it is different from `GET /health`, which reports process identity/version. API readiness checks required runtime files, deserializes both models, and validates model metadata consistency. The smoke command also exercises model-info, prediction, scenario prediction, assistant chat, and dashboard HTTP. Passing health alone does not prove the model is scientifically valid or accurate on real WiFi data.
 
 For a failing container, inspect:
 

@@ -176,7 +176,10 @@ def test_scenario_prediction_operation_is_traceable(caplog, monkeypatch):
         def to_dict():
             return {
                 "scenario": {},
-                "classification": {},
+                "classification": {
+                    "model_version": "model-test",
+                    "selected_model": "test-classifier",
+                },
                 "regression": {},
                 "capacity": {},
                 "explanation": {},

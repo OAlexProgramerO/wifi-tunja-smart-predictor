@@ -15,7 +15,11 @@ from wifi_tunja_smart_predictor.config import (
     MODEL_PATH,
     TARGET_LABELS,
 )
-from wifi_tunja_smart_predictor.exceptions import ModelNotFoundError, PredictionError
+from wifi_tunja_smart_predictor.exceptions import (
+    ModelArtifactError,
+    ModelNotFoundError,
+    PredictionError,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +34,10 @@ def load_model(path: str | None = None) -> Any:
             "Train it from the repository root with: python scripts/train_model.py"
         )
     logger.info("Loading model from %s", model_path)
-    return joblib.load(model_path)
+    try:
+        return joblib.load(model_path)
+    except Exception as exc:
+        raise ModelArtifactError("The classification model artifact could not be loaded.") from exc
 
 
 def _as_frame(payload: pd.DataFrame | dict[str, Any]) -> pd.DataFrame:

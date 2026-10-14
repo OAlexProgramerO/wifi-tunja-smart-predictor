@@ -46,6 +46,10 @@ class HealthResponse(BaseModel):
 class ModelInfoResponse(BaseModel):
     model_loaded: bool
     project_version: str
+    model_version: str | None = Field(
+        default=None,
+        description="Version recorded in the loaded classifier artifact metadata.",
+    )
     selected_model: str | None = None
     feature_count: int
     disclaimer: str

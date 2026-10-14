@@ -42,3 +42,10 @@ def missing_demo_assets(paths: tuple[Path, ...] | None = None) -> tuple[Path, ..
 def runtime_assets_available() -> bool:
     """Return whether all resources used by the APIs and dashboard are present."""
     return not missing_demo_assets()
+
+
+def model_artifacts_available() -> bool:
+    """Return whether persisted classifier and regression models are loadable."""
+    from wifi_tunja_smart_predictor.models.artifacts import model_artifacts_available as check
+
+    return check()

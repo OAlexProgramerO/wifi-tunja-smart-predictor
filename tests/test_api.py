@@ -25,11 +25,30 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     artifact = tmp_path / "model.joblib"
     joblib.dump(pipeline, artifact)
 
+    import api.routes.prediction as prediction_routes
     import wifi_tunja_smart_predictor.config as config_mod
     import wifi_tunja_smart_predictor.models.predict as predict_mod
 
     monkeypatch.setattr(config_mod, "MODEL_PATH", artifact)
     monkeypatch.setattr(predict_mod, "MODEL_PATH", artifact)
+    metadata_path = tmp_path / "model_metadata.json"
+    classification_metadata_path = tmp_path / "classification_metadata.json"
+    metadata = {
+        "project_version": "0.3.8",
+        "selected_model": "test_classifier",
+        "feature_count": len(MODEL_INPUT_COLUMNS),
+        "feature_names": MODEL_INPUT_COLUMNS,
+        "regression": {
+            "project_version": "0.3.8",
+            "selected_model": "test_regressor",
+        },
+    }
+    metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+    classification_metadata_path.write_text(json.dumps(metadata), encoding="utf-8")
+    monkeypatch.setattr(prediction_routes, "MODEL_METADATA_PATH", metadata_path)
+    monkeypatch.setattr(
+        prediction_routes, "CLASSIFICATION_METADATA_PATH", classification_metadata_path
+    )
     predict_mod.load_model.cache_clear()
 
     from api.main import app
@@ -82,6 +101,43 @@ def test_predict_reports_version_from_trained_model_metadata(
     assert response.status_code == 200
     assert response.json()["model_version"] == "0.3.7"
     assert response.json()["selected_model"] == "stored_classifier"
+
+
+@pytest.mark.parametrize(
+    "metadata_content",
+    [
+        None,
+        "{ malformed json",
+        json.dumps({"project_version": "0.3.7", "selected_model": "stored_classifier"}),
+    ],
+    ids=["missing", "malformed", "incomplete"],
+)
+def test_predict_rejects_missing_or_invalid_artifact_metadata(
+    client: TestClient, metadata_content: str | None
+) -> None:
+    import api.routes.prediction as prediction_routes
+
+    metadata_path = prediction_routes.MODEL_METADATA_PATH
+    if metadata_content is None:
+        metadata_path.unlink()
+    else:
+        metadata_path.write_text(metadata_content, encoding="utf-8")
+
+    response = client.post("/predict", json=_valid_payload())
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": {
+            "code": "model_metadata_unavailable",
+            "message": "Required model metadata is unavailable or invalid.",
+        }
+    }
+    assert str(metadata_path) not in response.text
+    info = client.get("/model-info")
+    assert info.status_code == 200
+    assert info.json()["model_loaded"] is False
+    assert info.json()["model_version"] is None
+    assert client.get("/health").json()["status"] == "ok"
 
 
 def test_predict_invalid_rejected(client: TestClient) -> None:

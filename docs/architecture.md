@@ -133,7 +133,7 @@ runtime-data, runtime-models, runtime-reports
 
 The initializer refuses to overwrite a partially initialized volume. A failed initialization blocks API and dashboard startup; its stage output is available with `docker compose logs runtime-init`. Normal `docker compose down` preserves generated volumes and avoids retraining on the next start. `docker compose down -v` removes the Compose project's generated volumes for an explicit synthetic-data reset. See [deployment](deployment.md) for commands and failure recovery.
 
-Both APIs retain `/health`; `/ready` checks the required dataset, model, metadata, and model-comparison files. Compose starts APIs after the initializer succeeds and the dashboard only after both APIs pass health checks. A separate standard-library smoke script exercises the real HTTP APIs from the dashboard container's network context. This setup remains a local synthetic demonstration and does not imply real-world forecast validity.
+Both APIs retain `/health` as a process liveness check. `/ready` checks required datasets, model and metadata files, comparison reports, deserialization of both models, and consistency of model versions and feature metadata. `/model-info` separates the application package version from the classifier artifact version. Compose starts APIs after initialization succeeds and the dashboard only after both APIs pass readiness. A separate standard-library smoke script exercises the real HTTP APIs from the dashboard container's network context. This setup remains a local synthetic demonstration and does not imply real-world forecast validity.
 
 ## Observability (V3.7)
 
