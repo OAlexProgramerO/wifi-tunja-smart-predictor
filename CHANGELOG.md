@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased — V4.1 maintenance plan
+
+### Planned
+
+- Validate Docker image builds, Compose startup, runtime initialization, service health/readiness, HTTP smoke behavior, and persistent volumes on a Docker-capable host.
+- Reconfirm model metadata validation and prediction-version traceability, and record Python quality, dependency/security review, and actual CI evidence.
+- Keep English and Spanish release/deployment documentation aligned with verified results and explicit synthetic-data limitations. No V4.1 behavior or release is claimed by this plan.
+
 ## Unreleased — V4.0.0 preparation
 
 ### Fixed

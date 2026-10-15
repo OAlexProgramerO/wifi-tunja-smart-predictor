@@ -6,7 +6,9 @@ Leer en [English](README.md)
 
 **Última etiqueta del proyecto: V3.9.0.** El paquete Python y la imagen Docker aún informan `0.3.8`; no se actualizaron junto con la etiqueta del proyecto. La página pública de GitHub Releases no contiene publicaciones, por lo que `v3.9.0` es una etiqueta Git y no un GitHub Release. V3.9 incorpora Compose, inicialización de recursos, verificaciones de disponibilidad, lock de dependencias y validaciones smoke/CI, descritos en el [historial de versiones](docs/release-history.md). El proyecto sigue siendo una demostración con datos sintéticos y no está certificado para producción.
 
-**Preparación de V4.0:** Las respuestas de predicción ahora identifican la versión del clasificador persistido y readiness valida la carga de modelos y la consistencia de metadatos. Las versiones del paquete y de la imagen siguen en `0.3.8`; faltan las pruebas runtime de Docker, smoke en vivo, auditoría de dependencias y evidencia de CI. Consulte la [auditoría y disponibilidad de V4.0](docs/release-history.md) antes de considerar una publicación.
+**Implementación V4.0:** Los commits de implementación están integrados en `main`; la etiqueta de proyecto más reciente sigue siendo `v3.9.0`, y el paquete/la imagen permanecen en `0.3.8`. La auditoría más reciente no ha confirmado de forma independiente las pruebas runtime de Docker, smoke en vivo, auditoría de dependencias ni evidencia de CI. Consulte la [auditoría y disponibilidad de V4.0](docs/release-history.md).
+
+**V4.1:** Solo se propone un plan de mantenimiento; V4.1 no está implementada ni publicada. El [plan de mantenimiento V4.1](docs/planning/v4.1-maintenance-plan.md) define verificaciones pendientes para Docker, runtime/persistencia, trazabilidad de artefactos, calidad/seguridad, CI y documentación.
 
 **Rendimiento V3.6:** Se conserva la reutilización acotada de recursos; las consultas del asistente y los escenarios evitan trabajo repetido sobre dataframes completos. Consulte [rendimiento](docs/performance.md).
 

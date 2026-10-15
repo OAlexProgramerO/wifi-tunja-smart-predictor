@@ -11,7 +11,9 @@ Read this in [Español](README.es.md)
 
 **Latest project tag: V3.9.0.** The Python package and Docker image still report `0.3.8`; they were not bumped with the project tag. The public GitHub Releases page currently has no published releases, so `v3.9.0` is a Git tag rather than a GitHub Release. V3.9 adds the Compose deployment, runtime initialization, readiness checks, dependency lock, and smoke/CI validation described in [release history](docs/release-history.md). The project remains a synthetic demonstration and is not production-certified.
 
-**V4.0 release preparation:** Prediction responses now trace the persisted classifier version, and readiness checks model loading and metadata consistency. Package/image versions remain `0.3.8`; Docker runtime, live smoke, dependency scan, and CI evidence remain pending. See [V4.0 audit and release readiness](docs/release-history.md) before considering a release.
+**V4.0 implementation:** The implementation commits are integrated into `main`; the latest project tag remains `v3.9.0`, and the package/image remain `0.3.8`. Docker runtime, live smoke, dependency-scan, and supporting CI evidence have not been independently confirmed in the latest audit. See [V4.0 audit and release readiness](docs/release-history.md).
+
+**V4.1:** A maintenance plan is proposed only; V4.1 is not implemented or released. Docker, runtime/persistence, artifact-traceability, quality/security, CI, and documentation checks have explicit pending gates in the [V4.1 maintenance plan](docs/planning/v4.1-maintenance-plan.md).
 
 **V3.6 performance note:** Existing bounded resource reuse is preserved; the assistant query engine and scenario analog baselines avoid repeated full-frame work. See [performance notes](docs/performance.md).
 
