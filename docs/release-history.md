@@ -54,3 +54,20 @@ V4.0 remains an unreleased working label. The package stays `0.3.8` and image st
 During this audit, `python -m pytest -q` passed all 179 tests; Ruff, Black, compileall, `docker compose config --quiet`, and `git diff --check` also passed. The existing `scripts/smoke_test.py` was run but failed because the main API, assistant API, and dashboard were not running locally. The Docker CLI and Compose are installed, but the Docker Desktop Linux engine pipe is unavailable, so image build, isolated initialization, service health, container-network smoke, and persistence after recreation remain unverified. Dependency auditing with `uvx --from pip-audit pip-audit -r requirements.lock` could not complete because the Linux-targeted lock attempts to build `uvloop`, which does not support this Windows host. No vulnerability-free result is claimed. GitHub Actions has no observed run for this checkout.
 
 Before assigning a V4.0 package version or release tag, start Docker Desktop and run the documented build/start/smoke/recreate checks from [deployment](deployment.md), without deleting any existing volume. Run a dependency scan from a compatible Linux environment and inspect an actual CI run. No release, image push, tag, or publication was performed as part of this work.
+
+## V4.1 implementation status
+
+V4.1.0 work adds bounded reliability fixes without changing the classifier/regressor algorithms, training split, synthetic data, model metrics, or dashboard sections:
+
+- The classifier cache now includes a file signature in its cache key, so a replaced model artifact is loaded again instead of continuing to serve an estimator cached only by path.
+- Model readiness and `/model-info` require the classifier's supported `LOW`/`HIGH` classes. Regression status also validates its feature metadata and consistency with the combined model record.
+- The one-time runtime initializer validates an already complete model bundle. If existing artifacts fail validation, it exits unsuccessfully and leaves every persistent resource untouched.
+- Unexpected prediction errors retain bounded stack-frame fields in structured diagnostics without exposing exception details in the HTTP response.
+
+Regression tests cover artifact replacement, invalid classifier labels, missing/malformed/incomplete regression metadata, corrupt regression/classifier artifacts, inconsistent nested regression contracts, safe initialization refusal, model-info consistency, and sanitized unexpected errors. The ML pipeline was reviewed: `temporal_split` sorts and partitions by timestamp, model pipelines fit on training rows, and test rows are used for reporting rather than model selection. This review does not establish real-world performance; all data and metrics remain synthetic.
+
+### V4.1 verification record
+
+The current Windows development environment reported 191 pytest tests passing, Ruff passing, Black passing, Python compilation passing, `docker compose config --quiet` passing, and `git diff --check` passing. `pip-audit 2.10.1 -r requirements.lock --disable-pip --no-deps` reported no known vulnerabilities in the hash-locked Linux runtime requirements. A separate audit of `.venv/Lib/site-packages` reported no known vulnerabilities, while skipping the editable local project package because it is not published on PyPI. These scans are point-in-time dependency checks and do not imply that future versions are vulnerability-free.
+
+Docker Compose build, container startup, health/readiness, in-container smoke, and persistence across recreation remain blocked on this host because its Docker Desktop Linux engine pipe is unavailable. `docker compose config --quiet` does not substitute for these runtime checks. GitHub Actions must be checked after the implementation push; workflow source is not CI evidence. The Python package remains `0.3.8`, Compose image remains `0.3.8`, latest Git tag remains `v3.9.0`, and no V4.1.0 tag or GitHub Release has been created. Formal release gates remain closed until Docker/runtime and actual CI evidence are reviewed.

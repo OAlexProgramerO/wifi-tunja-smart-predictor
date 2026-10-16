@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 
 from wifi_tunja_smart_predictor.config import MODEL_INPUT_COLUMNS, TARGET_COLUMN, TARGET_LABELS
+from wifi_tunja_smart_predictor.models import predict as prediction
 from wifi_tunja_smart_predictor.models.evaluate import evaluate_classifier
 from wifi_tunja_smart_predictor.models.predict import predict_demand, predict_probability
 from wifi_tunja_smart_predictor.models.train import temporal_split
@@ -65,3 +68,25 @@ def test_temporal_split_order() -> None:
     assert train["timestamp"].max() <= pd.Timestamp("2025-06-30 23:59:59")
     assert test["timestamp"].min() > pd.Timestamp("2025-09-30 23:59:59")
     assert validation["timestamp"].min() > train["timestamp"].max()
+
+
+def test_classifier_cache_refreshes_when_artifact_changes(tmp_path, monkeypatch) -> None:
+    artifact = tmp_path / "classifier.joblib"
+    artifact.write_text("first artifact", encoding="utf-8")
+    loaded_paths = []
+    monkeypatch.setattr(prediction, "MODEL_PATH", artifact)
+    monkeypatch.setattr(
+        prediction.joblib,
+        "load",
+        lambda path: loaded_paths.append(path) or Path(path).read_text(encoding="utf-8"),
+    )
+    prediction.clear_model_cache()
+
+    first = prediction.load_model()
+    artifact.write_text("replacement classifier artifact", encoding="utf-8")
+    second = prediction.load_model()
+
+    assert first == "first artifact"
+    assert second == "replacement classifier artifact"
+    assert len(loaded_paths) == 2
+    prediction.clear_model_cache()

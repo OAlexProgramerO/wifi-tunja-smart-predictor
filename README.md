@@ -13,7 +13,7 @@ Read this in [Español](README.es.md)
 
 **V4.0 implementation:** The implementation commits are integrated into `main`; the latest project tag remains `v3.9.0`, and the package/image remain `0.3.8`. Docker runtime, live smoke, dependency-scan, and supporting CI evidence have not been independently confirmed in the latest audit. See [V4.0 audit and release readiness](docs/release-history.md).
 
-**V4.1:** A maintenance plan is proposed only; V4.1 is not implemented or released. Docker, runtime/persistence, artifact-traceability, quality/security, CI, and documentation checks have explicit pending gates in the [V4.1 maintenance plan](docs/planning/v4.1-maintenance-plan.md).
+**V4.1.0 implementation:** Focused fixes now refresh replaced classifier artifacts, enforce model-label and metadata contracts, validate persistent artifacts during initialization, and preserve sanitized prediction errors. Local Python/quality/security checks pass; Docker runtime and CI evidence are still pending, so V4.1.0 is not formally released. See the [V4.1 implementation and validation record](docs/release-history.md#v41-implementation-status) and [maintenance plan](docs/planning/v4.1-maintenance-plan.md).
 
 **V3.6 performance note:** Existing bounded resource reuse is preserved; the assistant query engine and scenario analog baselines avoid repeated full-frame work. See [performance notes](docs/performance.md).
 

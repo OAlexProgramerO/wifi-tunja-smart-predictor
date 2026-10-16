@@ -22,7 +22,10 @@ from wifi_tunja_smart_predictor.exceptions import (
     ModelMetadataError,
     ModelNotFoundError,
 )
-from wifi_tunja_smart_predictor.models.predict import load_model
+from wifi_tunja_smart_predictor.models.predict import (
+    classifier_supports_demand_labels,
+    load_model,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -78,8 +81,8 @@ def load_regression_metadata(path: Path = REGRESSION_METADATA_PATH) -> dict[str,
 
 
 @lru_cache(maxsize=4)
-def _deserialize_regression(path: str, modified_ns: int, size: int) -> Any:
-    del modified_ns, size  # File signature invalidates the cache when an artifact changes.
+def _deserialize_regression(path: str, modified_ns: int, changed_ns: int, size: int) -> Any:
+    del modified_ns, changed_ns, size  # File signature invalidates cache after replacement.
     try:
         return joblib.load(path)
     except Exception as exc:
@@ -91,8 +94,13 @@ def load_regression_model(path: Path | None = None) -> Any:
     model_path = path or REGRESSION_MODEL_PATH
     if not model_path.is_file():
         raise ModelNotFoundError("The regression model artifact is unavailable.")
-    stat = model_path.stat()
-    return _deserialize_regression(str(model_path), stat.st_mtime_ns, stat.st_size)
+    try:
+        stat = model_path.stat()
+    except OSError as exc:
+        raise ModelArtifactError("The regression model artifact is unavailable.") from exc
+    return _deserialize_regression(
+        str(model_path), stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size
+    )
 
 
 def model_artifacts_available() -> bool:
@@ -116,7 +124,7 @@ def model_artifacts_available() -> bool:
         return (
             callable(getattr(classifier, "predict", None))
             and callable(getattr(classifier, "predict_proba", None))
-            and hasattr(classifier, "classes_")
+            and classifier_supports_demand_labels(classifier)
             and callable(getattr(regressor, "predict", None))
         )
     except (ModelArtifactError, ModelMetadataError, ModelNotFoundError, OSError, ValueError):

@@ -13,6 +13,7 @@ from wifi_tunja_smart_predictor.deployment import (
     REQUIRED_DEMO_ASSETS,
     RUNTIME_READY_MARKER,
     missing_demo_assets,
+    model_artifacts_available,
 )
 
 STAGES = (
@@ -26,6 +27,7 @@ def initialize_runtime(
     *,
     assets: tuple[Path, ...] = REQUIRED_DEMO_ASSETS,
     run_stage: Callable[[Sequence[str]], int] | None = None,
+    validate_model_artifacts: Callable[[], bool] | None = None,
     root: Path = PROJECT_ROOT,
     metrics_dir: Path = METRICS_DIR,
 ) -> int:
@@ -37,6 +39,15 @@ def initialize_runtime(
     required_outputs = tuple(asset for asset in assets if asset != marker)
     missing = missing_demo_assets(assets)
     if not missing:
+        validate_artifacts = validate_model_artifacts or model_artifacts_available
+        if not validate_artifacts():
+            print(
+                "Existing runtime model artifacts failed validation; refusing to overwrite "
+                "persistent resources. Inspect the runtime-init and API logs.",
+                file=sys.stderr,
+                flush=True,
+            )
+            return 1
         print("Synthetic dataset and model artifacts are already initialized.", flush=True)
         return 0
     if len(missing) != len(assets):

@@ -37,9 +37,11 @@ from wifi_tunja_smart_predictor.exceptions import (
 )
 from wifi_tunja_smart_predictor.models.artifacts import (
     load_classifier_metadata,
+    load_regression_metadata,
     load_regression_model,
 )
 from wifi_tunja_smart_predictor.models.predict import (
+    classifier_supports_demand_labels,
     load_model,
     predict_demand,
     predict_probability,
@@ -63,6 +65,7 @@ def _prediction_event(
     *,
     error_category: str | None = None,
     exception_type: str | None = None,
+    stack_frames: list[str] | None = None,
     model_version: str | None = None,
     selected_model: str | None = None,
 ) -> None:
@@ -76,6 +79,7 @@ def _prediction_event(
         duration_ms=round((perf_counter() - started) * 1000, 3),
         error_category=error_category,
         exception_type=exception_type,
+        stack_frames=stack_frames,
         model_version=model_version,
         selected_model=selected_model,
     )
@@ -136,14 +140,30 @@ def model_info() -> ModelInfoResponse:
     try:
         meta = _metadata()
         loaded_model = load_model()
-        loaded = callable(getattr(loaded_model, "predict", None)) and callable(
-            getattr(loaded_model, "predict_proba", None)
+        loaded = (
+            callable(getattr(loaded_model, "predict", None))
+            and callable(getattr(loaded_model, "predict_proba", None))
+            and classifier_supports_demand_labels(loaded_model)
         )
     except (ModelArtifactError, ModelMetadataError, ModelNotFoundError, OSError, ValueError):
         pass
+    regression_meta = {}
     try:
-        regression_loaded = callable(getattr(load_regression_model(), "predict", None))
-    except (ModelArtifactError, ModelNotFoundError, OSError):
+        regression_meta = load_regression_metadata()
+        regression_model = load_regression_model()
+        regression_loaded = callable(getattr(regression_model, "predict", None))
+        if loaded:
+            combined_regression = meta.get("regression")
+            regression_loaded = regression_loaded and isinstance(combined_regression, dict)
+            if isinstance(combined_regression, dict):
+                regression_loaded = regression_loaded and (
+                    combined_regression.get("project_version") == regression_meta["project_version"]
+                    and combined_regression.get("selected_model")
+                    == regression_meta["selected_model"]
+                    and combined_regression.get("feature_count") == regression_meta["feature_count"]
+                    and combined_regression.get("feature_names") == regression_meta["feature_names"]
+                )
+    except (ModelArtifactError, ModelMetadataError, ModelNotFoundError, OSError, ValueError):
         regression_loaded = False
     return ModelInfoResponse(
         model_loaded=loaded,
@@ -156,7 +176,7 @@ def model_info() -> ModelInfoResponse:
         validation_period=meta.get("validation_period"),
         test_period=meta.get("test_period"),
         regression_model_loaded=regression_loaded,
-        regression_model=meta.get("regression", {}).get("selected_model"),
+        regression_model=regression_meta.get("selected_model") if regression_loaded else None,
     )
 
 

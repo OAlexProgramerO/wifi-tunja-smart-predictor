@@ -49,7 +49,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     monkeypatch.setattr(
         prediction_routes, "CLASSIFICATION_METADATA_PATH", classification_metadata_path
     )
-    predict_mod.load_model.cache_clear()
+    predict_mod.clear_model_cache()
 
     from api.main import app
 
@@ -73,6 +73,58 @@ def test_model_info(client: TestClient) -> None:
     body = response.json()
     assert "feature_count" in body
     assert body["model_loaded"] is True
+
+
+def test_model_info_rejects_classifier_with_incompatible_prediction_labels(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import api.routes.prediction as prediction_routes
+
+    class IncompatibleClassifier:
+        classes_ = ("MEDIUM",)
+
+        def predict(self, _features):
+            return ["MEDIUM"]
+
+        def predict_proba(self, _features):
+            return [[1.0]]
+
+    monkeypatch.setattr(prediction_routes, "load_model", lambda: IncompatibleClassifier())
+
+    response = client.get("/model-info")
+
+    assert response.status_code == 200
+    assert response.json()["model_loaded"] is False
+    assert response.json()["model_version"] is None
+
+
+def test_model_info_rejects_inconsistent_regression_metadata(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import api.routes.prediction as prediction_routes
+
+    class Regressor:
+        def predict(self, _features):
+            return [1.0]
+
+    monkeypatch.setattr(
+        prediction_routes,
+        "load_regression_metadata",
+        lambda: {
+            "project_version": "0.3.7",
+            "selected_model": "outdated_regressor",
+            "feature_count": len(MODEL_INPUT_COLUMNS),
+            "feature_names": MODEL_INPUT_COLUMNS,
+        },
+    )
+    monkeypatch.setattr(prediction_routes, "load_regression_model", lambda: Regressor())
+
+    response = client.get("/model-info")
+
+    assert response.status_code == 200
+    assert response.json()["model_loaded"] is True
+    assert response.json()["regression_model_loaded"] is False
+    assert response.json()["regression_model"] is None
 
 
 def test_predict_valid(client: TestClient) -> None:
@@ -101,6 +153,33 @@ def test_predict_reports_version_from_trained_model_metadata(
     assert response.status_code == 200
     assert response.json()["model_version"] == "0.3.7"
     assert response.json()["selected_model"] == "stored_classifier"
+
+
+def test_predict_rejects_classifier_with_incompatible_labels(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import api.routes.prediction as prediction_routes
+
+    class IncompatibleClassifier:
+        classes_ = ("MEDIUM",)
+
+        def predict(self, _features):
+            return ["LOW"]
+
+        def predict_proba(self, _features):
+            return [[1.0]]
+
+    monkeypatch.setattr(prediction_routes, "load_model", lambda: IncompatibleClassifier())
+
+    response = client.post("/predict", json=_valid_payload())
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": {
+            "code": "model_unavailable",
+            "message": "Required model artifacts are unavailable.",
+        }
+    }
 
 
 @pytest.mark.parametrize(
@@ -145,3 +224,20 @@ def test_predict_invalid_rejected(client: TestClient) -> None:
     payload["hour"] = 99
     response = client.post("/predict", json=payload)
     assert response.status_code == 422
+
+
+def test_unexpected_prediction_error_is_sanitized_and_logged(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    import api.routes.prediction as prediction_routes
+
+    def fail_prediction(*_args, **_kwargs):
+        raise RuntimeError("internal test detail")
+
+    monkeypatch.setattr(prediction_routes, "predict_demand", fail_prediction)
+
+    response = client.post("/predict", json=_valid_payload())
+
+    assert response.status_code == 500
+    assert "internal test detail" not in response.text
+    assert "stack_frames" in caplog.text

@@ -24,6 +24,10 @@ class _Regressor:
         return [10.0]
 
 
+class _UnexpectedClassifier(_Classifier):
+    classes_ = ("MEDIUM",)
+
+
 def _metadata(version: str, model: str) -> dict:
     return {
         "project_version": version,
@@ -60,6 +64,16 @@ def test_classifier_metadata_rejects_missing_malformed_or_incomplete_file(tmp_pa
         artifacts.load_classifier_metadata(metadata_path, classifier_path)
 
 
+@pytest.mark.parametrize("contents", [None, "{ broken", json.dumps({"project_version": "0.3.8"})])
+def test_regression_metadata_rejects_missing_malformed_or_incomplete_file(tmp_path, contents):
+    metadata_path = tmp_path / "regression.json"
+    if contents is not None:
+        metadata_path.write_text(contents, encoding="utf-8")
+
+    with pytest.raises(ModelMetadataError):
+        artifacts.load_regression_metadata(metadata_path)
+
+
 def test_runtime_readiness_rejects_classifier_that_cannot_be_deserialized(
     monkeypatch: pytest.MonkeyPatch, tmp_path
 ):
@@ -77,9 +91,28 @@ def test_runtime_readiness_rejects_classifier_that_cannot_be_deserialized(
     corrupt_artifact = tmp_path / "classifier.joblib"
     corrupt_artifact.write_text("not a joblib artifact", encoding="utf-8")
     monkeypatch.setattr(prediction, "MODEL_PATH", corrupt_artifact)
-    prediction.load_model.cache_clear()
+    prediction.clear_model_cache()
 
     assert artifacts.model_artifacts_available() is False
+
+
+def test_runtime_readiness_rejects_regressor_that_cannot_be_deserialized(
+    monkeypatch: pytest.MonkeyPatch, tmp_path
+):
+    metadata = _metadata("0.3.8", "random_forest")
+    regression = _metadata("0.3.8", "random_forest_regressor")
+    monkeypatch.setattr(
+        artifacts, "load_classifier_metadata", lambda: {**metadata, "regression": regression}
+    )
+    monkeypatch.setattr(artifacts, "load_regression_metadata", lambda: regression)
+    monkeypatch.setattr(artifacts, "load_model", lambda: _Classifier())
+    corrupt_artifact = tmp_path / "regressor.joblib"
+    corrupt_artifact.write_text("not a joblib artifact", encoding="utf-8")
+    monkeypatch.setattr(artifacts, "REGRESSION_MODEL_PATH", corrupt_artifact)
+    artifacts._deserialize_regression.cache_clear()
+
+    assert artifacts.model_artifacts_available() is False
+    artifacts._deserialize_regression.cache_clear()
 
 
 def test_runtime_readiness_rejects_models_with_different_training_versions(
@@ -99,6 +132,18 @@ def test_runtime_readiness_rejects_models_with_different_training_versions(
     assert artifacts.model_artifacts_available() is False
 
 
+def test_runtime_readiness_rejects_inconsistent_combined_regression_feature_contract(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    regression = _metadata("0.3.8", "random_forest_regressor")
+    combined = {**_metadata("0.3.8", "random_forest"), "regression": regression.copy()}
+    combined["regression"]["feature_count"] -= 1
+    monkeypatch.setattr(artifacts, "load_classifier_metadata", lambda: combined)
+    monkeypatch.setattr(artifacts, "load_regression_metadata", lambda: regression)
+
+    assert artifacts.model_artifacts_available() is False
+
+
 def test_runtime_readiness_accepts_loadable_versioned_model_bundle(monkeypatch: pytest.MonkeyPatch):
     classifier = {
         **_metadata("0.3.8", "random_forest"),
@@ -114,3 +159,22 @@ def test_runtime_readiness_accepts_loadable_versioned_model_bundle(monkeypatch: 
     monkeypatch.setattr(artifacts, "load_regression_model", lambda: _Regressor())
 
     assert artifacts.model_artifacts_available() is True
+
+
+def test_runtime_readiness_rejects_classifier_with_incompatible_labels(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    classifier = {
+        **_metadata("0.3.8", "unexpected_classifier"),
+        "regression": _metadata("0.3.8", "random_forest_regressor"),
+    }
+    monkeypatch.setattr(artifacts, "load_classifier_metadata", lambda: classifier)
+    monkeypatch.setattr(
+        artifacts,
+        "load_regression_metadata",
+        lambda: _metadata("0.3.8", "random_forest_regressor"),
+    )
+    monkeypatch.setattr(artifacts, "load_model", lambda: _UnexpectedClassifier())
+    monkeypatch.setattr(artifacts, "load_regression_model", lambda: _Regressor())
+
+    assert artifacts.model_artifacts_available() is False

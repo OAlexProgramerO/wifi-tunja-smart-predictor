@@ -1,12 +1,22 @@
 # Changelog
 
-## Unreleased — V4.1 maintenance plan
+## Unreleased — V4.1.0
 
-### Planned
+### Fixed
 
-- Validate Docker image builds, Compose startup, runtime initialization, service health/readiness, HTTP smoke behavior, and persistent volumes on a Docker-capable host.
-- Reconfirm model metadata validation and prediction-version traceability, and record Python quality, dependency/security review, and actual CI evidence.
-- Keep English and Spanish release/deployment documentation aligned with verified results and explicit synthetic-data limitations. No V4.1 behavior or release is claimed by this plan.
+- Classifier artifact caching now keys cached estimators by file path, modification time, and size so replacing a persisted artifact during a running process reloads the model before subsequent predictions.
+- Readiness and `/model-info` now reject classifiers that do not expose the supported `LOW`/`HIGH` label contract; regression model status checks validated, mutually consistent metadata.
+- Runtime initialization validates an already complete persistent model bundle and fails safely without overwriting it when artifacts are invalid.
+- Unexpected prediction failures now retain bounded stack-frame diagnostics in structured logs while returning sanitized client errors.
+
+### Tests
+
+- Added regression coverage for classifier cache refresh, unsupported classifier labels, invalid regression metadata/artifacts, safe refusal of corrupted complete volumes, inconsistent combined metadata, and sanitized prediction failures.
+
+### Verification status
+
+- Full Python tests, Ruff, Black, compileall, Compose configuration parsing, and a hash-locked dependency audit passed in the current development environment.
+- Docker Desktop runtime build/start/smoke/persistence checks are blocked locally because the Docker Linux engine is unavailable. GitHub Actions evidence is pending. This work is not yet a formal V4.1 release; package/image versions remain unchanged and no tag or GitHub Release has been created.
 
 ## Unreleased — V4.0.0 preparation
 

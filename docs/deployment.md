@@ -45,7 +45,7 @@ This removes the Compose project's named data/model/report volumes; it does not 
 
 Raw/processed CSV files, classifier and regressor artifacts, their metadata, and classifier/regressor comparison reports are generated into named volumes by one initialization service. They are not tracked in Git, copied from the developer machine, baked into the image, or mounted from host `data/`, `models/`, or `reports/` directories. App services use those volumes read-only. The root filesystem is read-only, the application runs as UID 10001, all Linux capabilities are dropped, and `no-new-privileges` is enabled.
 
-The initializer checks the full required file set. If it finds a partial volume, it stops without overwriting existing files and prints instructions to inspect its logs and explicitly reset demo volumes if appropriate. If generator/preparation/training fails, Compose dependency conditions prevent the APIs/dashboard from starting. Normal restarts skip generation and training when all files are present. There is no persistent logging volume.
+The initializer checks the full required file set. If it finds a partial volume, it stops without overwriting existing files. When all files are present, it validates model deserialization, prediction methods, metadata feature contracts, and classifier/regressor version consistency before reporting the volume initialized. If existing model artifacts are invalid, initialization fails without modifying them. If generator/preparation/training fails, Compose dependency conditions prevent the APIs/dashboard from starting. Valid complete volumes are reused without retraining on normal restarts. There is no persistent logging volume.
 
 ## Configuration
 

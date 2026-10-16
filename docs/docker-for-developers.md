@@ -44,7 +44,7 @@ docker compose logs --tail 200 runtime-init main-api assistant-api dashboard
 docker inspect --format '{{json .State.Health}}' wifi-tunja-smart-predictor-main-api-1
 ```
 
-Container names may include a project prefix or index; use the names printed by `docker compose ps` if they differ. `runtime-init` logs identify which generation, preparation, or training step failed. The initializer deliberately refuses to overwrite partial volumes.
+Container names may include a project prefix or index; use the names printed by `docker compose ps` if they differ. `runtime-init` logs identify which generation, preparation, or training step failed. The initializer refuses to overwrite partial volumes and validates complete model bundles before reuse; invalid artifacts cause a safe startup failure without replacing persisted resources.
 
 ## Volumes and persistent resources
 

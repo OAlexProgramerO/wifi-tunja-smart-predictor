@@ -24,10 +24,11 @@ from wifi_tunja_smart_predictor.exceptions import (
 logger = logging.getLogger(__name__)
 
 
-@lru_cache(maxsize=1)
-def load_model(path: str | None = None) -> Any:
-    """Load the persisted sklearn pipeline (preprocessing + classifier)."""
-    model_path = Path(path) if path else MODEL_PATH
+@lru_cache(maxsize=4)
+def _load_model_cached(path: str, modified_ns: int, changed_ns: int, size: int) -> Any:
+    """Cache a classifier by path and file signature so replacements are observed."""
+    del modified_ns, changed_ns, size
+    model_path = Path(path)
     if not model_path.is_file():
         raise ModelNotFoundError(
             f"Trained model not found at '{model_path}'. "
@@ -38,6 +39,33 @@ def load_model(path: str | None = None) -> Any:
         return joblib.load(model_path)
     except Exception as exc:
         raise ModelArtifactError("The classification model artifact could not be loaded.") from exc
+
+
+def load_model(path: str | None = None) -> Any:
+    """Load the persisted sklearn pipeline, refreshing the cache after file replacement."""
+    model_path = Path(path) if path else MODEL_PATH
+    if not model_path.is_file():
+        raise ModelNotFoundError(
+            f"Trained model not found at '{model_path}'. "
+            "Train it from the repository root with: python scripts/train_model.py"
+        )
+    try:
+        stat = model_path.stat()
+    except OSError as exc:
+        raise ModelArtifactError("The classification model artifact is unavailable.") from exc
+    return _load_model_cached(
+        str(model_path), stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size
+    )
+
+
+def classifier_supports_demand_labels(model: Any) -> bool:
+    """Return whether an estimator exposes the LOW/HIGH class contract."""
+    classes = getattr(model, "classes_", ())
+    try:
+        labels = {str(label) for label in classes}
+    except TypeError:
+        return False
+    return set(TARGET_LABELS).issubset(labels)
 
 
 def _as_frame(payload: pd.DataFrame | dict[str, Any]) -> pd.DataFrame:
@@ -57,6 +85,10 @@ def predict_demand(
 ) -> list[str]:
     """Return LOW/HIGH labels for each input row."""
     estimator = model if model is not None else load_model()
+    if not callable(getattr(estimator, "predict", None)) or not classifier_supports_demand_labels(
+        estimator
+    ):
+        raise ModelArtifactError("The classifier does not implement the supported LOW/HIGH contract.")
     frame = _as_frame(payload)
     predictions = [str(label) for label in estimator.predict(frame)]
     invalid = [label for label in predictions if label not in TARGET_LABELS]
@@ -74,8 +106,10 @@ def predict_probability(
     Returns None when probabilities are not available rather than inventing them.
     """
     estimator = model if model is not None else load_model()
-    if not hasattr(estimator, "predict_proba"):
+    if not callable(getattr(estimator, "predict_proba", None)):
         return None
+    if not classifier_supports_demand_labels(estimator):
+        raise ModelArtifactError("The classifier does not implement the supported LOW/HIGH contract.")
     frame = _as_frame(payload)
     proba = estimator.predict_proba(frame)
     classes = [str(c) for c in estimator.classes_]
@@ -87,4 +121,4 @@ def predict_probability(
 
 def clear_model_cache() -> None:
     """Drop the cached pipeline (used by tests)."""
-    load_model.cache_clear()
+    _load_model_cached.cache_clear()

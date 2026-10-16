@@ -8,7 +8,7 @@ Leer en [English](README.md)
 
 **Implementación V4.0:** Los commits de implementación están integrados en `main`; la etiqueta de proyecto más reciente sigue siendo `v3.9.0`, y el paquete/la imagen permanecen en `0.3.8`. La auditoría más reciente no ha confirmado de forma independiente las pruebas runtime de Docker, smoke en vivo, auditoría de dependencias ni evidencia de CI. Consulte la [auditoría y disponibilidad de V4.0](docs/release-history.md).
 
-**V4.1:** Solo se propone un plan de mantenimiento; V4.1 no está implementada ni publicada. El [plan de mantenimiento V4.1](docs/planning/v4.1-maintenance-plan.md) define verificaciones pendientes para Docker, runtime/persistencia, trazabilidad de artefactos, calidad/seguridad, CI y documentación.
+**Implementación V4.1.0:** Se añadieron correcciones focalizadas para recargar artefactos de clasificador reemplazados, validar contratos de etiquetas/metadatos, revisar artefactos persistentes al inicializar y conservar errores de predicción sanitizados. Las verificaciones locales de Python, calidad y seguridad pasan; las pruebas runtime de Docker y CI siguen pendientes, así que V4.1.0 aún no es una publicación formal. Consulte el [registro de implementación y validación V4.1](docs/release-history.md#v41-implementation-status) y el [plan de mantenimiento](docs/planning/v4.1-maintenance-plan.md).
 
 **Rendimiento V3.6:** Se conserva la reutilización acotada de recursos; las consultas del asistente y los escenarios evitan trabajo repetido sobre dataframes completos. Consulte [rendimiento](docs/performance.md).
 

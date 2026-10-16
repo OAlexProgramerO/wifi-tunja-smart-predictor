@@ -16,7 +16,11 @@ def test_initializer_runs_existing_pipeline_once_and_then_skips(tmp_path, capsys
 
     assert (
         initialize_runtime.initialize_runtime(
-            assets=assets, run_stage=run_stage, root=tmp_path, metrics_dir=tmp_path / "metrics"
+            assets=assets,
+            run_stage=run_stage,
+            validate_model_artifacts=lambda: True,
+            root=tmp_path,
+            metrics_dir=tmp_path / "metrics",
         )
         == 0
     )
@@ -27,6 +31,7 @@ def test_initializer_runs_existing_pipeline_once_and_then_skips(tmp_path, capsys
         initialize_runtime.initialize_runtime(
             assets=assets,
             run_stage=lambda _: (_ for _ in ()).throw(AssertionError("pipeline should not rerun")),
+            validate_model_artifacts=lambda: True,
             root=tmp_path,
             metrics_dir=tmp_path / "metrics",
         )
@@ -70,3 +75,23 @@ def test_initializer_stops_on_pipeline_failure(tmp_path, capsys):
     assert result == 1
     assert calls == [initialize_runtime.STAGES[0]]
     assert "failed in generate_synthetic_dataset.py" in capsys.readouterr().err
+
+
+def test_initializer_refuses_invalid_complete_model_volume_without_overwriting(tmp_path, capsys):
+    assets = (tmp_path / ".runtime-ready", tmp_path / "dataset.csv", tmp_path / "model.joblib")
+    for asset in assets:
+        asset.write_text("existing", encoding="utf-8")
+    calls = []
+
+    result = initialize_runtime.initialize_runtime(
+        assets=assets,
+        run_stage=lambda command: calls.append(command) or 0,
+        validate_model_artifacts=lambda: False,
+        root=tmp_path,
+        metrics_dir=tmp_path / "metrics",
+    )
+
+    assert result == 1
+    assert calls == []
+    assert [asset.read_text(encoding="utf-8") for asset in assets] == ["existing"] * len(assets)
+    assert "failed validation" in capsys.readouterr().err
