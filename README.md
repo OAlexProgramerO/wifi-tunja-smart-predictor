@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor
+# WiFi Tunja Smart Predictor — V4.1.0 release candidate
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,27 +9,19 @@
 
 Read this in [Español](README.es.md)
 
-**Latest project tag: V3.9.0.** The Python package and Docker image still report `0.3.8`; they were not bumped with the project tag. The public GitHub Releases page currently has no published releases, so `v3.9.0` is a Git tag rather than a GitHub Release. V3.9 adds the Compose deployment, runtime initialization, readiness checks, dependency lock, and smoke/CI validation described in [release history](docs/release-history.md). The project remains a synthetic demonstration and is not production-certified.
+An incremental maintenance candidate for the synthetic-data WiFi demand demonstration. It keeps the existing FastAPI services, Streamlit dashboard, deterministic assistant, and scikit-learn workflow, with focused improvements to model-artifact validation and prediction traceability.
 
-**V4.0 implementation:** The implementation commits are integrated into `main`; the latest project tag remains `v3.9.0`, and the package/image remain `0.3.8`. Docker runtime, live smoke, dependency-scan, and supporting CI evidence have not been independently confirmed in the latest audit. See [V4.0 audit and release readiness](docs/release-history.md).
+**Release status:** V4.1.0 implementation work is integrated into `main`, but it is **not a published release**. Docker runtime validation is blocked because the Docker Desktop Linux engine is unavailable, and the public GitHub Actions API currently reports no workflow runs. The latest Git tag remains `v3.9.0`; the Python package and Compose image remain `0.3.8`. See the [V4.1.0 validation record](docs/releases/v4.1.0.md), [maintenance plan](docs/planning/v4.1-maintenance-plan.md), and [release history](docs/release-history.md) for the separate version surfaces and evidence.
 
-**V4.1.0 implementation:** Focused fixes now refresh replaced classifier artifacts, enforce model-label and metadata contracts, validate persistent artifacts during initialization, and preserve sanitized prediction errors. Local Python/quality/security checks pass; Docker runtime and CI evidence are still pending, so V4.1.0 is not formally released. See the [V4.1 implementation and validation record](docs/release-history.md#v41-implementation-status) and [maintenance plan](docs/planning/v4.1-maintenance-plan.md).
+**V4.1.0 candidate changes:** replaced classifier artifacts are reloaded; model label, feature, and metadata contracts are checked; initialization refuses invalid persisted artifacts without overwriting them; and prediction failures retain bounded structured diagnostics while client errors remain sanitized. No classifier/regressor algorithm, training split, or dashboard section changed.
 
-**V3.6 performance note:** Existing bounded resource reuse is preserved; the assistant query engine and scenario analog baselines avoid repeated full-frame work. See [performance notes](docs/performance.md).
+For Docker setup, resource persistence, and troubleshooting, see the [deployment guide](docs/deployment.md) and [Docker guide for developers](docs/docker-for-developers.md). Historical release notes remain in the [changelog](CHANGELOG.md) and [release history](docs/release-history.md).
 
-**V3.2 release note:** The deterministic assistant now answers natural English and Spanish demand questions using synthetic zone and time context, and reuses the location in follow-up questions.
-
-**V3.4 release note:** The assistant now computes historical averages, HIGH/LOW rates, zone comparisons, and peak hours/days from synthetic observations. These analyses are separate from model-generated scenario forecasts.
-
-**V3.7 observability note:** Logs are local application diagnostics, not durable audit storage or a distributed tracing/monitoring platform. See [observability](docs/observability.md).
-
-For the V3.8/V3.9/V4.0 tag, package, image, and release status, see [release history](docs/release-history.md). For Docker concepts, resource inspection, and safe volume handling, see the [developer Docker guide](docs/docker-for-developers.md).
-
-**V3.5 security note (preserved):** API protections are a practical baseline. Authentication, authorization, production rate limiting, WAF protection, and penetration-tested deployment are not provided.
+**Security boundary:** API protections are a practical baseline. Authentication, authorization, production rate limiting, WAF protection, and penetration-tested deployment are not provided.
 
 > **Synthetic data only.** Access points, coordinates, demand, weather, events, network metrics, and historical values are simulated. They do not represent actual public WiFi usage or municipal infrastructure in Tunja.
 
-## One-command Docker quick start (V3.9 implementation)
+## Docker quick start
 
 Prerequisite: install and start Docker Desktop (or Docker Engine with Compose). No host Python, virtual environment, manual data generation, or model training is needed for the container demo.
 
@@ -41,7 +33,7 @@ docker compose up --build
 
 On its first run, the `runtime-init` service creates the project's synthetic dataset and trains both existing models once in Compose-managed volumes. Wait for the APIs and dashboard to become healthy. Open the dashboard at <http://localhost:8501>, the main API docs at <http://localhost:8000/docs>, and assistant API docs at <http://localhost:8001/docs>. Inspect with `docker compose ps`, follow logs with `docker compose logs -f`, run the HTTP smoke checks from the dashboard container with `docker compose exec -T dashboard python scripts/smoke_test.py`, and stop with `docker compose down`. Data/model volumes persist after `down`; `docker compose down -v` removes only this Compose project's generated volumes.
 
-The V3.9 Docker implementation is present. In the current audit session, Compose configuration can be inspected, but the Docker daemon is not running, so image build, service startup, and container smoke checks cannot be independently repeated. See the [deployment guide](docs/deployment.md) for current verification status and the [Docker guide for developers](docs/docker-for-developers.md).
+The Docker implementation is present. In the 2026-10-17 verification, Compose configuration parsed successfully, but Docker could not connect to `npipe:////./pipe/dockerDesktopLinuxEngine`; image build, service startup, and container smoke checks remain unverified. See the [V4.1.0 validation record](docs/releases/v4.1.0.md), [deployment guide](docs/deployment.md), and [Docker guide for developers](docs/docker-for-developers.md).
 
 ## 1. Project overview
 

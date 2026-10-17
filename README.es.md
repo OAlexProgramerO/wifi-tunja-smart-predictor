@@ -1,30 +1,22 @@
-# WiFi Tunja Smart Predictor
+# WiFi Tunja Smart Predictor — candidato V4.1.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-**Última etiqueta del proyecto: V3.9.0.** El paquete Python y la imagen Docker aún informan `0.3.8`; no se actualizaron junto con la etiqueta del proyecto. La página pública de GitHub Releases no contiene publicaciones, por lo que `v3.9.0` es una etiqueta Git y no un GitHub Release. V3.9 incorpora Compose, inicialización de recursos, verificaciones de disponibilidad, lock de dependencias y validaciones smoke/CI, descritos en el [historial de versiones](docs/release-history.md). El proyecto sigue siendo una demostración con datos sintéticos y no está certificado para producción.
+Una versión candidata de mantenimiento incremental para la demostración de demanda WiFi con datos sintéticos. Conserva los servicios FastAPI, el dashboard Streamlit, el asistente determinista y el flujo de scikit-learn, con mejoras focalizadas en la validación de artefactos y la trazabilidad de predicciones.
 
-**Implementación V4.0:** Los commits de implementación están integrados en `main`; la etiqueta de proyecto más reciente sigue siendo `v3.9.0`, y el paquete/la imagen permanecen en `0.3.8`. La auditoría más reciente no ha confirmado de forma independiente las pruebas runtime de Docker, smoke en vivo, auditoría de dependencias ni evidencia de CI. Consulte la [auditoría y disponibilidad de V4.0](docs/release-history.md).
+**Estado de publicación:** El trabajo de implementación V4.1.0 está integrado en `main`, pero **no es una publicación formal**. La validación runtime de Docker está bloqueada porque no está disponible el motor Linux de Docker Desktop, y la API pública de GitHub Actions no muestra ejecuciones. La etiqueta Git más reciente sigue siendo `v3.9.0`; el paquete Python y la imagen Compose siguen en `0.3.8`. Consulte el [registro de validación V4.1.0](docs/releases/v4.1.0.md), el [plan de mantenimiento](docs/planning/v4.1-maintenance-plan.md) y el [historial de versiones](docs/release-history.md) para ver por separado las versiones y evidencias.
 
-**Implementación V4.1.0:** Se añadieron correcciones focalizadas para recargar artefactos de clasificador reemplazados, validar contratos de etiquetas/metadatos, revisar artefactos persistentes al inicializar y conservar errores de predicción sanitizados. Las verificaciones locales de Python, calidad y seguridad pasan; las pruebas runtime de Docker y CI siguen pendientes, así que V4.1.0 aún no es una publicación formal. Consulte el [registro de implementación y validación V4.1](docs/release-history.md#v41-implementation-status) y el [plan de mantenimiento](docs/planning/v4.1-maintenance-plan.md).
+**Cambios candidatos V4.1.0:** Se recargan los clasificadores reemplazados; se verifican los contratos de etiquetas, variables y metadatos; la inicialización se niega a sobrescribir artefactos persistentes inválidos; y los fallos de predicción conservan diagnósticos estructurados acotados mientras los errores para clientes permanecen sanitizados. No cambiaron los algoritmos de clasificación/regresión, las particiones de entrenamiento ni las secciones del dashboard.
 
-**Rendimiento V3.6:** Se conserva la reutilización acotada de recursos; las consultas del asistente y los escenarios evitan trabajo repetido sobre dataframes completos. Consulte [rendimiento](docs/performance.md).
+Consulte la [guía de despliegue](docs/deployment.md) y la [guía de Docker para desarrolladores](docs/docker-for-developers.md) para la instalación, persistencia y solución de problemas. Las notas históricas están en el [changelog](CHANGELOG.md) y el [historial de versiones](docs/release-history.md).
 
-**Novedad V3.2:** El asistente determinista responde consultas naturales de demanda en inglés y español con contexto de zona y hora, y reutiliza la ubicación en preguntas posteriores.
-
-**Novedad V3.4:** El asistente calcula promedios históricos, frecuencias HIGH/LOW, comparaciones de zonas y horas/días pico sobre observaciones sintéticas. Estos análisis son distintos de las predicciones de escenarios del modelo.
-
-**Observabilidad V3.7:** Los registros locales son diagnósticos de la aplicación, no almacenamiento durable de auditoría ni una plataforma de trazas o monitoreo distribuido. Consulte [observabilidad](docs/observability.md).
-
-Consulte el [historial de versiones](docs/release-history.md) para diferenciar las etiquetas V3.8/V3.9/V4.0, la versión del paquete, la imagen y las publicaciones. La [guía de Docker para desarrolladores](docs/docker-for-developers.md) explica los conceptos, el consumo de recursos y la persistencia segura de volúmenes.
-
-**Seguridad V3.5 (preservada):** Las protecciones de API son una base práctica. No se incluyen autenticación, autorización, limitación de velocidad para producción, WAF ni despliegue probado mediante pentesting.
+**Límite de seguridad:** Las protecciones de API son una base práctica. No se incluyen autenticación, autorización, limitación de velocidad para producción, WAF ni despliegue probado mediante pentesting.
 
 > **Solo datos sintéticos.** Los puntos de acceso, coordenadas, demanda, clima, eventos, métricas de red y valores históricos son simulados. No representan uso real de WiFi ni infraestructura municipal en Tunja.
 
-## Inicio rápido con Docker en un comando (implementación V3.9)
+## Inicio rápido con Docker
 
 Requisito: instale e inicie Docker Desktop (o Docker Engine con Compose). La demostración en contenedores no requiere instalar Python en el host, crear un entorno virtual, generar los datos ni entrenar los modelos manualmente.
 
@@ -36,7 +28,7 @@ docker compose up --build
 
 En el primer inicio, el servicio `runtime-init` genera el dataset sintético del proyecto y entrena los dos modelos existentes una sola vez en volúmenes administrados por Compose. Espere a que las API y el dashboard estén disponibles. Abra el dashboard en <http://localhost:8501>, la documentación de la API principal en <http://localhost:8000/docs> y la del asistente en <http://localhost:8001/docs>. Revise `docker compose ps`, siga los registros con `docker compose logs -f`, ejecute las pruebas HTTP desde el contenedor del dashboard con `docker compose exec -T dashboard python scripts/smoke_test.py` y detenga con `docker compose down`. Los volúmenes de datos/modelos persisten después de `down`; `docker compose down -v` elimina solo los volúmenes generados de este proyecto.
 
-La implementación Docker V3.9 está disponible. En la auditoría actual se puede inspeccionar la configuración de Compose, pero el daemon de Docker no está iniciado; por eso no se pueden repetir aquí la construcción de la imagen, el arranque de servicios ni las pruebas smoke dentro de contenedores. Consulte la [guía de despliegue](docs/deployment.md) y la [guía de Docker para desarrolladores](docs/docker-for-developers.md) para conocer las comprobaciones y limitaciones actuales.
+La implementación Docker está disponible. En la verificación del 2026-10-17, la configuración de Compose se procesó correctamente, pero Docker no pudo conectarse a `npipe:////./pipe/dockerDesktopLinuxEngine`; la construcción de la imagen, el arranque de servicios y las pruebas smoke en contenedores siguen sin verificarse. Consulte el [registro de validación V4.1.0](docs/releases/v4.1.0.md), la [guía de despliegue](docs/deployment.md) y la [guía de Docker para desarrolladores](docs/docker-for-developers.md).
 
 ## 1. Descripción del proyecto
 

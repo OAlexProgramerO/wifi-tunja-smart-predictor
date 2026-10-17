@@ -15,8 +15,9 @@
 
 ### Verification status
 
-- Full Python tests, Ruff, Black, compileall, Compose configuration parsing, and a hash-locked dependency audit passed in the current development environment.
-- Docker Desktop runtime build/start/smoke/persistence checks are blocked locally because the Docker Linux engine is unavailable. GitHub Actions evidence is pending. This work is not yet a formal V4.1 release; package/image versions remain unchanged and no tag or GitHub Release has been created.
+- Full test suite: 191 passed. Ruff, Black (65 files unchanged), compileall, `docker compose config --quiet`, and `git diff --check` passed on 2026-10-17. `pip-audit` reported no known vulnerabilities for `requirements.lock` with `--disable-pip --no-deps`.
+- Docker image build, service startup, runtime health/smoke, and volume persistence remain unverified: Docker cannot connect to `npipe:////./pipe/dockerDesktopLinuxEngine`. The public Actions API currently reports zero workflow runs. V4.1.0 is not formally released; package/image versions remain unchanged, and no V4.1 tag or GitHub Release exists.
+- The detailed evidence and release blockers are recorded in [docs/releases/v4.1.0.md](docs/releases/v4.1.0.md).
 
 ## Unreleased — V4.0.0 preparation
 
