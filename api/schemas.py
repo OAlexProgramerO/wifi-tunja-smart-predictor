@@ -60,6 +60,22 @@ class ModelInfoResponse(BaseModel):
     regression_model: str | None = None
 
 
+class ModelArtifactTrace(BaseModel):
+    model_version: str | None = None
+    selected_model: str | None = None
+    artifact_sha256: str | None = None
+    artifact_size_bytes: int | None = None
+
+
+class PredictionTraceability(BaseModel):
+    prediction_id: str
+    predicted_at_utc: datetime
+    application_version: str
+    request_id: str | None = None
+    classifier: ModelArtifactTrace
+    regressor: ModelArtifactTrace | None = None
+
+
 class PredictRequest(BaseModel):
     """Fields required by the persisted training pipeline (pre-engineering)."""
 
@@ -116,6 +132,7 @@ class PredictResponse(BaseModel):
     model_version: str
     selected_model: str | None = None
     disclaimer: str
+    traceability: PredictionTraceability | None = None
 
 
 class ScenarioLocationRequest(BaseModel):
@@ -181,4 +198,5 @@ class ScenarioPredictionResponse(BaseModel):
     regression: dict[str, Any]
     capacity: dict[str, Any]
     explanation: dict[str, Any]
+    traceability: PredictionTraceability | None = None
     disclaimer: str

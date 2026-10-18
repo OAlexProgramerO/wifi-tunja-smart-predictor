@@ -131,4 +131,4 @@ The Compose implementation and smoke tooling are intended for local synthetic de
 
 ## Version and release references
 
-The remote Git tag `v3.9.0` points to `16128ff` and is present on `origin`. The package in `pyproject.toml` and image in `compose.yaml` remain `0.3.8`; the public Releases API returned no releases on 2026-10-17, and the Actions API returned no workflow runs. See [release history](release-history.md) and the [V4.1.0 validation record](releases/v4.1.0.md) for evidence and the proposed version map. No V4.1 tag or release was created.
+The remote tag `v4.1.0` points to `edc10f03b898217d7c0108115d0d111e53962d86`; it is an annotated Git tag, not a published GitHub Release. The V4.2.0 candidate sets the Python package and Compose image to `0.4.2`. The public Releases API returned no releases and the Actions API returned no workflow runs on 2026-10-18. See [release history](release-history.md) and the [V4.2.0 validation record](releases/v4.2.0.md) for updated evidence. No V4.2.0 tag or release has been created.

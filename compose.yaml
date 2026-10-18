@@ -1,11 +1,13 @@
 name: wifi-tunja-smart-predictor
 
 x-app: &app
-  image: wifi-tunja-smart-predictor:0.3.8
+  image: wifi-tunja-smart-predictor:0.4.2
   platform: linux/amd64
   build:
     context: .
     dockerfile: Dockerfile
+    args:
+      APP_VERSION: "0.4.2"
   init: true
   user: "10001:10001"
   read_only: true

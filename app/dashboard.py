@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import pandas as pd
@@ -43,6 +44,8 @@ from wifi_tunja_smart_predictor.visualization.plots import (
     plot_network_metrics,
 )
 
+logger = logging.getLogger(__name__)
+
 
 @st.cache_data(show_spinner=False, ttl="15m", max_entries=2)
 def _load_frame() -> pd.DataFrame:
@@ -70,6 +73,70 @@ def _section_header(title: str, subtitle: str | None = None) -> None:
     st.markdown(f"## {title}")
     if subtitle:
         st.caption(subtitle)
+
+
+def _render_prediction_traceability(traceability: dict | None) -> None:
+    if not traceability:
+        return
+    with st.expander("Prediction provenance"):
+        st.caption(
+            f"Prediction ID: {traceability.get('prediction_id', 'unavailable')} · "
+            f"Generated: {traceability.get('predicted_at_utc', 'unavailable')}"
+        )
+        st.caption(
+            f"Application version: {traceability.get('application_version', 'unavailable')} · "
+            f"Request ID: {traceability.get('request_id') or 'local prediction'}"
+        )
+        for label, reference in (
+            ("Classifier", traceability.get("classifier")),
+            ("Regressor", traceability.get("regressor")),
+        ):
+            if not reference:
+                continue
+            st.markdown(
+                f"**{label}:** {reference.get('selected_model') or 'model unavailable'} "
+                f"(artifact model version {reference.get('model_version') or 'unknown'})"
+            )
+            digest = reference.get("artifact_sha256")
+            if digest:
+                st.code(f"SHA-256: {digest}", language=None)
+
+
+def _render_scenario_result(result: dict) -> None:
+    """Present class and numeric estimate as separate model outputs."""
+    scenario = result["scenario"]
+    location = scenario["location"]
+    classification = result["classification"]
+    regression = result["regression"]
+    with st.container(border=True):
+        st.subheader("Demand category · classification")
+        st.success(
+            f"{classification['predicted_demand_level']} demand · "
+            f"{scenario['scenario_mode'].replace('_', ' ').title()}"
+        )
+        st.caption(
+            f"{location['zone_name']} · {location['access_point_id']} · "
+            f"{scenario['scenario_time']}"
+        )
+        st.metric("Probability of HIGH demand", f"{classification['probability_high']:.1%}")
+        st.caption("LOW/HIGH is a category; it is not a connection count.")
+    with st.container(border=True):
+        st.subheader("Next-hour connection estimate · regression")
+        c1, c2 = st.columns(2)
+        c1.metric("Estimated connections", f"{regression['predicted_connections_next_hour']:.1f}")
+        c2.metric(
+            "Estimated capacity use",
+            f"{result['capacity']['predicted_capacity_utilization_pct']:.1f}%",
+        )
+        st.caption(
+            f"{regression['interval_confidence']:.0%} split-conformal interval: "
+            f"{regression['prediction_interval_lower']:.1f}–"
+            f"{regression['prediction_interval_upper']:.1f} connections. "
+            "This synthetic estimate is not a guarantee; coverage can change under distribution shift."
+        )
+    st.markdown("**Factors associated with this output** · sensitivity proxy, not causal.")
+    st.dataframe(pd.DataFrame(result["explanation"]["top_factors"]), hide_index=True)
+    _render_prediction_traceability(result.get("traceability"))
 
 
 def render_overview(frame: pd.DataFrame) -> None:
@@ -489,23 +556,12 @@ def render_prediction(frame: pd.DataFrame) -> None:
                 .to_dict()
             )
             st.session_state["last_scenario_result"] = result
-            st.success(
-                f"Predicted demand: **{result['classification']['predicted_demand_level']}**"
-            )
-            st.metric(
-                "Expected next-hour connections",
-                f"{result['regression']['predicted_connections_next_hour']:.1f}",
-            )
-            st.caption(
-                f"{result['regression']['interval_confidence']:.0%} calibrated interval: {result['regression']['prediction_interval_lower']:.1f}–{result['regression']['prediction_interval_upper']:.1f}. Synthetic estimate; feature sensitivity is not causal."
-            )
-            st.dataframe(
-                pd.DataFrame(result["explanation"]["top_factors"]), width="stretch", hide_index=True
-            )
-        except ModelNotFoundError as exc:
-            st.error(str(exc))
-        except Exception as exc:
-            st.error(f"Prediction failed: {exc}")
+            _render_scenario_result(result)
+        except ModelNotFoundError:
+            st.error("Model artifacts are unavailable. Initialize the runtime or train the models.")
+        except Exception:
+            logger.exception("Advanced prediction failed")
+            st.error("Prediction could not be completed. Verify model readiness and try again.")
 
     with st.expander("Input variables used"):
         st.json(payload)
@@ -580,30 +636,7 @@ def render_scenario(frame: pd.DataFrame) -> None:
             st.error(str(exc))
     result = st.session_state.get("last_scenario_result")
     if result:
-        scenario = result["scenario"]
-        loc = scenario["location"]
-        st.success(
-            f"{result['classification']['predicted_demand_level']} demand · {scenario['scenario_mode'].replace('_', ' ').title()}"
-        )
-        st.caption(f"{loc['zone_name']} · {loc['access_point_id']} · {scenario['scenario_time']}")
-        c1, c2, c3 = st.columns(3)
-        c1.metric("HIGH probability", f"{result['classification']['probability_high']:.1%}")
-        c2.metric(
-            "Expected connections next hour",
-            f"{result['regression']['predicted_connections_next_hour']:.1f}",
-        )
-        c3.metric(
-            "Estimated capacity use",
-            f"{result['capacity']['predicted_capacity_utilization_pct']:.1f}%",
-        )
-        interval = result["regression"]
-        st.caption(
-            f"{interval['interval_confidence']:.0%} split-conformal interval: {interval['prediction_interval_lower']:.1f}–{interval['prediction_interval_upper']:.1f} connections."
-        )
-        st.markdown("**Factors associated with this output** · sensitivity proxy, not causal.")
-        st.dataframe(
-            pd.DataFrame(result["explanation"]["top_factors"]), width="stretch", hide_index=True
-        )
+        _render_scenario_result(result)
     st.caption(SYNTHETIC_DATA_DISCLAIMER)
 
 

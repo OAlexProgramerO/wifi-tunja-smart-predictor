@@ -51,6 +51,10 @@ def evaluate_regressor(estimator: Any, features: pd.DataFrame, target: pd.Series
     """Compute standard regression metrics from an estimator's predictions."""
     actual = np.asarray(target, dtype=float)
     predicted = np.asarray(estimator.predict(features), dtype=float)
+    if not len(actual) or predicted.shape != actual.shape:
+        raise ValueError("Regression metrics require matching, non-empty targets and predictions.")
+    if not np.isfinite(actual).all() or not np.isfinite(predicted).all():
+        raise ValueError("Regression metrics require finite targets and predictions.")
     return {
         "mae": float(mean_absolute_error(actual, predicted)),
         "rmse": float(np.sqrt(mean_squared_error(actual, predicted))),

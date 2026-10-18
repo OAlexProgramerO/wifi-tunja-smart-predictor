@@ -5,7 +5,7 @@ This guide uses the services and volumes in this repository. The demo uses synth
 ## The main Docker pieces
 
 - The `Dockerfile` describes how to assemble the application image: the Python 3.12 base, locked dependencies, project source, and non-root runtime user.
-- An **image** is the built template. Compose labels the local image `wifi-tunja-smart-predictor:0.3.8`.
+- An **image** is the built template. Compose labels the V4.2.0 candidate image `wifi-tunja-smart-predictor:0.4.2`; this is a local build tag, not evidence of registry publication.
 - A **container** is a running instance of that image. This project runs `runtime-init`, `main-api`, `assistant-api`, and `dashboard` containers.
 - `compose.yaml` configures those containers, their startup order, health checks, network, host ports, environment, and persistent named volumes.
 

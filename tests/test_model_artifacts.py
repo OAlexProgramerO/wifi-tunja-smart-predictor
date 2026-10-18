@@ -178,3 +178,64 @@ def test_runtime_readiness_rejects_classifier_with_incompatible_labels(
     monkeypatch.setattr(artifacts, "load_regression_model", lambda: _Regressor())
 
     assert artifacts.model_artifacts_available() is False
+
+
+def test_runtime_readiness_rejects_classifier_and_regressor_from_different_runs(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    classifier = {
+        **_metadata("0.4.2", "random_forest"),
+        "training_run_id": "run-a",
+        "regression": {
+            **_metadata("0.4.2", "random_forest_regressor"),
+            "training_run_id": "run-b",
+        },
+    }
+    regressor = {
+        **_metadata("0.4.2", "random_forest_regressor"),
+        "training_run_id": "run-b",
+    }
+    monkeypatch.setattr(artifacts, "load_classifier_metadata", lambda: classifier)
+    monkeypatch.setattr(artifacts, "load_regression_metadata", lambda: regressor)
+
+    assert artifacts.model_artifacts_available() is False
+
+
+def test_runtime_readiness_accepts_legacy_bundle_with_matching_training_timestamp(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    training_time = "2026-10-01T00:00:00+00:00"
+    classifier = {
+        **_metadata("0.3.8", "random_forest"),
+        "training_timestamp_utc": training_time,
+        "regression": {
+            **_metadata("0.3.8", "random_forest_regressor"),
+            "training_timestamp_utc": training_time,
+        },
+    }
+    regressor = {
+        **_metadata("0.3.8", "random_forest_regressor"),
+        "training_timestamp_utc": training_time,
+    }
+    monkeypatch.setattr(artifacts, "load_classifier_metadata", lambda: classifier)
+    monkeypatch.setattr(artifacts, "load_regression_metadata", lambda: regressor)
+    monkeypatch.setattr(artifacts, "load_model", lambda: _Classifier())
+    monkeypatch.setattr(artifacts, "load_regression_model", lambda: _Regressor())
+
+    assert artifacts.model_artifacts_available() is True
+
+
+def test_regression_artifact_identity_matches_loaded_bytes(tmp_path):
+    import hashlib
+
+    import joblib
+
+    artifact_path = tmp_path / "regressor.joblib"
+    joblib.dump({"selected": "test-regressor"}, artifact_path)
+
+    loaded = artifacts.load_regression_artifact(artifact_path)
+
+    assert loaded.estimator == {"selected": "test-regressor"}
+    assert loaded.sha256 == hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+    assert loaded.size_bytes == artifact_path.stat().st_size
+    artifacts._deserialize_regression.cache_clear()

@@ -1,10 +1,16 @@
 FROM python:3.12.14-slim-bookworm
 
+ARG APP_VERSION=0.4.2
+
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 WORKDIR /app
+
+LABEL org.opencontainers.image.title="WiFi Tunja Smart Predictor" \
+    org.opencontainers.image.version="${APP_VERSION}" \
+    org.opencontainers.image.description="Synthetic-data WiFi demand prediction demonstration"
 
 RUN groupadd --gid 10001 app \
     && useradd --uid 10001 --gid app --create-home --shell /usr/sbin/nologin app \

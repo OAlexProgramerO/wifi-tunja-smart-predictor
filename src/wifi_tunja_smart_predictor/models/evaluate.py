@@ -26,6 +26,10 @@ def evaluate_classifier(estimator: Any, features: pd.DataFrame, y_true: pd.Serie
     """
     y_true_arr = np.asarray(y_true).astype(str)
     y_pred = np.asarray(estimator.predict(features)).astype(str)
+    if not len(y_true_arr) or y_pred.shape != y_true_arr.shape:
+        raise ValueError("Classification metrics require matching, non-empty targets and predictions.")
+    if not set(y_true_arr).issubset(TARGET_LABELS) or not set(y_pred).issubset(TARGET_LABELS):
+        raise ValueError("Classification metrics require only the supported LOW/HIGH labels.")
     metrics: dict[str, Any] = {
         "accuracy": float(accuracy_score(y_true_arr, y_pred)),
         "precision": float(
@@ -46,9 +50,17 @@ def evaluate_classifier(estimator: Any, features: pd.DataFrame, y_true: pd.Serie
         "labels": list(TARGET_LABELS),
     }
     if hasattr(estimator, "predict_proba"):
+        proba = np.asarray(estimator.predict_proba(features), dtype=float)
+        classes = list(estimator.classes_)
+        if (
+            proba.shape != (len(y_true_arr), len(classes))
+            or not np.isfinite(proba).all()
+            or (proba < 0).any()
+            or (proba > 1).any()
+            or not np.allclose(proba.sum(axis=1), 1.0, atol=1e-5)
+        ):
+            raise ValueError("Classifier probabilities are invalid for metric evaluation.")
         try:
-            proba = estimator.predict_proba(features)
-            classes = list(estimator.classes_)
             if POSITIVE_LABEL in classes:
                 positive_index = classes.index(POSITIVE_LABEL)
                 y_bin = (y_true_arr == POSITIVE_LABEL).astype(int)

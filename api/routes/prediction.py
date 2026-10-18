@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from api.schemas import (
     HealthResponse,
     ModelInfoResponse,
+    PredictionTraceability,
     PredictRequest,
     PredictResponse,
     ScenarioPredictionResponse,
@@ -43,9 +44,11 @@ from wifi_tunja_smart_predictor.models.artifacts import (
 from wifi_tunja_smart_predictor.models.predict import (
     classifier_supports_demand_labels,
     load_model,
+    load_model_artifact,
     predict_demand,
     predict_probability,
 )
+from wifi_tunja_smart_predictor.models.traceability import build_prediction_traceability
 from wifi_tunja_smart_predictor.observability import (
     current_request_id,
     emit_event,
@@ -185,7 +188,8 @@ def predict(payload: PredictRequest) -> PredictResponse:
     started = perf_counter()
     try:
         meta = _metadata()
-        model = load_model()
+        loaded_artifact = load_model_artifact()
+        model = loaded_artifact.estimator
         features = payload.model_dump()
         labels = predict_demand(features, model=model)
         probabilities = predict_probability(features, model=model)
@@ -257,6 +261,13 @@ def predict(payload: PredictRequest) -> PredictResponse:
         model_version=meta["project_version"],
         selected_model=selected_model,
         disclaimer=SYNTHETIC_DATA_DISCLAIMER,
+        traceability=PredictionTraceability(
+            **build_prediction_traceability(
+                classifier_metadata=meta,
+                classifier_artifact=loaded_artifact,
+            ),
+            request_id=current_request_id(),
+        ),
     )
 
 
@@ -290,6 +301,9 @@ def scenario_predict(payload: ScenarioPredictRequest) -> ScenarioPredictionRespo
     try:
         result = _scenario_service().predict(request)
         result_payload = result.to_dict()
+        traceability = result_payload.get("traceability")
+        if isinstance(traceability, dict):
+            traceability["request_id"] = current_request_id()
         classification = result_payload.get("classification", {})
         model_version = classification.get("model_version")
         selected_model = classification.get("selected_model")

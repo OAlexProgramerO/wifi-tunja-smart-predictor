@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import logging
 from datetime import datetime, timezone
+from uuid import uuid4
 
 import joblib
 import numpy as np
@@ -85,6 +86,7 @@ def main() -> int:
     )
     classifier_frame = comparison.set_index("model")
     trained_at = datetime.now(timezone.utc).isoformat()
+    training_run_id = uuid4().hex
     train_period = {**_period(train), "cutoff": TRAIN_END}
     validation_period = {**_period(validation), "cutoff": VALIDATION_END}
     test_period = _period(test)
@@ -96,6 +98,7 @@ def main() -> int:
         "selected_model": selected_name,
         "selection_rule": "Highest validation F1 for class HIGH; test set was not used for selection.",
         "training_timestamp_utc": trained_at,
+        "training_run_id": training_run_id,
         "dataset_version": DATASET_VERSION,
         "preprocessing_version": PREPROCESSING_VERSION,
         "target_column": TARGET_COLUMN,
@@ -155,6 +158,7 @@ def main() -> int:
         "selected_model": regression_name,
         "selection_rule": "Lowest validation MAE; test set was not used for selection.",
         "training_timestamp_utc": trained_at,
+        "training_run_id": training_run_id,
         "dataset_version": DATASET_VERSION,
         "preprocessing_version": PREPROCESSING_VERSION,
         "target_column": REGRESSION_TARGET_COLUMN,

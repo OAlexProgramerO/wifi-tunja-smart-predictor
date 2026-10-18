@@ -28,10 +28,12 @@ from wifi_tunja_smart_predictor.data.loader import load_analysis_dataset
 from wifi_tunja_smart_predictor.exceptions import ModelMetadataError, PredictionError
 from wifi_tunja_smart_predictor.models.artifacts import (
     load_classifier_metadata,
+    load_regression_artifact,
     load_regression_metadata,
     load_regression_model,
+    model_bundle_metadata_matches,
 )
-from wifi_tunja_smart_predictor.models.predict import load_model
+from wifi_tunja_smart_predictor.models.predict import load_model, load_model_artifact
 from wifi_tunja_smart_predictor.scenarios.builder import (
     ScenarioBuilder,
     ScenarioContext,
@@ -64,6 +66,7 @@ class PredictionResult:
     regression: dict[str, Any]
     capacity: dict[str, Any]
     explanation: dict[str, Any]
+    traceability: dict[str, Any] | None = None
     disclaimer: str = SYNTHETIC_DATA_DISCLAIMER
 
     def to_dict(self) -> dict[str, Any]:
@@ -91,16 +94,31 @@ class ScenarioPredictionService:
     ) -> None:
         self.frame = frame if frame is not None else load_analysis_dataset()
         self.builder = ScenarioBuilder(self.frame)
-        self.classifier = classifier if classifier is not None else load_model(str(classifier_path))
-        self.regressor = (
-            regressor if regressor is not None else load_regression_model(regressor_path)
+        self.classifier_artifact = (
+            load_model_artifact(str(classifier_path)) if classifier is None else None
         )
+        self.regressor_artifact = (
+            load_regression_artifact(regressor_path) if regressor is None else None
+        )
+        self.classifier = (
+            self.classifier_artifact.estimator
+            if self.classifier_artifact is not None
+            else classifier
+        )
+        self.regressor = (
+            self.regressor_artifact.estimator if self.regressor_artifact is not None else regressor
+        )
+        if self.classifier is None:
+            self.classifier = load_model(str(classifier_path))
+        if self.regressor is None:
+            self.regressor = load_regression_model(regressor_path)
         if classifier is None and regressor is None:
             self.classification_metadata = load_classifier_metadata()
             self.regression_metadata = load_regression_metadata()
-            if (
-                self.classification_metadata["project_version"]
-                != self.regression_metadata["project_version"]
+            if self.classification_metadata["project_version"] != self.regression_metadata[
+                "project_version"
+            ] or not model_bundle_metadata_matches(
+                self.classification_metadata, self.regression_metadata
             ):
                 raise ModelMetadataError("Classifier and regressor metadata are inconsistent.")
             self.model_metadata = self.classification_metadata
@@ -135,6 +153,8 @@ class ScenarioPredictionService:
         utilization = predicted_connections / capacity * 100 if capacity else None
         headroom = max(0, int(round(capacity - predicted_connections)))
         factors = self._explain(context, probability_high, predicted_connections)
+
+        from wifi_tunja_smart_predictor.models.traceability import build_prediction_traceability
 
         return PredictionResult(
             scenario={
@@ -176,6 +196,12 @@ class ScenarioPredictionService:
                 "method": "one-feature-at-a-time replacement against matched analog medians/modes",
                 "disclaimer": "Factors describe model sensitivity, not causes or causal effects.",
             },
+            traceability=build_prediction_traceability(
+                classifier_metadata=self.classification_metadata,
+                classifier_artifact=self.classifier_artifact,
+                regressor_metadata=self.regression_metadata,
+                regressor_artifact=self.regressor_artifact,
+            ),
         )
 
     def _explain(

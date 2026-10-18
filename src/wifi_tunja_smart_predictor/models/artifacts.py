@@ -8,8 +8,6 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-import joblib
-
 from wifi_tunja_smart_predictor.config import (
     CLASSIFICATION_METADATA_PATH,
     MODEL_INPUT_COLUMNS,
@@ -25,6 +23,10 @@ from wifi_tunja_smart_predictor.exceptions import (
 from wifi_tunja_smart_predictor.models.predict import (
     classifier_supports_demand_labels,
     load_model,
+)
+from wifi_tunja_smart_predictor.models.loaded_artifact import (
+    LoadedArtifact,
+    deserialize_artifact,
 )
 
 logger = logging.getLogger(__name__)
@@ -70,6 +72,7 @@ def load_classifier_metadata(
     if (
         combined["project_version"] != classifier["project_version"]
         or combined["selected_model"] != classifier["selected_model"]
+        or not model_bundle_metadata_matches(combined, classifier)
     ):
         raise ModelMetadataError("Classifier metadata files are inconsistent.")
     return combined
@@ -80,17 +83,42 @@ def load_regression_metadata(path: Path = REGRESSION_METADATA_PATH) -> dict[str,
     return _validate_metadata(_read_metadata(path))
 
 
+_BUNDLE_IDENTITY_FIELDS = (
+    "training_run_id",
+    "training_timestamp_utc",
+    "dataset_version",
+    "preprocessing_version",
+    "train_period",
+    "validation_period",
+    "test_period",
+)
+
+
+def model_bundle_metadata_matches(classifier: dict[str, Any], regressor: dict[str, Any]) -> bool:
+    """Require classifier/regressor metadata to identify the same training run."""
+    # Legacy bundles have a shared training timestamp; new bundles also carry
+    # a UUID. When either side records an identity field, both must agree.
+    for field in _BUNDLE_IDENTITY_FIELDS:
+        left = classifier.get(field)
+        right = regressor.get(field)
+        if (left is not None or right is not None) and left != right:
+            return False
+    return True
+
+
 @lru_cache(maxsize=4)
-def _deserialize_regression(path: str, modified_ns: int, changed_ns: int, size: int) -> Any:
+def _deserialize_regression(
+    path: str, modified_ns: int, changed_ns: int, size: int
+) -> LoadedArtifact:
     del modified_ns, changed_ns, size  # File signature invalidates cache after replacement.
     try:
-        return joblib.load(path)
+        return deserialize_artifact(Path(path))
     except Exception as exc:
         raise ModelArtifactError("The regression model artifact could not be loaded.") from exc
 
 
-def load_regression_model(path: Path | None = None) -> Any:
-    """Load a regressor once per file signature and normalize deserialization errors."""
+def load_regression_artifact(path: Path | None = None) -> LoadedArtifact:
+    """Load a regressor and identify the exact serialized bytes used."""
     model_path = path or REGRESSION_MODEL_PATH
     if not model_path.is_file():
         raise ModelNotFoundError("The regression model artifact is unavailable.")
@@ -101,6 +129,11 @@ def load_regression_model(path: Path | None = None) -> Any:
     return _deserialize_regression(
         str(model_path), stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size
     )
+
+
+def load_regression_model(path: Path | None = None) -> Any:
+    """Load a regressor once per file signature and normalize errors."""
+    return load_regression_artifact(path).estimator
 
 
 def model_artifacts_available() -> bool:
@@ -117,6 +150,10 @@ def model_artifacts_available() -> bool:
             or combined_regression["project_version"] != regression_metadata["project_version"]
             or combined_regression["selected_model"] != regression_metadata["selected_model"]
         ):
+            return False
+        if not model_bundle_metadata_matches(classifier_metadata, regression_metadata):
+            return False
+        if not model_bundle_metadata_matches(classifier_metadata, combined_regression):
             return False
 
         classifier = load_model()

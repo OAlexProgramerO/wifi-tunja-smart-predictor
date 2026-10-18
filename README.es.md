@@ -1,16 +1,16 @@
-# WiFi Tunja Smart Predictor — candidato V4.1.0
+# WiFi Tunja Smart Predictor — candidato V4.2.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-Una versión candidata de mantenimiento incremental para la demostración de demanda WiFi con datos sintéticos. Conserva los servicios FastAPI, el dashboard Streamlit, el asistente determinista y el flujo de scikit-learn, con mejoras focalizadas en la validación de artefactos y la trazabilidad de predicciones.
+WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V4.2.0 amplía la arquitectura existente con trazabilidad de artefactos, validación más estricta de los bundles de entrenamiento y los datos, evaluación más segura, explicaciones de predicción más claras y controles CI adicionales.
 
-**Estado de publicación:** El trabajo de implementación V4.1.0 está integrado en `main`, pero **no es una publicación formal**. La validación runtime de Docker está bloqueada porque no está disponible el motor Linux de Docker Desktop, y la API pública de GitHub Actions no muestra ejecuciones. La etiqueta Git más reciente sigue siendo `v3.9.0`; el paquete Python y la imagen Compose siguen en `0.3.8`. Consulte el [registro de validación V4.1.0](docs/releases/v4.1.0.md), el [plan de mantenimiento](docs/planning/v4.1-maintenance-plan.md) y el [historial de versiones](docs/release-history.md) para ver por separado las versiones y evidencias.
+**Estado de publicación:** V4.2.0 es una versión candidata de implementación, no una publicación formal. El paquete Python y la imagen Docker candidatos usan `0.4.2`; la etiqueta de proyecto es `V4.2.0`. La etiqueta Git más reciente es `v4.1.0` y la página de GitHub Releases no muestra publicaciones. La validación runtime de Docker y la CI remota están pendientes. Consulte el [registro de validación V4.2.0](docs/releases/v4.2.0.md), [GitHub Releases](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
 
-**Cambios candidatos V4.1.0:** Se recargan los clasificadores reemplazados; se verifican los contratos de etiquetas, variables y metadatos; la inicialización se niega a sobrescribir artefactos persistentes inválidos; y los fallos de predicción conservan diagnósticos estructurados acotados mientras los errores para clientes permanecen sanitizados. No cambiaron los algoritmos de clasificación/regresión, las particiones de entrenamiento ni las secciones del dashboard.
+**Mejoras V4.2.0:** Las respuestas de predicción incluyen fecha/hora, ID de correlación, versiones de aplicación/modelo e identidades SHA-256 de los bytes exactos de los artefactos usados. Readiness rechaza modelos de entrenamientos incompatibles. La validación de datos detecta valores numéricos malformados, datos no finitos, timestamps con zona horaria no admitida y observaciones duplicadas por AP/hora. La evaluación valida entradas y probabilidades antes de registrar resultados. El dashboard separa la clasificación de las estimaciones de regresión y muestra la procedencia de los modelos.
 
-Consulte la [guía de despliegue](docs/deployment.md) y la [guía de Docker para desarrolladores](docs/docker-for-developers.md) para la instalación, persistencia y solución de problemas. Las notas históricas están en el [changelog](CHANGELOG.md) y el [historial de versiones](docs/release-history.md).
+El proyecto usa únicamente datos sintéticos. Sus métricas no demuestran rendimiento predictivo para la demanda real de WiFi público ni para infraestructura municipal en Tunja. Consulte la [metodología](docs/methodology.md), [limitaciones](docs/limitations.md), [guía de API](docs/api.md) y [guía del asistente](docs/assistant.md).
 
 **Límite de seguridad:** Las protecciones de API son una base práctica. No se incluyen autenticación, autorización, limitación de velocidad para producción, WAF ni despliegue probado mediante pentesting.
 
@@ -23,12 +23,12 @@ Requisito: instale e inicie Docker Desktop (o Docker Engine con Compose). La dem
 ```powershell
 git clone https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor.git
 cd wifi-tunja-smart-predictor
-docker compose up --build
+docker compose up --build --wait --wait-timeout 900
 ```
 
 En el primer inicio, el servicio `runtime-init` genera el dataset sintético del proyecto y entrena los dos modelos existentes una sola vez en volúmenes administrados por Compose. Espere a que las API y el dashboard estén disponibles. Abra el dashboard en <http://localhost:8501>, la documentación de la API principal en <http://localhost:8000/docs> y la del asistente en <http://localhost:8001/docs>. Revise `docker compose ps`, siga los registros con `docker compose logs -f`, ejecute las pruebas HTTP desde el contenedor del dashboard con `docker compose exec -T dashboard python scripts/smoke_test.py` y detenga con `docker compose down`. Los volúmenes de datos/modelos persisten después de `down`; `docker compose down -v` elimina solo los volúmenes generados de este proyecto.
 
-La implementación Docker está disponible. En la verificación del 2026-10-17, la configuración de Compose se procesó correctamente, pero Docker no pudo conectarse a `npipe:////./pipe/dockerDesktopLinuxEngine`; la construcción de la imagen, el arranque de servicios y las pruebas smoke en contenedores siguen sin verificarse. Consulte el [registro de validación V4.1.0](docs/releases/v4.1.0.md), la [guía de despliegue](docs/deployment.md) y la [guía de Docker para desarrolladores](docs/docker-for-developers.md).
+La versión candidata V4.2.0 aún no ha pasado la validación runtime de Docker. Consulte el [registro de validación V4.2.0](docs/releases/v4.2.0.md) para ver las evidencias y los bloqueos actuales.
 
 ## 1. Descripción del proyecto
 

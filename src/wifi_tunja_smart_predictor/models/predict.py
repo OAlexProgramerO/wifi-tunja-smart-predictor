@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import logging
+import numpy as np
 from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
-import joblib
 import pandas as pd
 
 from wifi_tunja_smart_predictor.config import (
@@ -20,12 +20,18 @@ from wifi_tunja_smart_predictor.exceptions import (
     ModelNotFoundError,
     PredictionError,
 )
+from wifi_tunja_smart_predictor.models.loaded_artifact import (
+    LoadedArtifact,
+    deserialize_artifact,
+)
 
 logger = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=4)
-def _load_model_cached(path: str, modified_ns: int, changed_ns: int, size: int) -> Any:
+def _load_model_cached(
+    path: str, modified_ns: int, changed_ns: int, size: int
+) -> LoadedArtifact:
     """Cache a classifier by path and file signature so replacements are observed."""
     del modified_ns, changed_ns, size
     model_path = Path(path)
@@ -36,13 +42,13 @@ def _load_model_cached(path: str, modified_ns: int, changed_ns: int, size: int) 
         )
     logger.info("Loading model from %s", model_path)
     try:
-        return joblib.load(model_path)
+        return deserialize_artifact(model_path)
     except Exception as exc:
         raise ModelArtifactError("The classification model artifact could not be loaded.") from exc
 
 
-def load_model(path: str | None = None) -> Any:
-    """Load the persisted sklearn pipeline, refreshing the cache after file replacement."""
+def load_model_artifact(path: str | None = None) -> LoadedArtifact:
+    """Load a classifier and identity its exact serialized bytes."""
     model_path = Path(path) if path else MODEL_PATH
     if not model_path.is_file():
         raise ModelNotFoundError(
@@ -56,6 +62,11 @@ def load_model(path: str | None = None) -> Any:
     return _load_model_cached(
         str(model_path), stat.st_mtime_ns, stat.st_ctime_ns, stat.st_size
     )
+
+
+def load_model(path: str | None = None) -> Any:
+    """Load the persisted sklearn pipeline, refreshing the cache after replacement."""
+    return load_model_artifact(path).estimator
 
 
 def classifier_supports_demand_labels(model: Any) -> bool:
@@ -90,10 +101,13 @@ def predict_demand(
     ):
         raise ModelArtifactError("The classifier does not implement the supported LOW/HIGH contract.")
     frame = _as_frame(payload)
-    predictions = [str(label) for label in estimator.predict(frame)]
+    raw_predictions = np.asarray(estimator.predict(frame))
+    if raw_predictions.shape != (len(frame),):
+        raise ModelArtifactError("The classifier returned an invalid prediction shape.")
+    predictions = [str(label) for label in raw_predictions]
     invalid = [label for label in predictions if label not in TARGET_LABELS]
     if invalid:
-        raise PredictionError(f"Model returned unexpected labels: {invalid}")
+        raise ModelArtifactError("The classifier returned labels outside the supported contract.")
     return predictions
 
 
@@ -113,9 +127,18 @@ def predict_probability(
     frame = _as_frame(payload)
     proba = estimator.predict_proba(frame)
     classes = [str(c) for c in estimator.classes_]
+    values = pd.DataFrame(proba).to_numpy(dtype=float)
+    if (
+        values.ndim != 2
+        or values.shape != (len(frame), len(classes))
+        or not pd.notna(values).all()
+        or (values < 0).any()
+        or (values > 1).any()
+        or not ((abs(values.sum(axis=1) - 1.0)) <= 1e-5).all()
+    ):
+        raise ModelArtifactError("The classifier returned invalid probability values.")
     return [
-        {classes[i]: float(row[i]) for i in range(len(classes))}
-        for row in proba
+        {classes[i]: float(row[i]) for i in range(len(classes))} for row in values
     ]
 
 

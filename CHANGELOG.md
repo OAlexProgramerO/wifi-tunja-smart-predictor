@@ -1,6 +1,25 @@
 # Changelog
 
-## Unreleased — V4.1.0
+## Unreleased — V4.2.0
+
+### Added
+
+- Prediction traceability metadata now identifies the UTC prediction time, correlation/request ID, application and model versions, and SHA-256/size of the exact classifier and regressor artifact bytes used.
+- Training outputs now include a shared training-run ID so readiness and scenario inference reject classifier/regressor artifacts from different runs.
+- Dataset and metric validation now rejects malformed numeric values, non-finite observations/predictions, unsupported timestamps, inconsistent per-access-point timestamps, malformed classifier probabilities, and incompatible metric shapes.
+- CI now supports manual dispatch, Python compilation, and a scoped audit of the hash-locked runtime dependency set.
+
+### Improved
+
+- Scenario UI presents LOW/HIGH classification separately from the numeric next-hour connection estimate and calibrated interval, shows model provenance, and displays sanitized failure messages.
+- Python package and Docker image candidate versions are `0.4.2` for project release V4.2.0. No V4.2.0 tag or GitHub Release has been created.
+
+### Verification status
+
+- 204 tests, Ruff, Black, compilation, Compose configuration parsing, and the scoped `pip-audit` scan passed locally. A relative Markdown-link check passed after the validation record was added.
+- Live HTTP smoke could not run because services were not started. Docker runtime is blocked by the missing Docker Desktop Linux engine; GitHub Actions lists an active workflow but zero runs. This is not a formal V4.2.0 release. See [the V4.2.0 implementation and validation record](docs/releases/v4.2.0.md) for exact commands and remaining gates.
+
+## V4.1.0 — implementation tag; no GitHub Release
 
 ### Fixed
 
@@ -16,7 +35,7 @@
 ### Verification status
 
 - Full test suite: 191 passed. Ruff, Black (65 files unchanged), compileall, `docker compose config --quiet`, and `git diff --check` passed on 2026-10-17. `pip-audit` reported no known vulnerabilities for `requirements.lock` with `--disable-pip --no-deps`.
-- Docker image build, service startup, runtime health/smoke, and volume persistence remain unverified: Docker cannot connect to `npipe:////./pipe/dockerDesktopLinuxEngine`. The public Actions API currently reports zero workflow runs. V4.1.0 is not formally released; package/image versions remain unchanged, and no V4.1 tag or GitHub Release exists.
+- Docker image build, service startup, runtime health/smoke, and volume persistence were unverified: Docker could not connect to `npipe:////./pipe/dockerDesktopLinuxEngine`. The remote annotated tag `v4.1.0` now points to `edc10f0`; no GitHub Release exists. The tag was created after the earlier validation record was written, so references below to the then-missing tag are superseded by the current repository state.
 - The detailed evidence and release blockers are recorded in [docs/releases/v4.1.0.md](docs/releases/v4.1.0.md).
 
 ## Unreleased — V4.0.0 preparation

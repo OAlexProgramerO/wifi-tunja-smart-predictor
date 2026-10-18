@@ -147,6 +147,8 @@ def test_assistant_api_health_chat_and_safe_dataset_query(mini_frame, monkeypatc
 
 
 def test_main_api_scenario_endpoint_uses_scenario_service(mini_frame, monkeypatch):
+    from uuid import UUID
+
     import api.routes.prediction as routes
     from api.main import app as main_api
 
@@ -161,3 +163,6 @@ def test_main_api_scenario_endpoint_uses_scenario_service(mini_frame, monkeypatc
     payload = response.json()
     assert payload["scenario"]["scenario_mode"] == "SYNTHETIC_SCENARIO"
     assert payload["regression"]["predicted_connections_next_hour"] == 80
+    assert payload["traceability"]["request_id"] == response.headers["x-request-id"]
+    UUID(payload["traceability"]["prediction_id"])
+    assert payload["traceability"]["application_version"] == "0.4.2"

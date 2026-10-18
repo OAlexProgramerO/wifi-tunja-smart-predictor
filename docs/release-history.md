@@ -68,4 +68,8 @@ Regression tests cover artifact replacement, invalid classifier labels, missing/
 
 ### V4.1 verification record
 
-See the dedicated [V4.1.0 implementation and validation record](releases/v4.1.0.md) for the exact commands, results, runtime blocker, CI evidence status, and current version surfaces. As of 2026-10-17, V4.1.0 is not released: package/image versions remain `0.3.8`, the latest remote tag is `v3.9.0`, and no GitHub Release exists. Docker runtime checks and an actual CI run remain required release gates.
+See the dedicated [V4.1.0 implementation and validation record](releases/v4.1.0.md) for its exact commands and results. The annotated Git tag `v4.1.0` now points to commit `edc10f03b898217d7c0108115d0d111e53962d86`; the public GitHub Releases API still lists no published releases. The V4.1 package/image baseline was `0.3.8`; Docker runtime checks and an actual CI run were not independently confirmed for that cycle. The tag does not change those historical verification results.
+
+## V4.2.0 implementation candidate
+
+V4.2.0 adds exact-byte model fingerprints and prediction trace metadata, a shared training-run identity for classifier/regressor bundles, stricter dataset and metric validation, clearer classification/regression presentation, and expanded CI checks. The project label is `V4.2.0`; the Python package and Compose image candidate use `0.4.2`. Local quality checks pass, while live Docker validation and remote Actions results remain pending. No V4.2.0 tag or GitHub Release exists. See the [V4.2.0 validation record](releases/v4.2.0.md) for exact evidence and release gates. All model metrics and data remain synthetic.

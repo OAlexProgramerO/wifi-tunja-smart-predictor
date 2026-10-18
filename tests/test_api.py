@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+from datetime import datetime, timezone
 from pathlib import Path
 
 import joblib
@@ -148,11 +150,33 @@ def test_predict_reports_version_from_trained_model_metadata(
         lambda: {"project_version": "0.3.7", "selected_model": "stored_classifier"},
     )
 
-    response = client.post("/predict", json=_valid_payload())
+    response = client.post("/predict", json=_valid_payload(), headers={"X-Request-ID": "v42-test"})
 
     assert response.status_code == 200
     assert response.json()["model_version"] == "0.3.7"
     assert response.json()["selected_model"] == "stored_classifier"
+    trace = response.json()["traceability"]
+    assert trace["request_id"] == "v42-test"
+    assert trace["classifier"]["model_version"] == "0.3.7"
+    assert trace["classifier"]["selected_model"] == "stored_classifier"
+    assert len(trace["classifier"]["artifact_sha256"]) == 64
+    assert trace["classifier"]["artifact_size_bytes"] > 0
+    assert trace["regressor"] is None
+    timestamp = datetime.fromisoformat(trace["predicted_at_utc"].replace("Z", "+00:00"))
+    assert timestamp.tzinfo == timezone.utc
+
+
+def test_predict_trace_identity_is_sha256_of_loaded_artifact(client: TestClient) -> None:
+    import wifi_tunja_smart_predictor.models.predict as predict_mod
+
+    artifact = predict_mod.MODEL_PATH
+    response = client.post("/predict", json=_valid_payload())
+
+    assert response.status_code == 200
+    assert (
+        response.json()["traceability"]["classifier"]["artifact_sha256"]
+        == hashlib.sha256(artifact.read_bytes()).hexdigest()
+    )
 
 
 def test_predict_rejects_classifier_with_incompatible_labels(
@@ -169,7 +193,13 @@ def test_predict_rejects_classifier_with_incompatible_labels(
         def predict_proba(self, _features):
             return [[1.0]]
 
-    monkeypatch.setattr(prediction_routes, "load_model", lambda: IncompatibleClassifier())
+    from wifi_tunja_smart_predictor.models.loaded_artifact import LoadedArtifact
+
+    monkeypatch.setattr(
+        prediction_routes,
+        "load_model_artifact",
+        lambda: LoadedArtifact(IncompatibleClassifier(), "a" * 64, 10),
+    )
 
     response = client.post("/predict", json=_valid_payload())
 

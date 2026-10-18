@@ -49,3 +49,39 @@ def test_validator_rejects_bad_target(mini_frame: pd.DataFrame) -> None:
     frame.loc[0, TARGET_COLUMN] = "MEDIUM"
     with pytest.raises(DatasetValidationError):
         validate_dataset(frame)
+
+
+def test_validator_rejects_non_numeric_values_in_numeric_features(mini_frame):
+    frame = mini_frame.copy()
+    frame["connected_devices"] = frame["connected_devices"].astype(object)
+    frame.loc[frame.index[0], "connected_devices"] = "many"
+
+    with pytest.raises(DatasetValidationError, match="not numeric"):
+        validate_dataset(frame)
+
+
+def test_validator_rejects_non_finite_target_values(mini_frame):
+    frame = mini_frame.copy()
+    frame["connections_next_hour"] = frame["connections_next_hour"].astype(float)
+    frame.loc[frame.index[0], "connections_next_hour"] = float("inf")
+
+    with pytest.raises(DatasetValidationError, match="non-finite"):
+        validate_dataset(frame)
+
+
+def test_validator_rejects_timezone_aware_timestamps(mini_frame):
+    frame = mini_frame.copy()
+    frame["timestamp"] = pd.to_datetime(frame["timestamp"], utc=True)
+
+    with pytest.raises(DatasetValidationError, match="timezone-naive"):
+        validate_dataset(frame)
+
+
+def test_validator_rejects_conflicting_rows_for_same_access_point_hour(mini_frame):
+    frame = mini_frame.copy()
+    duplicate = frame.iloc[[0]].copy()
+    duplicate.loc[:, "connected_devices"] = duplicate["connected_devices"] + 1
+    frame = pd.concat([frame, duplicate], ignore_index=True)
+
+    with pytest.raises(DatasetValidationError, match="same access point and timestamp"):
+        validate_dataset(frame)

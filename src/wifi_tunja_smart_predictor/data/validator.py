@@ -11,6 +11,7 @@ import logging
 from dataclasses import dataclass, field
 
 import pandas as pd
+import numpy as np
 
 from wifi_tunja_smart_predictor.config import (
     CATEGORICAL_ALLOWED_VALUES,
@@ -67,9 +68,27 @@ def validate_dataset(
             raise DatasetValidationError("\n".join(critical))
         return report
 
-    timestamps = pd.to_datetime(frame["timestamp"], errors="coerce")
+    timestamps = pd.to_datetime(frame["timestamp"], errors="coerce", format="mixed")
     if timestamps.isna().any():
         critical.append("One or more timestamps could not be parsed.")
+    elif not pd.api.types.is_datetime64_any_dtype(timestamps.dtype):
+        critical.append("Timestamps must use one consistent timezone representation.")
+    elif isinstance(timestamps.dtype, pd.DatetimeTZDtype):
+        critical.append("Timestamps must be timezone-naive synthetic local times.")
+
+    categorical_columns = set(CATEGORICAL_ALLOWED_VALUES)
+    identifier_columns = {"timestamp", "date", "day_name", "wifi_id", "zone_id", "zone_name"}
+    numeric_columns = set(REQUIRED_COLUMNS) - categorical_columns - identifier_columns
+    numeric_values: dict[str, pd.Series] = {}
+    for column in numeric_columns:
+        values = pd.to_numeric(frame[column], errors="coerce")
+        invalid = frame[column].notna() & values.isna()
+        if invalid.any():
+            critical.append(f"'{column}' contains values that are not numeric.")
+        observed = values.dropna().to_numpy(dtype=float)
+        if not np.isfinite(observed).all():
+            critical.append(f"'{column}' contains a non-finite numeric value.")
+        numeric_values[column] = values
 
     for target in TARGET_COLUMNS:
         if frame[target].isna().any():
@@ -91,7 +110,7 @@ def validate_dataset(
     for column, (low, high) in RANGE_CHECKS.items():
         if column not in frame.columns:
             continue
-        values = pd.to_numeric(frame[column], errors="coerce")
+        values = numeric_values.get(column, pd.to_numeric(frame[column], errors="coerce"))
         observed = values.dropna()
         if observed.empty:
             continue
@@ -142,6 +161,16 @@ def validate_dataset(
             expected.append(message + " The generator injects a small number of duplicates.")
         else:
             critical.append(message + " Duplicate rate exceeds 1%.")
+
+    unique_observations = frame.drop_duplicates()
+    if {"wifi_id", "timestamp"}.issubset(unique_observations.columns):
+        conflicting_observations = int(
+            unique_observations.duplicated(subset=["wifi_id", "timestamp"]).sum()
+        )
+        if conflicting_observations:
+            critical.append(
+                "Multiple non-identical observations share the same access point and timestamp."
+            )
 
     distribution = (
         frame[TARGET_COLUMN].value_counts(normalize=True).astype(float).to_dict()
