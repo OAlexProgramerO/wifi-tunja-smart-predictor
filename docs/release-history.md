@@ -82,14 +82,19 @@ V4.3.0 records SHA-256 and byte length in newly trained model metadata and verif
 
 The public GitHub Releases API returned zero releases; a Git tag is therefore not evidence of a published GitHub Release. Remote branch `main` matched local `main` at `c6f04704228571e1fb785bf95b36180964938262` before V4.3 changes. The repository's explicit release history and package-version commits support repairing two missing annotated tags; both are pointed to their historical release commits, never to current `HEAD`.
 
-| Version | Tag before audit | Intended commit | Evidence and audit action | GitHub Release |
-| --- | --- | --- | --- | --- |
-| V3.0.0 | `v3.0.0` local and remote | `180471113ff48ac73c2adfe8f7533111264b23b3` | Existing tag preserved. | None observed. |
-| V3.1.0 | Missing before audit; now present locally/remotely as annotated `v3.1.0` | `504af22dfca574b3bee2f905dcbd202605087288` | Changelog records `[0.3.1]`, this commit bumps package to `0.3.1` and documents V3.1; created and pushed annotated tag at this exact commit. | None observed. |
-| V3.2.0–V3.5.0 | Existing local and remote | Existing annotated tag targets | Tags preserved. | None observed. |
-| V3.6.0 | Missing before audit; now present locally/remotely as annotated `v3.6.0` | `42b5d50813ac114d88c95ed41872c5ecd7333689` | Commit title/body explicitly releases V3.6, changelog records `[0.3.6]`, and package changes to `0.3.6`; created and pushed annotated tag at this exact commit. | None observed. |
-| V3.7.0–V3.9.0 | Existing local and remote | Existing annotated tag targets | Tags preserved. | None observed. |
-| V4.0.0 | Missing local and remote | Unresolved | `78e0a3c` says “release V4.0 improvements”, but its resulting changelog still labels V4.0 preparation/unreleased and package/image remain `0.3.8`; insufficient evidence for a release tag. No tag created. | None observed. |
-| V4.1.0 | Existing local and remote | `edc10f03b898217d7c0108115d0d111e53962d86` | Existing tag preserved; runtime/CI evidence remains as recorded in its validation file. | None observed. |
-| V4.2.0 | Missing local and remote | Candidate commit `c6f04704228571e1fb785bf95b36180964938262` | Explicitly documented as an implementation candidate with Docker and Actions gates pending; no tag created. | None observed. |
-| V4.3.0 | Not created | Candidate release commit not yet determined | Docker runtime and remote Actions gates are pending; no stable tag created. | None observed. |
+| Version | Intended/corresponding commit | Local tag | Remote tag | GitHub Release | Evidence / action |
+| --- | --- | --- | --- | --- | --- |
+| V3.0.0 | `180471113ff48ac73c2adfe8f7533111264b23b3` | `v3.0.0` | `v3.0.0` | None observed | Existing tag preserved. |
+| V3.1.0 | `504af22dfca574b3bee2f905dcbd202605087288` | `v3.1.0` | `v3.1.0` | None observed | Changelog `[0.3.1]` and this commit's package bump/documented release identify the commit; created and pushed the missing annotated tag here. |
+| V3.2.0 | `1a6a522703518c9655645a9d487d866d60e79553` | `v3.2.0` | `v3.2.0` | None observed | Existing tag preserved. |
+| V3.3.0 | `138fea6d7ea428c084e255aa676dbebe28dc3ba1` | `v3.3.0` | `v3.3.0` | None observed | Existing tag preserved. |
+| V3.4.0 | `a2d9c019bf449eafc42d691db9403c23d7ca0865` | `v3.4.0` | `v3.4.0` | None observed | Existing tag preserved. |
+| V3.5.0 | `0d337aaa7b5d47448f2bc9dc2e8c53bc6b60c830` | `v3.5.0` | `v3.5.0` | None observed | Existing tag preserved. |
+| V3.6.0 | `42b5d50813ac114d88c95ed41872c5ecd7333689` | `v3.6.0` | `v3.6.0` | None observed | Release commit, changelog `[0.3.6]`, and package bump identify the commit; created and pushed the missing annotated tag here. |
+| V3.7.0 | `b76797ca32ad3be2fb7814994f8ab78a6356b256` | `v3.7.0` | `v3.7.0` | None observed | Existing tag preserved. |
+| V3.8.0 | `e935b339540c88910d827d8c16e818effe2ec276` | `v3.8.0` | `v3.8.0` | None observed | Existing tag preserved. |
+| V3.9.0 | `16128ff72025ff62e00359a606a1c3b32081cabd` | `v3.9.0` | `v3.9.0` | None observed | Existing tag preserved. |
+| V4.0.0 | `78e0a3c9c3043f7a8db2b3b1c9cd1bd8d67770da` (implementation commit only) | Missing | Missing | None observed | Unresolved: resulting changelog still says V4.0 preparation/unreleased and package/image remain `0.3.8`; no release tag created. |
+| V4.1.0 | `edc10f03b898217d7c0108115d0d111e53962d86` | `v4.1.0` | `v4.1.0` | None observed | Existing tag preserved; runtime/CI verification limitations remain documented. |
+| V4.2.0 | `c6f04704228571e1fb785bf95b36180964938262` (candidate) | Missing | Missing | None observed | Documented candidate with Docker and Actions gates pending; no tag created. |
+| V4.3.0 | `53fb0749996938f692cbe0adbdbd0d09211cc0f8` (candidate on `main`) | Missing | Missing | None observed | Docker runtime and remote Actions gates are pending; no stable tag created. |
