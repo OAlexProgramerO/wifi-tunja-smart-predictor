@@ -1,14 +1,14 @@
-# WiFi Tunja Smart Predictor — candidato V4.2.0
+# WiFi Tunja Smart Predictor — candidato V4.3.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V4.2.0 amplía la arquitectura existente con trazabilidad de artefactos, validación más estricta de los bundles de entrenamiento y los datos, evaluación más segura, explicaciones de predicción más claras y controles CI adicionales.
+WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V4.3.0 agrega huellas digitales de artefactos al entrenar y las verifica contra los bytes exactos de los clasificadores y regresores antes de predecir, informar readiness o evaluar modelos.
 
-**Estado de publicación:** V4.2.0 es una versión candidata de implementación, no una publicación formal. El paquete Python y la imagen Docker candidatos usan `0.4.2`; la etiqueta de proyecto es `V4.2.0`. La etiqueta Git más reciente es `v4.1.0` y la página de GitHub Releases no muestra publicaciones. La validación runtime de Docker y la CI remota están pendientes. Consulte el [registro de validación V4.2.0](docs/releases/v4.2.0.md), [GitHub Releases](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V4.3.0 es una versión candidata de implementación, no una publicación formal. El paquete Python y la imagen Docker candidatos usan `0.4.3`; la etiqueta de proyecto es `V4.3.0`. La etiqueta Git existente más reciente es `v4.1.0`; la API pública de GitHub Releases no muestra publicaciones. La validación runtime de Docker y la CI remota están pendientes. Consulte el [registro de validación V4.3.0](docs/releases/v4.3.0.md), [GitHub Releases](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
 
-**Mejoras V4.2.0:** Las respuestas de predicción incluyen fecha/hora, ID de correlación, versiones de aplicación/modelo e identidades SHA-256 de los bytes exactos de los artefactos usados. Readiness rechaza modelos de entrenamientos incompatibles. La validación de datos detecta valores numéricos malformados, datos no finitos, timestamps con zona horaria no admitida y observaciones duplicadas por AP/hora. La evaluación valida entradas y probabilidades antes de registrar resultados. El dashboard separa la clasificación de las estimaciones de regresión y muestra la procedencia de los modelos.
+**Mejoras V4.3.0:** Los nuevos metadatos de entrenamiento guardan SHA-256 y tamaño de cada artefacto. El servicio, readiness y evaluación comparan esos valores con los bytes exactos deserializados; huellas incompletas o diferentes bloquean el uso. Los bundles heredados sin huellas siguen siendo compatibles. Se conservan la trazabilidad y validaciones introducidas en V4.2.0.
 
 El proyecto usa únicamente datos sintéticos. Sus métricas no demuestran rendimiento predictivo para la demanda real de WiFi público ni para infraestructura municipal en Tunja. Consulte la [metodología](docs/methodology.md), [limitaciones](docs/limitations.md), [guía de API](docs/api.md) y [guía del asistente](docs/assistant.md).
 
@@ -28,7 +28,7 @@ docker compose up --build --wait --wait-timeout 900
 
 En el primer inicio, el servicio `runtime-init` genera el dataset sintético del proyecto y entrena los dos modelos existentes una sola vez en volúmenes administrados por Compose. Espere a que las API y el dashboard estén disponibles. Abra el dashboard en <http://localhost:8501>, la documentación de la API principal en <http://localhost:8000/docs> y la del asistente en <http://localhost:8001/docs>. Revise `docker compose ps`, siga los registros con `docker compose logs -f`, ejecute las pruebas HTTP desde el contenedor del dashboard con `docker compose exec -T dashboard python scripts/smoke_test.py` y detenga con `docker compose down`. Los volúmenes de datos/modelos persisten después de `down`; `docker compose down -v` elimina solo los volúmenes generados de este proyecto.
 
-La versión candidata V4.2.0 aún no ha pasado la validación runtime de Docker. Consulte el [registro de validación V4.2.0](docs/releases/v4.2.0.md) para ver las evidencias y los bloqueos actuales.
+La versión candidata V4.3.0 aún no ha pasado la validación runtime de Docker ni una ejecución remota de Actions. Consulte el [registro de validación V4.3.0](docs/releases/v4.3.0.md) para ver las evidencias y los bloqueos actuales.
 
 ## 1. Descripción del proyecto
 

@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V4.2.0 release candidate
+# WiFi Tunja Smart Predictor — V4.3.0 release candidate
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,11 +9,11 @@
 
 Read this in [Español](README.es.md)
 
-WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V4.2.0 builds on the existing architecture with traceable model artifacts, stricter training-bundle and dataset validation, safer model evaluation, clearer prediction explanations, and expanded CI checks.
+WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V4.3.0 adds training-time artifact fingerprints and verifies them against the exact classifier and regressor bytes before prediction, readiness, and model evaluation.
 
-**Release status:** V4.2.0 is an implementation candidate, not a published release. The Python package and Docker image candidate use `0.4.2`; the project release label is `V4.2.0`. The latest Git tag is `v4.1.0`, and the GitHub Releases page currently lists no releases. Docker runtime and remote CI validation are pending. See the [V4.2.0 validation record](docs/releases/v4.2.0.md), [GitHub Releases](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
+**Release status:** V4.3.0 is an implementation candidate, not a published release. The Python package and Docker image candidate use `0.4.3`; the project release label is `V4.3.0`. The latest existing Git tag is `v4.1.0`; the public GitHub Releases API lists no releases. Docker runtime and remote CI validation remain pending. See the [V4.3.0 validation record](docs/releases/v4.3.0.md), [GitHub Releases](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
 
-**V4.2.0 improvements:** prediction responses now carry a timestamp, correlation ID, application/model versions, and SHA-256 identities for the exact classifier/regressor bytes used. Readiness rejects mismatched training runs. Dataset validation catches malformed numeric values, non-finite data, timezone-invalid timestamps, and duplicate AP/hour observations. Evaluation validates metric inputs and probabilities before results are recorded. The dashboard distinguishes classification from regression estimates and shows artifact provenance.
+**V4.3.0 improvements:** newly trained classifier and regressor metadata store SHA-256 and byte length. Serving, readiness, and evaluation compare those values to the exact bytes deserialized; partial or mismatched fingerprints fail closed. Legacy model bundles without fingerprints remain supported. V4.2.0 prediction traceability and validation improvements remain in place.
 
 The project uses synthetic data only. Its metrics do not establish predictive performance for real public WiFi demand or municipal infrastructure in Tunja. See the [methodology](docs/methodology.md), [limitations](docs/limitations.md), [API guide](docs/api.md), and [assistant guide](docs/assistant.md).
 
@@ -33,7 +33,7 @@ docker compose up --build --wait --wait-timeout 900
 
 On its first run, the `runtime-init` service creates the project's synthetic dataset and trains both existing models once in Compose-managed volumes. Wait for the APIs and dashboard to become healthy. Open the dashboard at <http://localhost:8501>, the main API docs at <http://localhost:8000/docs>, and assistant API docs at <http://localhost:8001/docs>. Inspect with `docker compose ps`, follow logs with `docker compose logs -f`, run the HTTP smoke checks from the dashboard container with `docker compose exec -T dashboard python scripts/smoke_test.py`, and stop with `docker compose down`. Data/model volumes persist after `down`; `docker compose down -v` removes only this Compose project's generated volumes.
 
-The V4.2.0 candidate has not yet passed Docker runtime validation. See the [V4.2.0 validation record](docs/releases/v4.2.0.md) for current evidence and blockers.
+The V4.3.0 candidate has not yet passed Docker runtime validation or a remote Actions run. See the [V4.3.0 validation record](docs/releases/v4.3.0.md) for current evidence and blockers.
 
 ## 1. Project overview
 

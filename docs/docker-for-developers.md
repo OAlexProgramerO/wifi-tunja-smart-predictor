@@ -5,7 +5,7 @@ This guide uses the services and volumes in this repository. The demo uses synth
 ## The main Docker pieces
 
 - The `Dockerfile` describes how to assemble the application image: the Python 3.12 base, locked dependencies, project source, and non-root runtime user.
-- An **image** is the built template. Compose labels the V4.2.0 candidate image `wifi-tunja-smart-predictor:0.4.2`; this is a local build tag, not evidence of registry publication.
+- An **image** is the built template. Compose labels the V4.3.0 candidate image `wifi-tunja-smart-predictor:0.4.3`; this is a local build tag, not evidence of registry publication.
 - A **container** is a running instance of that image. This project runs `runtime-init`, `main-api`, `assistant-api`, and `dashboard` containers.
 - `compose.yaml` configures those containers, their startup order, health checks, network, host ports, environment, and persistent named volumes.
 
@@ -78,4 +78,4 @@ Use Task Manager or Resource Monitor to inspect host processes such as `VmmemWSL
 4. Check whether host ports 8000, 8001, or 8501 are already in use; change the corresponding `*_HOST_PORT` value in `.env` if necessary.
 5. Keep persisted volumes intact unless you deliberately want to discard generated demo data. `docker compose down -v` is destructive to those generated resources.
 
-For environment variables, full service details, and API endpoints, see [deployment](deployment.md). For the V3.8/V3.9/V4.0 version map, see [release history](release-history.md).
+For environment variables, full service details, and API endpoints, see [deployment](deployment.md). For the V3.8 through V4.3 version map, see [release history](release-history.md).

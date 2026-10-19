@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased — V4.3.0
+
+### Added
+
+- Newly trained classifier and regressor metadata now records the SHA-256 and byte length of the exact serialized artifact.
+- Prediction, readiness, and model evaluation reject partial or mismatched artifact fingerprints before using newly fingerprinted bundles; legacy bundles without fingerprint fields remain supported.
+- Added regression tests for fingerprint validation, fail-closed readiness, and sanitized prediction failure on artifact mismatch.
+
+### Version and validation status
+
+- Candidate project version V4.3.0 uses Python package and Docker image version `0.4.3`. No V4.3.0 tag or GitHub Release has been created.
+- Local and remote validation is recorded in [the V4.3.0 validation record](docs/releases/v4.3.0.md). Docker runtime and GitHub Actions remain pending; this entry does not claim a stable release.
+
 ## Unreleased — V4.2.0
 
 ### Added
