@@ -73,3 +73,23 @@ See the dedicated [V4.1.0 implementation and validation record](releases/v4.1.0.
 ## V4.2.0 implementation candidate
 
 V4.2.0 adds exact-byte model fingerprints and prediction trace metadata, a shared training-run identity for classifier/regressor bundles, stricter dataset and metric validation, clearer classification/regression presentation, and expanded CI checks. The project label is `V4.2.0`; the Python package and Compose image candidate use `0.4.2`. Local quality checks pass, while live Docker validation and remote Actions results remain pending. No V4.2.0 tag or GitHub Release exists. See the [V4.2.0 validation record](releases/v4.2.0.md) for exact evidence and release gates. All model metrics and data remain synthetic.
+
+## V4.3.0 implementation candidate
+
+V4.3.0 records SHA-256 and byte length in newly trained model metadata and verifies those values against exact deserialized bytes before inference, readiness, and evaluation. The Python package and Compose image candidate use `0.4.3`. Docker runtime and remote Actions remain unverified; no V4.3.0 tag or GitHub Release exists. See [the V4.3.0 validation record](releases/v4.3.0.md). All datasets and evaluation metrics remain synthetic.
+
+## Historical tag inventory audit (2026-10-19)
+
+The public GitHub Releases API returned zero releases; a Git tag is therefore not evidence of a published GitHub Release. Remote branch `main` matched local `main` at `c6f04704228571e1fb785bf95b36180964938262` before V4.3 changes. The repository's explicit release history and package-version commits support repairing two missing annotated tags; both are pointed to their historical release commits, never to current `HEAD`.
+
+| Version | Tag before audit | Intended commit | Evidence and audit action | GitHub Release |
+| --- | --- | --- | --- | --- |
+| V3.0.0 | `v3.0.0` local and remote | `180471113ff48ac73c2adfe8f7533111264b23b3` | Existing tag preserved. | None observed. |
+| V3.1.0 | Missing before audit; now present locally/remotely as annotated `v3.1.0` | `504af22dfca574b3bee2f905dcbd202605087288` | Changelog records `[0.3.1]`, this commit bumps package to `0.3.1` and documents V3.1; created and pushed annotated tag at this exact commit. | None observed. |
+| V3.2.0–V3.5.0 | Existing local and remote | Existing annotated tag targets | Tags preserved. | None observed. |
+| V3.6.0 | Missing before audit; now present locally/remotely as annotated `v3.6.0` | `42b5d50813ac114d88c95ed41872c5ecd7333689` | Commit title/body explicitly releases V3.6, changelog records `[0.3.6]`, and package changes to `0.3.6`; created and pushed annotated tag at this exact commit. | None observed. |
+| V3.7.0–V3.9.0 | Existing local and remote | Existing annotated tag targets | Tags preserved. | None observed. |
+| V4.0.0 | Missing local and remote | Unresolved | `78e0a3c` says “release V4.0 improvements”, but its resulting changelog still labels V4.0 preparation/unreleased and package/image remain `0.3.8`; insufficient evidence for a release tag. No tag created. | None observed. |
+| V4.1.0 | Existing local and remote | `edc10f03b898217d7c0108115d0d111e53962d86` | Existing tag preserved; runtime/CI evidence remains as recorded in its validation file. | None observed. |
+| V4.2.0 | Missing local and remote | Candidate commit `c6f04704228571e1fb785bf95b36180964938262` | Explicitly documented as an implementation candidate with Docker and Actions gates pending; no tag created. | None observed. |
+| V4.3.0 | Not created | Candidate release commit not yet determined | Docker runtime and remote Actions gates are pending; no stable tag created. | None observed. |
