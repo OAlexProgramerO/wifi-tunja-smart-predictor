@@ -37,13 +37,14 @@ from wifi_tunja_smart_predictor.exceptions import (
     ScenarioBuildError,
 )
 from wifi_tunja_smart_predictor.models.artifacts import (
+    artifact_matches_metadata,
     load_classifier_metadata,
+    load_regression_artifact,
     load_regression_metadata,
-    load_regression_model,
+    model_bundle_metadata_matches,
 )
 from wifi_tunja_smart_predictor.models.predict import (
     classifier_supports_demand_labels,
-    load_model,
     load_model_artifact,
     predict_demand,
     predict_probability,
@@ -142,8 +143,9 @@ def model_info() -> ModelInfoResponse:
     loaded = False
     try:
         meta = _metadata()
-        loaded_model = load_model()
-        loaded = (
+        loaded_artifact = load_model_artifact()
+        loaded_model = loaded_artifact.estimator
+        loaded = artifact_matches_metadata(meta, loaded_artifact) and (
             callable(getattr(loaded_model, "predict", None))
             and callable(getattr(loaded_model, "predict_proba", None))
             and classifier_supports_demand_labels(loaded_model)
@@ -153,8 +155,11 @@ def model_info() -> ModelInfoResponse:
     regression_meta = {}
     try:
         regression_meta = load_regression_metadata()
-        regression_model = load_regression_model()
-        regression_loaded = callable(getattr(regression_model, "predict", None))
+        regression_artifact = load_regression_artifact()
+        regression_model = regression_artifact.estimator
+        regression_loaded = artifact_matches_metadata(regression_meta, regression_artifact) and (
+            callable(getattr(regression_model, "predict", None))
+        )
         if loaded:
             combined_regression = meta.get("regression")
             regression_loaded = regression_loaded and isinstance(combined_regression, dict)
@@ -165,6 +170,9 @@ def model_info() -> ModelInfoResponse:
                     == regression_meta["selected_model"]
                     and combined_regression.get("feature_count") == regression_meta["feature_count"]
                     and combined_regression.get("feature_names") == regression_meta["feature_names"]
+                    and model_bundle_metadata_matches(meta, regression_meta)
+                    and model_bundle_metadata_matches(meta, combined_regression)
+                    and artifact_matches_metadata(combined_regression, regression_artifact)
                 )
     except (ModelArtifactError, ModelMetadataError, ModelNotFoundError, OSError, ValueError):
         regression_loaded = False
@@ -189,6 +197,8 @@ def predict(payload: PredictRequest) -> PredictResponse:
     try:
         meta = _metadata()
         loaded_artifact = load_model_artifact()
+        if not artifact_matches_metadata(meta, loaded_artifact):
+            raise ModelMetadataError("Classifier artifact integrity metadata does not match.")
         model = loaded_artifact.estimator
         features = payload.model_dump()
         labels = predict_demand(features, model=model)

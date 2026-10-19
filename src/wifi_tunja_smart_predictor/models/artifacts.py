@@ -20,13 +20,14 @@ from wifi_tunja_smart_predictor.exceptions import (
     ModelMetadataError,
     ModelNotFoundError,
 )
-from wifi_tunja_smart_predictor.models.predict import (
-    classifier_supports_demand_labels,
-    load_model,
-)
 from wifi_tunja_smart_predictor.models.loaded_artifact import (
     LoadedArtifact,
     deserialize_artifact,
+    metadata_matches_artifact,
+)
+from wifi_tunja_smart_predictor.models.predict import (
+    classifier_supports_demand_labels,
+    load_model,
 )
 
 logger = logging.getLogger(__name__)
@@ -72,6 +73,8 @@ def load_classifier_metadata(
     if (
         combined["project_version"] != classifier["project_version"]
         or combined["selected_model"] != classifier["selected_model"]
+        or combined.get("artifact_sha256") != classifier.get("artifact_sha256")
+        or combined.get("artifact_size_bytes") != classifier.get("artifact_size_bytes")
         or not model_bundle_metadata_matches(combined, classifier)
     ):
         raise ModelMetadataError("Classifier metadata files are inconsistent.")
@@ -104,6 +107,11 @@ def model_bundle_metadata_matches(classifier: dict[str, Any], regressor: dict[st
         if (left is not None or right is not None) and left != right:
             return False
     return True
+
+
+def artifact_matches_metadata(metadata: dict[str, Any], artifact: LoadedArtifact) -> bool:
+    """Validate optional persisted artifact identity against loaded bytes."""
+    return metadata_matches_artifact(metadata, artifact)
 
 
 @lru_cache(maxsize=4)
@@ -156,8 +164,41 @@ def model_artifacts_available() -> bool:
         if not model_bundle_metadata_matches(classifier_metadata, combined_regression):
             return False
 
-        classifier = load_model()
-        regressor = load_regression_model()
+        classifier_identity = any(
+            classifier_metadata.get(field) is not None
+            for field in ("artifact_sha256", "artifact_size_bytes")
+        )
+        regressor_identity = any(
+            metadata.get(field) is not None
+            for metadata in (regression_metadata, combined_regression)
+            for field in ("artifact_sha256", "artifact_size_bytes")
+        )
+        classifier_artifact = None
+        regressor_artifact = None
+        if classifier_identity:
+            from wifi_tunja_smart_predictor.models.predict import load_model_artifact
+
+            classifier_artifact = load_model_artifact()
+            if not artifact_matches_metadata(classifier_metadata, classifier_artifact):
+                return False
+            classifier = classifier_artifact.estimator
+        else:
+            classifier = load_model()
+        if regressor_identity:
+            regressor_artifact = load_regression_artifact()
+            if not artifact_matches_metadata(regression_metadata, regressor_artifact):
+                return False
+            regressor = regressor_artifact.estimator
+        else:
+            regressor = load_regression_model()
+        if classifier_artifact is not None and not artifact_matches_metadata(
+            combined_regression, classifier_artifact
+        ):
+            return False
+        if regressor_artifact is not None and not artifact_matches_metadata(
+            combined_regression, regressor_artifact
+        ):
+            return False
         return (
             callable(getattr(classifier, "predict", None))
             and callable(getattr(classifier, "predict_proba", None))

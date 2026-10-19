@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from datetime import datetime, timezone
@@ -78,6 +79,11 @@ def main() -> int:
     comparison.to_csv(MODEL_COMPARISON_PATH, index=False)
     MODEL_PATH.parent.mkdir(parents=True, exist_ok=True)
     joblib.dump(selected, MODEL_PATH)
+    classifier_artifact_bytes = MODEL_PATH.read_bytes()
+    classifier_artifact_identity = {
+        "artifact_sha256": hashlib.sha256(classifier_artifact_bytes).hexdigest(),
+        "artifact_size_bytes": len(classifier_artifact_bytes),
+    }
     classifier_metrics = evaluate_classifier(
         selected, test[MODEL_INPUT_COLUMNS], test[TARGET_COLUMN]
     )
@@ -120,6 +126,7 @@ def main() -> int:
         "confusion_matrix": classifier_metrics["confusion_matrix"],
         "confusion_matrix_labels": classifier_metrics["labels"],
         "model_path": MODEL_PATH.relative_to(PROJECT_ROOT).as_posix(),
+        **classifier_artifact_identity,
         "disclaimer": SYNTHETIC_DATA_DISCLAIMER,
     }
     CLASSIFICATION_METADATA_PATH.write_text(
@@ -137,6 +144,11 @@ def main() -> int:
     regressor = regression_models[regression_name]
     regression_comparison.to_csv(REGRESSION_COMPARISON_PATH, index=False)
     joblib.dump(regressor, REGRESSION_MODEL_PATH)
+    regressor_artifact_bytes = REGRESSION_MODEL_PATH.read_bytes()
+    regressor_artifact_identity = {
+        "artifact_sha256": hashlib.sha256(regressor_artifact_bytes).hexdigest(),
+        "artifact_size_bytes": len(regressor_artifact_bytes),
+    }
     x_validation = validation[MODEL_INPUT_COLUMNS]
     y_validation = validation[REGRESSION_TARGET_COLUMN].astype(float)
     validation_predictions = np.asarray(regressor.predict(x_validation), dtype=float)
@@ -185,6 +197,7 @@ def main() -> int:
             str(q): float(np.quantile(test_residuals, q)) for q in (0.5, 0.9, 0.95)
         },
         "model_path": REGRESSION_MODEL_PATH.relative_to(PROJECT_ROOT).as_posix(),
+        **regressor_artifact_identity,
         "disclaimer": SYNTHETIC_DATA_DISCLAIMER,
     }
     REGRESSION_METADATA_PATH.write_text(

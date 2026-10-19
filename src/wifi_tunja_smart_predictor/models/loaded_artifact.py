@@ -29,3 +29,24 @@ def deserialize_artifact(path: Path) -> LoadedArtifact:
         sha256=hashlib.sha256(artifact_bytes).hexdigest(),
         size_bytes=len(artifact_bytes),
     )
+
+
+def metadata_matches_artifact(metadata: dict[str, Any], artifact: LoadedArtifact) -> bool:
+    """Check optional persisted integrity fields against the bytes actually loaded.
+
+    Metadata written before artifact fingerprints were introduced remains readable,
+    while partially populated or mismatched integrity records fail closed.
+    """
+    expected_sha256 = metadata.get("artifact_sha256")
+    expected_size = metadata.get("artifact_size_bytes")
+    if expected_sha256 is None and expected_size is None:
+        return True
+    return (
+        isinstance(expected_sha256, str)
+        and len(expected_sha256) == 64
+        and all(character in "0123456789abcdef" for character in expected_sha256)
+        and type(expected_size) is int
+        and expected_size > 0
+        and expected_sha256 == artifact.sha256
+        and expected_size == artifact.size_bytes
+    )

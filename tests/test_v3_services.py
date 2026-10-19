@@ -10,8 +10,9 @@ from pydantic import ValidationError
 from wifi_tunja_smart_predictor.assistant.queries import DatasetQuery, DatasetQueryEngine
 from wifi_tunja_smart_predictor.assistant.schemas import ChatRequest
 from wifi_tunja_smart_predictor.assistant.service import AssistantService
-from wifi_tunja_smart_predictor.exceptions import ScenarioBuildError
+from wifi_tunja_smart_predictor.exceptions import ModelMetadataError, ScenarioBuildError
 from wifi_tunja_smart_predictor.geospatial.locations import LocationResolver
+from wifi_tunja_smart_predictor.models.loaded_artifact import LoadedArtifact
 from wifi_tunja_smart_predictor.models.regression import conformal_residual_radius
 from wifi_tunja_smart_predictor.scenarios.builder import HistoricalAnalogEngine, ScenarioRequest
 from wifi_tunja_smart_predictor.scenarios.service import ScenarioPredictionService
@@ -65,6 +66,44 @@ def test_scenario_prediction_returns_both_models_interval_and_capacity(mini_fram
     assert result["regression"]["prediction_interval_upper"] >= 80
     assert "not causes" in result["explanation"]["disclaimer"].lower()
     assert "demand_level" not in result["scenario"].get("features", {})
+
+
+def test_scenario_service_rejects_mismatched_model_fingerprint(mini_frame, monkeypatch):
+    import wifi_tunja_smart_predictor.scenarios.service as scenario_service
+
+    classifier_metadata = {
+        "project_version": "0.4.3",
+        "selected_model": "test_classifier",
+        "artifact_sha256": "0" * 64,
+        "artifact_size_bytes": 10,
+        "training_run_id": "same-run",
+        "feature_count": len(scenario_service.MODEL_INPUT_COLUMNS),
+        "feature_names": scenario_service.MODEL_INPUT_COLUMNS,
+    }
+    regressor_metadata = {
+        "project_version": "0.4.3",
+        "selected_model": "test_regressor",
+        "artifact_sha256": "b" * 64,
+        "artifact_size_bytes": 12,
+        "training_run_id": "same-run",
+        "feature_count": len(scenario_service.MODEL_INPUT_COLUMNS),
+        "feature_names": scenario_service.MODEL_INPUT_COLUMNS,
+    }
+    monkeypatch.setattr(
+        scenario_service,
+        "load_model_artifact",
+        lambda _path: LoadedArtifact(DummyClassifier(), "a" * 64, 10),
+    )
+    monkeypatch.setattr(
+        scenario_service,
+        "load_regression_artifact",
+        lambda _path: LoadedArtifact(DummyRegressor(), "b" * 64, 12),
+    )
+    monkeypatch.setattr(scenario_service, "load_classifier_metadata", lambda: classifier_metadata)
+    monkeypatch.setattr(scenario_service, "load_regression_metadata", lambda: regressor_metadata)
+
+    with pytest.raises(ModelMetadataError, match="integrity"):
+        ScenarioPredictionService(mini_frame)
 
 
 def test_assistant_is_deterministic_and_supports_followup_context(mini_frame):
@@ -165,4 +204,4 @@ def test_main_api_scenario_endpoint_uses_scenario_service(mini_frame, monkeypatc
     assert payload["regression"]["predicted_connections_next_hour"] == 80
     assert payload["traceability"]["request_id"] == response.headers["x-request-id"]
     UUID(payload["traceability"]["prediction_id"])
-    assert payload["traceability"]["application_version"] == "0.4.2"
+    assert payload["traceability"]["application_version"] == "0.4.3"

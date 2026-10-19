@@ -27,8 +27,12 @@ from wifi_tunja_smart_predictor.config import (
     TARGET_COLUMN,
 )
 from wifi_tunja_smart_predictor.data.loader import load_raw_dataset
+from wifi_tunja_smart_predictor.models.artifacts import (
+    artifact_matches_metadata,
+    load_regression_artifact,
+)
 from wifi_tunja_smart_predictor.models.evaluate import evaluate_classifier
-from wifi_tunja_smart_predictor.models.predict import load_model
+from wifi_tunja_smart_predictor.models.predict import load_model_artifact
 from wifi_tunja_smart_predictor.models.regression import evaluate_regressor
 from wifi_tunja_smart_predictor.models.train import temporal_split
 from wifi_tunja_smart_predictor.visualization.plots import plot_confusion_matrix
@@ -43,7 +47,15 @@ def main() -> int:
     _train, _validation, test = temporal_split(frame)
     x_test = test[MODEL_INPUT_COLUMNS]
     y_class = test[TARGET_COLUMN]
-    classifier = load_model()
+    classifier_artifact = load_model_artifact()
+    classifier = classifier_artifact.estimator
+    classifier_metadata = json.loads(MODEL_METADATA_PATH.read_text(encoding="utf-8"))
+    if not artifact_matches_metadata(classifier_metadata, classifier_artifact):
+        raise ValueError("Classifier artifact fingerprint does not match its metadata.")
+    regression_meta = json.loads(REGRESSION_METADATA_PATH.read_text(encoding="utf-8"))
+    regressor_artifact = load_regression_artifact(REGRESSION_MODEL_PATH)
+    if not artifact_matches_metadata(regression_meta, regressor_artifact):
+        raise ValueError("Regression artifact fingerprint does not match its metadata.")
     class_metrics = evaluate_classifier(classifier, x_test, y_class)
 
     class_payload = {
@@ -62,14 +74,7 @@ def main() -> int:
         CONFUSION_MATRIX_PATH, dpi=140
     )
 
-    regression_meta = json.loads(REGRESSION_METADATA_PATH.read_text(encoding="utf-8"))
-    if not REGRESSION_MODEL_PATH.is_file():
-        raise FileNotFoundError(
-            f"Regression model missing at {REGRESSION_MODEL_PATH}; run scripts/train_model.py first."
-        )
-    import joblib
-
-    regressor = joblib.load(REGRESSION_MODEL_PATH)
+    regressor = regressor_artifact.estimator
     y_true = test[REGRESSION_TARGET_COLUMN].astype(float).to_numpy()
     predictions = np.maximum(0.0, np.asarray(regressor.predict(x_test), dtype=float))
     reg_metrics = evaluate_regressor(

@@ -143,7 +143,13 @@ def test_historical_assistant_event_is_distinct_from_model_prediction(caplog):
 
 def test_standard_prediction_operation_is_traceable(monkeypatch, caplog):
     caplog.set_level(logging.INFO)
-    monkeypatch.setattr(prediction_routes, "load_model", lambda: object())
+    from wifi_tunja_smart_predictor.models.loaded_artifact import LoadedArtifact
+
+    monkeypatch.setattr(
+        prediction_routes,
+        "load_model_artifact",
+        lambda: LoadedArtifact(object(), "a" * 64, 10),
+    )
     monkeypatch.setattr(prediction_routes, "predict_demand", lambda _features, model: ["HIGH"])
     monkeypatch.setattr(
         prediction_routes,

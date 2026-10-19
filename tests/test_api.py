@@ -91,7 +91,36 @@ def test_model_info_rejects_classifier_with_incompatible_prediction_labels(
         def predict_proba(self, _features):
             return [[1.0]]
 
-    monkeypatch.setattr(prediction_routes, "load_model", lambda: IncompatibleClassifier())
+    from wifi_tunja_smart_predictor.models.loaded_artifact import LoadedArtifact
+
+    monkeypatch.setattr(
+        prediction_routes,
+        "load_model_artifact",
+        lambda: LoadedArtifact(IncompatibleClassifier(), "a" * 64, 10),
+    )
+
+    response = client.get("/model-info")
+
+    assert response.status_code == 200
+    assert response.json()["model_loaded"] is False
+    assert response.json()["model_version"] is None
+
+
+def test_model_info_marks_classifier_unavailable_when_fingerprint_mismatches(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import api.routes.prediction as prediction_routes
+
+    monkeypatch.setattr(
+        prediction_routes,
+        "_metadata",
+        lambda: {
+            "project_version": "0.4.3",
+            "selected_model": "test_classifier",
+            "artifact_sha256": "0" * 64,
+            "artifact_size_bytes": 1,
+        },
+    )
 
     response = client.get("/model-info")
 
@@ -119,7 +148,13 @@ def test_model_info_rejects_inconsistent_regression_metadata(
             "feature_names": MODEL_INPUT_COLUMNS,
         },
     )
-    monkeypatch.setattr(prediction_routes, "load_regression_model", lambda: Regressor())
+    from wifi_tunja_smart_predictor.models.loaded_artifact import LoadedArtifact
+
+    monkeypatch.setattr(
+        prediction_routes,
+        "load_regression_artifact",
+        lambda: LoadedArtifact(Regressor(), "a" * 64, 10),
+    )
 
     response = client.get("/model-info")
 
@@ -177,6 +212,29 @@ def test_predict_trace_identity_is_sha256_of_loaded_artifact(client: TestClient)
         response.json()["traceability"]["classifier"]["artifact_sha256"]
         == hashlib.sha256(artifact.read_bytes()).hexdigest()
     )
+
+
+def test_predict_rejects_model_bytes_that_disagree_with_recorded_fingerprint(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import api.routes.prediction as prediction_routes
+
+    monkeypatch.setattr(
+        prediction_routes,
+        "_metadata",
+        lambda: {
+            "project_version": "0.4.3",
+            "selected_model": "test_classifier",
+            "artifact_sha256": "0" * 64,
+            "artifact_size_bytes": 99,
+        },
+    )
+
+    response = client.post("/predict", json=_valid_payload())
+
+    assert response.status_code == 503
+    assert response.json()["detail"]["code"] == "model_metadata_unavailable"
+    assert "path" not in response.text.lower()
 
 
 def test_predict_rejects_classifier_with_incompatible_labels(

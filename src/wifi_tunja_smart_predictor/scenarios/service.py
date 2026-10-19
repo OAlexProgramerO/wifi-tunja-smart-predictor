@@ -27,6 +27,7 @@ from wifi_tunja_smart_predictor.config import (
 from wifi_tunja_smart_predictor.data.loader import load_analysis_dataset
 from wifi_tunja_smart_predictor.exceptions import ModelMetadataError, PredictionError
 from wifi_tunja_smart_predictor.models.artifacts import (
+    artifact_matches_metadata,
     load_classifier_metadata,
     load_regression_artifact,
     load_regression_metadata,
@@ -115,6 +116,12 @@ class ScenarioPredictionService:
         if classifier is None and regressor is None:
             self.classification_metadata = load_classifier_metadata()
             self.regression_metadata = load_regression_metadata()
+            if self.classifier_artifact is None or self.regressor_artifact is None:
+                raise ModelMetadataError("Required model artifact identities are unavailable.")
+            if not artifact_matches_metadata(
+                self.classification_metadata, self.classifier_artifact
+            ) or not artifact_matches_metadata(self.regression_metadata, self.regressor_artifact):
+                raise ModelMetadataError("Model artifact integrity metadata does not match.")
             if self.classification_metadata["project_version"] != self.regression_metadata[
                 "project_version"
             ] or not model_bundle_metadata_matches(
