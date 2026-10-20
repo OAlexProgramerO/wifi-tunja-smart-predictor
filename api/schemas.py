@@ -60,6 +60,23 @@ class ModelInfoResponse(BaseModel):
     regression_model: str | None = None
 
 
+class ModelDiagnosticsResponse(BaseModel):
+    """Versioned, provenance-checked diagnostics computed from synthetic data."""
+
+    schema_version: str
+    generated_at_utc: datetime
+    project_version: str
+    model_version: str | None
+    dataset: dict[str, Any]
+    data_quality: dict[str, Any]
+    artifacts: dict[str, Any]
+    method: dict[str, Any]
+    test_period: dict[str, Any]
+    test: dict[str, Any]
+    rolling_windows: list[dict[str, Any]]
+    warnings: list[str]
+
+
 class ModelArtifactTrace(BaseModel):
     model_version: str | None = None
     selected_model: str | None = None

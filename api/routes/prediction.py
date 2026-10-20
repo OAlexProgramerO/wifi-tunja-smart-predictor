@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from api.schemas import (
     HealthResponse,
+    ModelDiagnosticsResponse,
     ModelInfoResponse,
     PredictionTraceability,
     PredictRequest,
@@ -43,6 +44,7 @@ from wifi_tunja_smart_predictor.models.artifacts import (
     load_regression_metadata,
     model_bundle_metadata_matches,
 )
+from wifi_tunja_smart_predictor.models.diagnostics import load_valid_diagnostics
 from wifi_tunja_smart_predictor.models.predict import (
     classifier_supports_demand_labels,
     load_model_artifact,
@@ -135,6 +137,18 @@ def readiness() -> JSONResponse:
             },
         )
     return JSONResponse(status_code=200, content={"status": "ready"})
+
+
+@router.get("/model-diagnostics", response_model=ModelDiagnosticsResponse)
+def model_diagnostics() -> ModelDiagnosticsResponse:
+    """Return the persisted diagnostics only when its data/model provenance is current."""
+    try:
+        return ModelDiagnosticsResponse.model_validate(load_valid_diagnostics())
+    except (OSError, ValueError) as exc:
+        raise HTTPException(
+            status_code=503,
+            detail="Model diagnostics are unavailable; regenerate evaluation artifacts.",
+        ) from exc
 
 
 @router.get("/model-info", response_model=ModelInfoResponse)

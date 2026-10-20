@@ -787,6 +787,45 @@ def render_performance_v3() -> None:
         st.caption(
             f"{regression.get('interval_confidence', .9):.0%} nominal interval; calibration radius {regression.get('calibration_radius', 'unavailable')} connections. Test coverage may differ under distribution shift."
         )
+    from wifi_tunja_smart_predictor.models.diagnostics import load_valid_diagnostics
+
+    _section_header("Prediction quality diagnostics")
+    try:
+        report = load_valid_diagnostics()
+    except (OSError, ValueError):
+        st.warning("Diagnostics are unavailable or stale. Run `python scripts/evaluate_model.py`.")
+        return
+    st.caption(
+        f"Report schema {report['schema_version']} · generated {report['generated_at_utc']} · "
+        f"test rows {report['test']['rows']} · all observations are synthetic."
+    )
+    st.dataframe(
+        pd.DataFrame.from_dict(report["test"]["classification"]["class_metrics"], orient="index")
+        .rename_axis("class")
+        .reset_index(),
+        width="stretch",
+        hide_index=True,
+    )
+    classification = report["test"]["classification"]
+    st.plotly_chart(
+        plot_confusion_matrix_plotly(
+            classification["confusion_matrix"], classification["confusion_labels"]
+        ),
+        width="stretch",
+    )
+    st.markdown("**Chronological expanding-window evaluation**")
+    st.dataframe(pd.DataFrame(report["rolling_windows"]), width="stretch", hide_index=True)
+    regression_test = report["test"]["regression"]
+    columns = st.columns(4)
+    for column, key, label in zip(
+        columns,
+        ("mae", "rmse", "r2", "mean_prediction_bias"),
+        ("MAE", "RMSE", "R²", "Mean prediction bias"),
+    ):
+        value = regression_test.get(key)
+        column.metric(label, f"{value:.3f}" if isinstance(value, (float, int)) else "N/A")
+    for warning in report["warnings"]:
+        st.caption(f"⚠️ {warning}")
 
 
 def _render_page(title: str, kind: str) -> None:

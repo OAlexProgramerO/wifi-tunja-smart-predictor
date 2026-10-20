@@ -228,6 +228,9 @@ def _response_language(message: str) -> str:
             term in text
             for term in (
                 "que ",
+                "valor",
+                "puntaje",
+                "informe",
                 "explica",
                 "explicame",
                 "seccion",
@@ -372,8 +375,50 @@ class AssistantService:
             section = parsed.dashboard_section or state.get("dashboard_section")
             language = _response_language(message)
             metric = _metric_name(normalize_message(message))
+            response_sources = ["dashboard_context", "project_documentation"]
             if metric:
-                answer = _metric_explanation(metric, language)
+                normalized_question = normalize_message(message)
+                asks_for_definition = any(
+                    term in normalized_question
+                    for term in (
+                        "what does",
+                        "what is the meaning",
+                        "define",
+                        "explain",
+                        "qué significa",
+                        "que significa",
+                        "explica",
+                        "definición",
+                    )
+                )
+                if asks_for_definition:
+                    answer = _metric_explanation(metric, language)
+                else:
+                    response_sources = ["model_diagnostics_report", "synthetic_test_metrics"]
+                    try:
+                        from wifi_tunja_smart_predictor.models.diagnostics import (
+                            load_valid_diagnostics,
+                        )
+
+                        diagnostics = load_valid_diagnostics()["test"]
+                        key = metric.casefold().replace(" ", "_")
+                        value = diagnostics["classification"].get(key)
+                        if value is None:
+                            value = diagnostics["regression"].get(key)
+                        if value is None:
+                            raise ValueError("metric not available")
+                        answer = (
+                            f"En la prueba sintética retenida, {metric} es {value:.3f}. "
+                            "El resultado no valida demanda real de WiFi en Tunja."
+                            if language == "es"
+                            else f"On the synthetic held-out test set, {metric} is {value:.3f}. This does not validate real WiFi demand in Tunja."
+                        )
+                    except (OSError, ValueError, KeyError):
+                        answer = (
+                            "El informe de diagnóstico no está disponible o está desactualizado."
+                            if language == "es"
+                            else "The diagnostics report is unavailable or stale."
+                        )
             elif _is_scenario_question(normalize_message(message)):
                 scenario = state.get("scenario_result") or state.get("last_prediction")
                 answer = (
@@ -399,7 +444,7 @@ class AssistantService:
             return (
                 "DASHBOARD_SECTION_HELP",
                 {"answer": answer},
-                ["dashboard_context", "project_documentation"],
+                response_sources,
                 None,
             )
         if parsed.intent in {"DASHBOARD_SECTION_HELP", "METRIC_EXPLANATION"}:
