@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V4.3.0 release candidate
+# WiFi Tunja Smart Predictor — V4.4.0 implementation candidate
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,11 +9,11 @@
 
 Read this in [Español](README.es.md)
 
-WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V4.3.0 adds training-time artifact fingerprints and verifies them against the exact classifier and regressor bytes before prediction, readiness, and model evaluation.
+WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. The V4.4.0 candidate adds a provenance-validated diagnostics report with chronological evaluation windows, exposed through the API, dashboard, and deterministic assistant.
 
-**Release status:** V4.3.0 is an implementation candidate, not a published release. The Python package and Docker image candidate use `0.4.3`; the project release label is `V4.3.0`. The latest existing Git tag is `v4.1.0`; the public GitHub Releases API lists no releases. Docker runtime and remote CI validation remain pending. See the [V4.3.0 validation record](docs/releases/v4.3.0.md), [GitHub Releases](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
+**Release status:** V4.4.0 is an implementation candidate, not a published release. The Python package and Docker image candidate use `0.4.4`; no V4.4.0 Git tag or GitHub Release exists. Docker runtime and remote CI validation remain release gates. See the [V4.4.0 validation record](docs/releases/v4.4.0.md), [V4.3.0 implementation record](docs/releases/v4.3.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
 
-**V4.3.0 improvements:** newly trained classifier and regressor metadata store SHA-256 and byte length. Serving, readiness, and evaluation compare those values to the exact bytes deserialized; partial or mismatched fingerprints fail closed. Legacy model bundles without fingerprints remain supported. V4.2.0 prediction traceability and validation improvements remain in place.
+V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 
 The project uses synthetic data only. Its metrics do not establish predictive performance for real public WiFi demand or municipal infrastructure in Tunja. See the [methodology](docs/methodology.md), [limitations](docs/limitations.md), [API guide](docs/api.md), and [assistant guide](docs/assistant.md).
 
@@ -31,9 +31,9 @@ cd wifi-tunja-smart-predictor
 docker compose up --build --wait --wait-timeout 900
 ```
 
-On its first run, the `runtime-init` service creates the project's synthetic dataset and trains both existing models once in Compose-managed volumes. Wait for the APIs and dashboard to become healthy. Open the dashboard at <http://localhost:8501>, the main API docs at <http://localhost:8000/docs>, and assistant API docs at <http://localhost:8001/docs>. Inspect with `docker compose ps`, follow logs with `docker compose logs -f`, run the HTTP smoke checks from the dashboard container with `docker compose exec -T dashboard python scripts/smoke_test.py`, and stop with `docker compose down`. Data/model volumes persist after `down`; `docker compose down -v` removes only this Compose project's generated volumes.
+On its first run, the `runtime-init` service creates the synthetic dataset, trains both existing models, and evaluates them to create the diagnostics report in Compose-managed volumes. Wait for the APIs and dashboard to become healthy. Open the dashboard at <http://localhost:8501>, the main API docs at <http://localhost:8000/docs>, and assistant API docs at <http://localhost:8001/docs>. Inspect with `docker compose ps`, follow logs with `docker compose logs -f`, run the HTTP smoke checks from the dashboard container with `docker compose exec -T dashboard python scripts/smoke_test.py`, and stop with `docker compose down`. Data/model volumes persist after `down`; `docker compose down -v` removes only this Compose project's generated volumes.
 
-The V4.3.0 candidate has not yet passed Docker runtime validation or a remote Actions run. See the [V4.3.0 validation record](docs/releases/v4.3.0.md) for current evidence and blockers.
+The V4.4.0 candidate must still pass Docker runtime validation and remote CI. See the [V4.4.0 validation record](docs/releases/v4.4.0.md) for the release gate status.
 
 ## 1. Project overview
 
@@ -105,6 +105,8 @@ Five classification candidates and two regression candidates are compared. The c
 ## 10. Evaluation
 
 Metrics include accuracy, precision, recall, F1 for `HIGH`, ROC-AUC where available, and a confusion matrix. **The evaluation is based on synthetic data.** Current generated values are stored in [selected model test metrics](reports/metrics/selected_model_test_metrics.json), with split details in [model metadata](models/model_metadata.json); regenerate these artifacts after retraining. They are not evidence of real-world accuracy.
+
+Model Performance also presents the versioned [diagnostics report](docs/model-diagnostics.md), including per-class support, regression error summaries, and expanding chronological windows. Each window fits on earlier synthetic rows only; none of these results validates real public WiFi demand.
 
 ## 11. Dashboard
 

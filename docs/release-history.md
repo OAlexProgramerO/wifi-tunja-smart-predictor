@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V4.4.0 — implementation candidate; not released
+
+Adds a provenance-checked diagnostics report with chronological expanding-window fits, an additive API endpoint, Model Performance views, and deterministic assistant metric answers. Python package and Docker image candidate versions are `0.4.4`. Docker/runtime and remote CI gates must be verified before a stable tag or GitHub Release. Metrics remain limited to synthetic data. See [V4.4.0 validation record](releases/v4.4.0.md) and [diagnostics documentation](model-diagnostics.md).
+
 ## V3.8 to V3.9: changes confirmed by Git history
 
 `v3.8.0` points to `e935b33`; `v3.9.0` points to `16128ff` and is present on both the local repository and `origin`. The V3.9 range contains eight commits and changes 31 files (3,296 insertions, 166 deletions). The classifier, regressor, synthetic dataset methodology, scenario logic, and dashboard product sections predate V3.9; they were not introduced by the Docker work.

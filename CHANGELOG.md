@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased — V4.4.0
+
+### Candidate changes
+
+- Adds a versioned diagnostics report with synthetic held-out classification/regression metrics, class support and confusion matrix, regression bias/error quantiles, and three expanding chronological windows whose pipelines are fit only on earlier rows.
+- Validates report schema, package version, dataset fingerprint, and classifier/regressor fingerprints; missing or stale reports are unavailable to the API, dashboard, and deterministic assistant.
+- Adds `GET /model-diagnostics`, report-backed Model Performance views, and bilingual assistant answers sourced from the validated report. Runtime initialization now evaluates models and creates the diagnostics artifact.
+- Project release V4.4.0 uses Python package and Docker image candidate version `0.4.4`. All evaluation remains synthetic. No V4.4.0 tag or GitHub Release is claimed; see [the V4.4.0 validation record](docs/releases/v4.4.0.md).
+
 ## Unreleased — V4.3.0
 
 ### Added

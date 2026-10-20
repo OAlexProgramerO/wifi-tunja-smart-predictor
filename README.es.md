@@ -1,14 +1,14 @@
-# WiFi Tunja Smart Predictor — candidato V4.3.0
+# WiFi Tunja Smart Predictor — candidato de implementación V4.4.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V4.3.0 agrega huellas digitales de artefactos al entrenar y las verifica contra los bytes exactos de los clasificadores y regresores antes de predecir, informar readiness o evaluar modelos.
+WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. La candidata V4.4.0 agrega un informe de diagnóstico con procedencia validada y ventanas de evaluación cronológica, disponible en la API, el panel y el asistente determinista.
 
-**Estado de publicación:** V4.3.0 es una versión candidata de implementación, no una publicación formal. El paquete Python y la imagen Docker candidatos usan `0.4.3`; la etiqueta de proyecto es `V4.3.0`. La etiqueta Git existente más reciente es `v4.1.0`; la API pública de GitHub Releases no muestra publicaciones. La validación runtime de Docker y la CI remota están pendientes. Consulte el [registro de validación V4.3.0](docs/releases/v4.3.0.md), [GitHub Releases](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V4.4.0 es una versión candidata de implementación, no una publicación formal. El paquete Python y la imagen Docker candidatos usan `0.4.4`; no existe etiqueta Git ni GitHub Release V4.4.0. La validación runtime de Docker y la CI remota siguen siendo puertas de publicación. Consulte el [registro de validación V4.4.0](docs/releases/v4.4.0.md), el [registro de implementación V4.3.0](docs/releases/v4.3.0.md), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
 
-**Mejoras V4.3.0:** Los nuevos metadatos de entrenamiento guardan SHA-256 y tamaño de cada artefacto. El servicio, readiness y evaluación comparan esos valores con los bytes exactos deserializados; huellas incompletas o diferentes bloquean el uso. Los bundles heredados sin huellas siguen siendo compatibles. Se conservan la trazabilidad y validaciones introducidas en V4.2.0.
+Se conservan las verificaciones de huellas de artefactos de V4.3.0 y la trazabilidad de predicciones y validaciones de V4.2.0. Consulte el [diseño de diagnósticos V4.4.0](docs/model-diagnostics.md) para ver el esquema, las métricas, las ventanas temporales y la comprobación de procedencia.
 
 El proyecto usa únicamente datos sintéticos. Sus métricas no demuestran rendimiento predictivo para la demanda real de WiFi público ni para infraestructura municipal en Tunja. Consulte la [metodología](docs/methodology.md), [limitaciones](docs/limitations.md), [guía de API](docs/api.md) y [guía del asistente](docs/assistant.md).
 
@@ -26,9 +26,9 @@ cd wifi-tunja-smart-predictor
 docker compose up --build --wait --wait-timeout 900
 ```
 
-En el primer inicio, el servicio `runtime-init` genera el dataset sintético del proyecto y entrena los dos modelos existentes una sola vez en volúmenes administrados por Compose. Espere a que las API y el dashboard estén disponibles. Abra el dashboard en <http://localhost:8501>, la documentación de la API principal en <http://localhost:8000/docs> y la del asistente en <http://localhost:8001/docs>. Revise `docker compose ps`, siga los registros con `docker compose logs -f`, ejecute las pruebas HTTP desde el contenedor del dashboard con `docker compose exec -T dashboard python scripts/smoke_test.py` y detenga con `docker compose down`. Los volúmenes de datos/modelos persisten después de `down`; `docker compose down -v` elimina solo los volúmenes generados de este proyecto.
+En el primer inicio, `runtime-init` genera el dataset sintético, entrena los dos modelos existentes y los evalúa para crear el informe de diagnóstico en volúmenes administrados por Compose. Espere a que las API y el dashboard estén disponibles. Abra el dashboard en <http://localhost:8501>, la documentación de la API principal en <http://localhost:8000/docs> y la del asistente en <http://localhost:8001/docs>. Revise `docker compose ps`, siga los registros con `docker compose logs -f`, ejecute las pruebas HTTP desde el contenedor del dashboard con `docker compose exec -T dashboard python scripts/smoke_test.py` y detenga con `docker compose down`. Los volúmenes de datos/modelos persisten después de `down`; `docker compose down -v` elimina solo los volúmenes generados de este proyecto.
 
-La versión candidata V4.3.0 aún no ha pasado la validación runtime de Docker ni una ejecución remota de Actions. Consulte el [registro de validación V4.3.0](docs/releases/v4.3.0.md) para ver las evidencias y los bloqueos actuales.
+La candidata V4.4.0 aún debe superar la validación runtime de Docker y CI remota. Consulte el [registro de validación V4.4.0](docs/releases/v4.4.0.md) para conocer el estado de las puertas de publicación.
 
 ## 1. Descripción del proyecto
 
@@ -94,6 +94,8 @@ La clasificación compara cinco modelos y selecciona por F1 de `HIGH` en validac
 ## 10. Evaluación
 
 Se reportan exactitud, precisión, exhaustividad, F1, ROC-AUC y matriz de confusión. **La evaluación se basa en datos sintéticos.** Consulte [métricas](reports/metrics/selected_model_test_metrics.json) y [metadatos](models/model_metadata.json); no representan precisión real.
+
+Model Performance muestra también el [informe de diagnóstico versionado](docs/model-diagnostics.md), con soporte por clase, errores de regresión y ventanas cronológicas expansivas. Cada ventana ajusta el pipeline con filas sintéticas anteriores al bloque evaluado; los resultados no validan demanda pública real de WiFi.
 
 ## 11. Dashboard
 

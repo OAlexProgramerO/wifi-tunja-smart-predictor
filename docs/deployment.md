@@ -131,4 +131,4 @@ The Compose implementation and smoke tooling are intended for local synthetic de
 
 ## Version and release references
 
-The remote tag `v4.1.0` points to `edc10f03b898217d7c0108115d0d111e53962d86`; it is an annotated Git tag, not a published GitHub Release. The V4.3.0 candidate sets the Python package and Compose image to `0.4.3`. Docker runtime remains unverified, and the public Actions API returned no workflow runs on 2026-10-19. See [release history](release-history.md) and the [V4.3.0 validation record](releases/v4.3.0.md) for current evidence. No V4.3.0 tag or release has been created.
+The remote tag `v4.1.0` points to `edc10f03b898217d7c0108115d0d111e53962d86`; it is an annotated Git tag, not a published GitHub Release. The V4.4.0 implementation candidate sets the Python package and Compose image to `0.4.4` and generates a diagnostics report during runtime initialization. Docker runtime and remote CI must be verified before stable publication. See [release history](release-history.md) and the [V4.4.0 validation record](releases/v4.4.0.md). No V4.4.0 tag or release is asserted here.
