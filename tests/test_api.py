@@ -77,6 +77,49 @@ def test_model_info(client: TestClient) -> None:
     assert body["model_loaded"] is True
 
 
+def test_model_diagnostics_endpoint_returns_validated_report(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import api.routes.prediction as prediction_routes
+
+    monkeypatch.setattr(
+        prediction_routes,
+        "load_valid_diagnostics",
+        lambda: {
+            "schema_version": "1.0",
+            "generated_at_utc": "2026-10-20T10:00:00+00:00",
+            "project_version": "0.4.4",
+            "model_version": "0.4.4",
+            "dataset": {},
+            "data_quality": {},
+            "artifacts": {},
+            "method": {},
+            "test_period": {},
+            "test": {},
+            "rolling_windows": [],
+            "warnings": ["synthetic data"],
+        },
+    )
+    response = client.get("/model-diagnostics")
+    assert response.status_code == 200
+    assert response.json()["schema_version"] == "1.0"
+    assert response.json()["warnings"] == ["synthetic data"]
+
+
+def test_model_diagnostics_endpoint_fails_closed_when_unavailable(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import api.routes.prediction as prediction_routes
+
+    def unavailable():
+        raise ValueError("stale")
+
+    monkeypatch.setattr(prediction_routes, "load_valid_diagnostics", unavailable)
+    response = client.get("/model-diagnostics")
+    assert response.status_code == 503
+    assert "stale" not in response.text
+
+
 def test_model_info_rejects_classifier_with_incompatible_prediction_labels(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:

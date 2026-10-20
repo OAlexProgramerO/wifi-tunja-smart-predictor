@@ -48,6 +48,27 @@ def test_basic_conversation_matching_ignores_case_and_edge_punctuation(
 
 
 @pytest.mark.parametrize(
+    ("message", "expected"),
+    [("What is the current RMSE score?", "0.321"), ("¿Cuál es el valor actual de RMSE?", "0.321")],
+)
+def test_assistant_uses_current_diagnostics_for_metric_values(
+    mini_frame, monkeypatch, message, expected
+):
+    import wifi_tunja_smart_predictor.models.diagnostics as diagnostics
+
+    monkeypatch.setattr(
+        diagnostics,
+        "load_valid_diagnostics",
+        lambda: {"test": {"classification": {}, "regression": {"rmse": 0.321}}},
+    )
+    response = AssistantService(mini_frame).handle(ChatRequest(message=message))
+
+    assert "0.321" in response.answer
+    assert response.sources == ["model_diagnostics_report", "synthetic_test_metrics"]
+    assert "synthetic" in response.answer.casefold() or "sintétic" in response.answer.casefold()
+
+
+@pytest.mark.parametrize(
     ("message", "intent"),
     [
         ("hey", "GREETING"),

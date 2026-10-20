@@ -57,6 +57,26 @@ def test_initializer_refuses_to_overwrite_partial_volumes(tmp_path, capsys):
     assert "docker compose down -v" in capsys.readouterr().err
 
 
+def test_initializer_restores_missing_marker_only_after_validation(tmp_path, capsys):
+    marker, dataset, model = (
+        tmp_path / ".runtime-ready",
+        tmp_path / "dataset.csv",
+        tmp_path / "model.joblib",
+    )
+    dataset.touch()
+    model.touch()
+
+    result = initialize_runtime.initialize_runtime(
+        assets=(marker, dataset, model),
+        validate_model_artifacts=lambda: True,
+        root=tmp_path,
+    )
+
+    assert result == 0
+    assert marker.is_file()
+    assert "restored the runtime-ready marker" in capsys.readouterr().out
+
+
 def test_initializer_stops_on_pipeline_failure(tmp_path, capsys):
     assets = (tmp_path / ".runtime-ready", tmp_path / "dataset.csv", tmp_path / "model.joblib")
     calls = []
