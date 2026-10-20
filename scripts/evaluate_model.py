@@ -16,6 +16,7 @@ from wifi_tunja_smart_predictor.config import (
     MODEL_INPUT_COLUMNS,
     MODEL_METADATA_PATH,
     PROCESSED_DATASET_PATH,
+    RAW_DATASET_PATH,
     REGRESSION_METADATA_PATH,
     REGRESSION_MODEL_PATH,
     REGRESSION_PREDICTIONS_FIGURE_PATH,
@@ -31,6 +32,7 @@ from wifi_tunja_smart_predictor.models.artifacts import (
     artifact_matches_metadata,
     load_regression_artifact,
 )
+from wifi_tunja_smart_predictor.models.diagnostics import build_diagnostics, write_diagnostics
 from wifi_tunja_smart_predictor.models.evaluate import evaluate_classifier
 from wifi_tunja_smart_predictor.models.predict import load_model_artifact
 from wifi_tunja_smart_predictor.models.regression import evaluate_regressor
@@ -118,6 +120,24 @@ def main() -> int:
     }
     SELECTED_REGRESSION_METRICS_PATH.write_text(
         json.dumps(reg_payload, indent=2, default=str), encoding="utf-8"
+    )
+    report = build_diagnostics(
+        frame,
+        classifier,
+        regressor,
+        classifier_metadata,
+        regression_meta,
+        PROCESSED_DATASET_PATH if PROCESSED_DATASET_PATH.is_file() else RAW_DATASET_PATH,
+    )
+    if (
+        report["artifacts"]["classifier_sha256"] != classifier_artifact.sha256
+        or report["artifacts"]["regressor_sha256"] != regressor_artifact.sha256
+    ):
+        raise ValueError("Model artifacts changed while diagnostics were being generated.")
+    write_diagnostics(report)
+    logger.info(
+        "Wrote model diagnostics report with %s chronological windows",
+        len(report["rolling_windows"]),
     )
 
     fig, axis = plt.subplots(figsize=(8, 5))

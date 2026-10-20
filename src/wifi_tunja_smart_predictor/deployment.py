@@ -8,6 +8,7 @@ from wifi_tunja_smart_predictor.config import (
     CLASSIFICATION_METADATA_PATH,
     DATA_DIR,
     MODEL_COMPARISON_PATH,
+    MODEL_DIAGNOSTICS_PATH,
     MODEL_METADATA_PATH,
     MODEL_PATH,
     PROCESSED_DATASET_PATH,
@@ -29,6 +30,7 @@ REQUIRED_DEMO_ASSETS: tuple[Path, ...] = (
     REGRESSION_MODEL_PATH,
     REGRESSION_METADATA_PATH,
     MODEL_COMPARISON_PATH,
+    MODEL_DIAGNOSTICS_PATH,
     REGRESSION_COMPARISON_PATH,
 )
 
@@ -47,5 +49,9 @@ def runtime_assets_available() -> bool:
 def model_artifacts_available() -> bool:
     """Return whether persisted classifier and regression models are loadable."""
     from wifi_tunja_smart_predictor.models.artifacts import model_artifacts_available as check
+    from wifi_tunja_smart_predictor.models.diagnostics import load_valid_diagnostics
 
-    return check()
+    try:
+        return check() and bool(load_valid_diagnostics())
+    except (OSError, ValueError):
+        return False

@@ -20,6 +20,7 @@ STAGES = (
     "scripts/generate_synthetic_dataset.py",
     "scripts/prepare_data.py",
     "scripts/train_model.py",
+    "scripts/evaluate_model.py",
 )
 
 
@@ -49,6 +50,22 @@ def initialize_runtime(
             )
             return 1
         print("Synthetic dataset and model artifacts are already initialized.", flush=True)
+        return 0
+    if missing == (marker,) and not missing_demo_assets(required_outputs):
+        validate_artifacts = validate_model_artifacts or model_artifacts_available
+        try:
+            if not validate_artifacts():
+                raise ValueError("model artifacts or diagnostics failed validation")
+        except (OSError, ValueError):
+            print(
+                "Existing runtime resources are complete but fail artifact or diagnostics "
+                "validation; refusing to mark the volume ready.",
+                file=sys.stderr,
+                flush=True,
+            )
+            return 1
+        marker.touch()
+        print("Validated existing resources and restored the runtime-ready marker.", flush=True)
         return 0
     if len(missing) != len(assets):
         print(
