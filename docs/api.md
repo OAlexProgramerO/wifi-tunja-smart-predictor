@@ -1,5 +1,17 @@
 # API reference
 
+## V5 experiment routes
+
+| Method and path | Behavior |
+|---|---|
+| `POST /experiments/scenarios` | Validate and run 1–12 synthetic zone estimates, apply deterministic capacity planning, and persist an experiment (201). |
+| `GET /experiments?limit=50&offset=0` | Return a bounded history page (limit 1–100). |
+| `GET /experiments/{experiment_id}` | Retrieve one saved experiment (404 when absent). |
+| `POST /experiments/compare` | Compare 2–10 records only when time window, dataset identity, and model artifact fingerprints agree (409 otherwise). |
+| `GET /experiments/{experiment_id}/report?format=json` | Export a structured report; `format=markdown` returns a readable report. |
+
+The comparison is relative to the first supplied experiment and reports only shared zone IDs. All demand and capacity values are synthetic connection counts, not throughput or real-network advice.
+
 ## Main API (port 8000)
 
 Start with `uvicorn api.main:app --reload --port 8000`; interactive OpenAPI is at `/docs`.

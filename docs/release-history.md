@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V5.0.0 — implementation candidate; not released
+
+Adds deterministic synthetic capacity planning, multi-zone scenario execution through the existing model service, SQLite experiment persistence, API retrieval and reporting, and dashboard experiment history. The package and image candidate version is `0.5.0`. Docker runtime, security audit, and remote CI require fresh verification. No V5.0.0 tag or GitHub Release is claimed. All analysis remains synthetic. See the [V5.0.0 validation record](releases/v5.0.0.md), [capacity-planning guide](capacity-planning.md), and [experiment guide](experiments.md).
+
 ## V4.4.0 — implementation candidate; not released
 
 Adds a provenance-checked diagnostics report with chronological expanding-window fits, an additive API endpoint, Model Performance views, and deterministic assistant metric answers. Python package and Docker image candidate versions are `0.4.4`. Docker/runtime and remote CI gates must be verified before a stable tag or GitHub Release. Metrics remain limited to synthetic data. See [V4.4.0 validation record](releases/v4.4.0.md) and [diagnostics documentation](model-diagnostics.md).
@@ -82,7 +86,7 @@ V4.2.0 adds exact-byte model fingerprints and prediction trace metadata, a share
 
 V4.3.0 records SHA-256 and byte length in newly trained model metadata and verifies those values against exact deserialized bytes before inference, readiness, and evaluation. The Python package and Compose image candidate use `0.4.3`. Docker runtime and remote Actions remain unverified; no V4.3.0 tag or GitHub Release exists. See [the V4.3.0 validation record](releases/v4.3.0.md). All datasets and evaluation metrics remain synthetic.
 
-## Historical tag inventory audit (2026-10-19)
+## Historical tag inventory audit (2026-10-21)
 
 The public GitHub Releases API returned zero releases; a Git tag is therefore not evidence of a published GitHub Release. Remote branch `main` matched local `main` at `c6f04704228571e1fb785bf95b36180964938262` before V4.3 changes. The repository's explicit release history and package-version commits support repairing two missing annotated tags; both are pointed to their historical release commits, never to current `HEAD`.
 
@@ -102,3 +106,7 @@ The public GitHub Releases API returned zero releases; a Git tag is therefore no
 | V4.1.0 | `edc10f03b898217d7c0108115d0d111e53962d86` | `v4.1.0` | `v4.1.0` | None observed | Existing tag preserved; runtime/CI verification limitations remain documented. |
 | V4.2.0 | `c6f04704228571e1fb785bf95b36180964938262` (candidate) | Missing | Missing | None observed | Documented candidate with Docker and Actions gates pending; no tag created. |
 | V4.3.0 | `53fb0749996938f692cbe0adbdbd0d09211cc0f8` (candidate on `main`) | Missing | Missing | None observed | Docker runtime and remote Actions gates are pending; no stable tag created. |
+| V4.4.0 | `99a849796b01c67e4ccfa4f9403ad53745d154f7` (candidate) | Missing | Missing | None observed | Docker, security, and remote Actions gates are pending; no stable tag created. |
+| V5.0.0 | Current implementation candidate; final commit pending | Missing | Missing | None observed | No tag or release is created before Docker, security, CI, and local quality gates are complete. |
+
+The 2026-10-21 audit fetched `origin` before implementation: remote `main` was `e1af8606133dc7cbca80eba681b97ef90c16f53a`; local and remote agreed. Existing remote tags `v3.0.0`–`v3.9.0` and `v4.1.0` were preserved and their peeled commit targets reviewed. Historical gaps `v4.0.0`, `v4.2.0`, `v4.3.0`, and `v4.4.0` remain unresolved candidates, not missing releases to synthesize: prior records explicitly document unreleased status or incomplete gates. No existing or older tags were moved. The public GitHub Releases API listed no releases and the Actions API had no workflow runs at audit time.

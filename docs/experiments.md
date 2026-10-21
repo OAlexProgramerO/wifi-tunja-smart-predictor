@@ -1,0 +1,13 @@
+# Experiments and reports
+
+The main API provides scenario experiment creation (`POST /experiments/scenarios`), paginated history (`GET /experiments?limit=50&offset=0`, maximum limit 100), retrieval (`GET /experiments/{id}`), and JSON or Markdown report export (`GET /experiments/{id}/report?format=json|markdown`). OpenAPI is available at `/docs`. The dashboard's Experiment History page retrieves persisted runs and can download a JSON copy.
+
+Each successful record has a stable UUID, UTC creation and update timestamps, `COMPLETED` status, experiment type, schema version, validated request configuration, computed capacity results, dataset content fingerprint and algorithm, and per-zone model artifact traceability. Records are immutable after creation, so update time initially equals creation time. Failed validation or model execution returns a safe API error and does not create a partial experiment. SQLite transactions prevent partial inserts, parameterized queries are used, prior records are not overwritten, and persisted JSON is validated during retrieval. Schema `1.0`/`1.1` migrates transactionally to `1.2`, preserving records, filling update timestamps, and marking existing successful runs completed; unknown future schemas fail explicitly.
+
+`POST /experiments/compare` accepts 2–10 experiment IDs. Comparisons require equal timestamp, dataset version and content fingerprint, and classifier/regressor artifact hashes and versions; incompatible records return HTTP 409. Differences are calculated only for shared synthetic zone IDs and use the first ID as the baseline.
+
+Compose initializes the database in its own `runtime-experiments` volume and mounts it writable to the main API. It persists across `docker compose down` and is removed by `docker compose down -v`; do not use the latter if you need to retain demo experiments. A local run defaults to `reports/experiments.sqlite3` and can override this with `EXPERIMENT_DB_PATH`.
+
+JSON and Markdown exports share a report envelope with report schema and generation time, request configuration, dataset/model provenance, metric definitions, units, assumptions, warnings, and the synthetic-data disclaimer. Markdown export presents per-zone connection counts, utilization and overload and escapes user-controlled strings. Generation timestamps vary, so complete exports are not byte-identical even when deterministic input metrics match. Reproducibility is bounded by the dataset and exact model artifacts recorded with the run; it does not guarantee a future environment will load those artifacts or reproduce real-world behavior.
+
+Experiments are synthetic capacity-planning simulations, not operational network recommendations or evaluations against actual municipal telemetry.

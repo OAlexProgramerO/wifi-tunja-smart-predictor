@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V4.4.0 implementation candidate
+# WiFi Tunja Smart Predictor — V5.0.0 implementation candidate
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,9 +9,9 @@
 
 Read this in [Español](README.es.md)
 
-WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. The V4.4.0 candidate adds a provenance-validated diagnostics report with chronological evaluation windows, exposed through the API, dashboard, and deterministic assistant.
+WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. The V5.0.0 candidate adds multi-zone scenario capacity planning, a transparent resource-budget simulation, persistent experiment history, and reusable JSON/Markdown reports.
 
-**Release status:** V4.4.0 is an implementation candidate, not a published release. The Python package and Docker image candidate use `0.4.4`; no V4.4.0 Git tag or GitHub Release exists. Docker runtime and remote CI validation remain release gates. See the [V4.4.0 validation record](docs/releases/v4.4.0.md), [V4.3.0 implementation record](docs/releases/v4.3.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
+**Release status:** V5.0.0 is an implementation candidate, not a published release. The Python package and Docker image candidate use `0.5.0`; no V5.0.0 Git tag or GitHub Release is asserted. See the [V5.0.0 validation record](docs/releases/v5.0.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 
@@ -33,7 +33,7 @@ docker compose up --build --wait --wait-timeout 900
 
 On its first run, the `runtime-init` service creates the synthetic dataset, trains both existing models, and evaluates them to create the diagnostics report in Compose-managed volumes. Wait for the APIs and dashboard to become healthy. Open the dashboard at <http://localhost:8501>, the main API docs at <http://localhost:8000/docs>, and assistant API docs at <http://localhost:8001/docs>. Inspect with `docker compose ps`, follow logs with `docker compose logs -f`, run the HTTP smoke checks from the dashboard container with `docker compose exec -T dashboard python scripts/smoke_test.py`, and stop with `docker compose down`. Data/model volumes persist after `down`; `docker compose down -v` removes only this Compose project's generated volumes.
 
-The V4.4.0 candidate must still pass Docker runtime validation and remote CI. See the [V4.4.0 validation record](docs/releases/v4.4.0.md) for the release gate status.
+The V5.0.0 candidate must pass applicable Docker runtime, dependency-security, and remote CI gates before stable publication. See the [V5.0.0 validation record](docs/releases/v5.0.0.md) for observed results.
 
 ## 1. Project overview
 
@@ -53,16 +53,20 @@ The project explores how an hourly WiFi demand classification system can be stru
 - JSON request lifecycle records and safe operation events correlate through `X-Request-ID` without logging chat messages or request bodies.
 - English and Spanish greetings, assistant identity, and capability questions with case- and punctuation-insensitive matching.
 - Context-aware natural demand questions in English and Spanish, including zone/time aliases and follow-up location reuse through the existing scenario service.
-- Dashboard-aware assistant explanations for all nine sections, current scenario results, indicators, and model metrics in English and Spanish.
+- Dashboard-aware assistant explanations for the dashboard sections, current scenario results, indicators, and model metrics in English and Spanish.
 - Historical demand analysis in English and Spanish, including zone comparisons, HIGH-demand rates, peak hours/weekdays, time-of-day comparisons, and supported monthly change summaries.
-- Nine dashboard sections: Overview, Live Scenario, Demand Explorer, Geographic Analysis, Network Analysis, Model Performance, AI Assistant, Advanced Prediction, and About.
+- Ten dashboard sections: Overview, Live Scenario, Demand Explorer, Geographic Analysis, Network Analysis, Model Performance, Experiment History, AI Assistant, Advanced Prediction, and About.
+- Reproducible capacity-planning experiments with SQLite persistence, deterministic budget allocation, paginated API history, and JSON/Markdown exports.
+- Experiment History dashboard page connected to saved scenario runs; simulated demand and capacity are connection counts, not throughput.
 - pytest, Ruff, Black, and GitHub Actions configuration.
 
-## V3 quick start
+## Local development quick start
 
 For local development, install with `python -m pip install -e ".[dev]"`, train both models using `python scripts/train_model.py`, and run evaluation with `python scripts/evaluate_model.py`. Start the dashboard with `streamlit run app/dashboard.py`, the main API with `uvicorn api.main:app --reload --port 8000`, and the assistant API with `uvicorn assistant_api.main:app --reload --port 8001`. `pyproject.toml` is the dependency source of truth; the two requirements files are compatibility wrappers. Local development supports Python 3.11+, while CI and the container use Python 3.12. Docker's hash-locked runtime dependencies target Linux x86-64; Compose selects `linux/amd64` so Docker Desktop on ARM hosts can use emulation.
 
-The scenario endpoint is `POST /scenario/predict` on port 8000. The assistant provides `GET /health`, `GET /suggestions`, `POST /chat`, and `POST /dataset/query` on port 8001. OpenAPI docs are available at each service's `/docs` path.
+The scenario endpoint is `POST /scenario/predict`; V5 adds `POST /experiments/scenarios`, paginated `GET /experiments`, `GET /experiments/{id}`, and JSON/Markdown `GET /experiments/{id}/report`. These routes use port 8000. OpenAPI docs are available at each service's `/docs` path. See [capacity planning](docs/capacity-planning.md) and [experiments and reporting](docs/experiments.md).
+
+To create an experiment, open **Live Scenario**, choose a synthetic zone and time, run the prediction, set simulated capacity and an optional connection-count allocation budget, then choose **Run and save experiment**. **Experiment History** lists saved runs and downloads a versioned JSON report. For comparison, take two experiment IDs from `GET /experiments` and send them in `POST /experiments/compare`; comparisons require the same time, dataset fingerprint, and model artifact fingerprints. The API never labels these simulations as operational network recommendations.
 
 See [Scenario Prediction](docs/scenario_prediction.md), [Assistant](docs/assistant.md), [Performance](docs/performance.md), [Geospatial Resolution](docs/geospatial.md), [Security Baseline](docs/security.md), and [Limitations, Privacy, and Security](docs/limitations.md).
 
@@ -110,7 +114,7 @@ Model Performance also presents the versioned [diagnostics report](docs/model-di
 
 ## 11. Dashboard
 
-Run `streamlit run app/dashboard.py`. The nine pages include location/time scenario prediction and deterministic assistant chat. Geographic points are simulated. Predictions are estimates from synthetic data, not live telemetry; local sensitivity summaries are not causal explanations.
+Run `streamlit run app/dashboard.py`. The ten pages include location/time scenario prediction, experiment history and deterministic assistant chat. Geographic points are simulated. Predictions are estimates from synthetic data, not live telemetry; local sensitivity summaries are not causal explanations.
 
 ## 12. API
 

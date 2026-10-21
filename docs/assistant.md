@@ -32,9 +32,13 @@ Optional future LLM and live providers are intentionally not activated in this r
 
 The existing chat context accepts optional `dashboard_section` and `scenario_result` fields inside `context`. Section names are validated against the dashboard's nine existing sections. The bounded process-local session store retains these values alongside the V3.2 location and time so short follow-ups such as “Explain this” can use the active context. Without a recognized section, the assistant asks which section to explain.
 
-The assistant explains Overview, Live Scenario, Demand Explorer, Geographic Analysis, Network Analysis, Model Performance, AI Assistant, Advanced Prediction, and About in English and Spanish. It also describes accuracy, precision, recall, F1, ROC-AUC, MAE, RMSE, and R² conceptually. No metric values are fabricated. Scenario explanations use the supplied or previously returned scenario result rather than running inference again. Local sensitivity factors are described as associations, not causes. All data, locations, outcomes, and performance metrics remain synthetic and do not represent real Tunja WiFi telemetry.
+The assistant explains Overview, Live Scenario, Demand Explorer, Geographic Analysis, Network Analysis, Model Performance, Experiment History, AI Assistant, Advanced Prediction, and About in English and Spanish. It also describes accuracy, precision, recall, F1, ROC-AUC, MAE, RMSE, and R² conceptually. No metric values are fabricated. Scenario explanations use the supplied or previously returned scenario result rather than running inference again. Local sensitivity factors are described as associations, not causes. All data, locations, outcomes, and performance metrics remain synthetic and do not represent real Tunja WiFi telemetry.
 
 The Streamlit page passes the last visited dashboard section and the currently displayed scenario result through the existing chat context. The assistant remains deterministic and requires no LLM credential.
+
+## Saved experiment questions (V5.0.0 candidate)
+
+The assistant reads the versioned SQLite experiment database through a read-only connection. English and Spanish questions about experiment history return saved results; overload explanations use the latest saved zone demand and configured effective capacity; comparisons use the two latest runs only when time, dataset fingerprint, and model artifact fingerprints are compatible. Missing history, incomplete provenance, and incompatible comparisons receive explicit deterministic responses. Conversation bodies are not logged. The source data and all scenario metrics remain synthetic.
 
 ## Historical demand analysis (0.3.4)
 

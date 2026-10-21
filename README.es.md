@@ -1,12 +1,12 @@
-# WiFi Tunja Smart Predictor — candidato de implementación V4.4.0
+# WiFi Tunja Smart Predictor — candidato de implementación V5.0.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. La candidata V4.4.0 agrega un informe de diagnóstico con procedencia validada y ventanas de evaluación cronológica, disponible en la API, el panel y el asistente determinista.
+WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. La candidata V5.0.0 agrega planificación de capacidad para escenarios multizona, simulación transparente de asignación de recursos, historial persistente de experimentos e informes JSON/Markdown reutilizables.
 
-**Estado de publicación:** V4.4.0 es una versión candidata de implementación, no una publicación formal. El paquete Python y la imagen Docker candidatos usan `0.4.4`; no existe etiqueta Git ni GitHub Release V4.4.0. La validación runtime de Docker y la CI remota siguen siendo puertas de publicación. Consulte el [registro de validación V4.4.0](docs/releases/v4.4.0.md), el [registro de implementación V4.3.0](docs/releases/v4.3.0.md), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V5.0.0 es una candidata de implementación, no una publicación formal. El paquete Python y la imagen Docker candidatos usan `0.5.0`; no se afirma que exista una etiqueta Git o GitHub Release V5.0.0. Consulte el [registro de validación V5.0.0](docs/releases/v5.0.0.md), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
 
 Se conservan las verificaciones de huellas de artefactos de V4.3.0 y la trazabilidad de predicciones y validaciones de V4.2.0. Consulte el [diseño de diagnósticos V4.4.0](docs/model-diagnostics.md) para ver el esquema, las métricas, las ventanas temporales y la comprobación de procedencia.
 
@@ -28,7 +28,7 @@ docker compose up --build --wait --wait-timeout 900
 
 En el primer inicio, `runtime-init` genera el dataset sintético, entrena los dos modelos existentes y los evalúa para crear el informe de diagnóstico en volúmenes administrados por Compose. Espere a que las API y el dashboard estén disponibles. Abra el dashboard en <http://localhost:8501>, la documentación de la API principal en <http://localhost:8000/docs> y la del asistente en <http://localhost:8001/docs>. Revise `docker compose ps`, siga los registros con `docker compose logs -f`, ejecute las pruebas HTTP desde el contenedor del dashboard con `docker compose exec -T dashboard python scripts/smoke_test.py` y detenga con `docker compose down`. Los volúmenes de datos/modelos persisten después de `down`; `docker compose down -v` elimina solo los volúmenes generados de este proyecto.
 
-La candidata V4.4.0 aún debe superar la validación runtime de Docker y CI remota. Consulte el [registro de validación V4.4.0](docs/releases/v4.4.0.md) para conocer el estado de las puertas de publicación.
+La candidata V5.0.0 debe superar las verificaciones aplicables de Docker, seguridad de dependencias y CI remota antes de una publicación estable. Consulte el [registro de validación V5.0.0](docs/releases/v5.0.0.md) para conocer la evidencia observada.
 
 ## 1. Descripción del proyecto
 
@@ -47,15 +47,20 @@ El proyecto demuestra un flujo mantenible de clasificación y regresión con con
 - Protecciones básicas de API: límites de solicitudes, CORS controlado, encabezados de seguridad, errores de validación saneados y contexto restringido.
 - Conversación básica en inglés y español para saludos, identidad y capacidades, sin distinguir mayúsculas ni puntuación externa.
 - Consultas naturales de demanda con zonas, horas y contexto de ubicación reutilizado en preguntas posteriores.
-- Explicaciones deterministas del asistente para las nueve secciones, escenarios actuales, indicadores y métricas, en inglés y español.
+- Explicaciones deterministas del asistente para las secciones del panel, escenarios actuales, indicadores y métricas, en inglés y español.
 - Análisis histórico de demanda en inglés y español: comparación de zonas, frecuencia HIGH, horas/días pico y periodos del día.
-- Nueve secciones: resumen, escenario, explorador, análisis geográfico y de red, rendimiento, asistente, predicción avanzada y acerca de.
+- Diez secciones: resumen, escenario, explorador, análisis geográfico y de red, rendimiento, historial de experimentos, asistente, predicción avanzada y acerca de.
+- Experimentos reproducibles de planificación de capacidad, persistidos en SQLite, con asignación determinista, historial paginado e informes JSON/Markdown. La página «Historial de experimentos» está conectada a los escenarios guardados; las métricas son conexiones simuladas, no rendimiento real.
 
-## Inicio rápido V3
+## Inicio rápido de desarrollo local
 
 Para desarrollo local, instale con `python -m pip install -e ".[dev]"`, entrene ambos modelos con `python scripts/train_model.py` y evalúe con `python scripts/evaluate_model.py`. Inicie el dashboard con `streamlit run app/dashboard.py`, la API principal con `uvicorn api.main:app --reload --port 8000` y el asistente con `uvicorn assistant_api.main:app --reload --port 8001`. `pyproject.toml` es la fuente única de dependencias; los dos archivos `requirements` son entradas de compatibilidad. El desarrollo local admite Python 3.11 o posterior; CI y el contenedor usan Python 3.12. Las dependencias de ejecución bloqueadas con hashes se dirigen a Linux x86-64; Compose selecciona `linux/amd64` para permitir emulación en Docker Desktop sobre equipos ARM.
 
 Consulte [Predicción de escenarios](docs/scenario_prediction.md), [Asistente](docs/assistant.md), [Rendimiento](docs/performance.md), [Geoespacial](docs/geospatial.md), [Seguridad](docs/security.md) y [Limitaciones, privacidad y seguridad](docs/limitations.md).
+
+La API agrega `POST /experiments/scenarios`, `GET /experiments` con paginación, `GET /experiments/{id}` y `GET /experiments/{id}/report` en JSON o Markdown (puerto 8000). Consulte [planificación de capacidad](docs/capacity-planning.md) y [experimentos e informes](docs/experiments.md).
+
+Para guardar un experimento, abra **Live Scenario**, elija una zona y hora sintéticas, ejecute la predicción, indique la capacidad simulada y un presupuesto opcional de conexiones y pulse **Run and save experiment**. **Experiment History** muestra los escenarios guardados y permite descargar el informe JSON versionado. Para comparar, obtenga dos IDs mediante `GET /experiments` y envíelos en `POST /experiments/compare`; se exige igualdad de periodo, huella del dataset y huellas de artefactos de modelo. Estas simulaciones no son recomendaciones de configuración para redes reales.
 
 ## 3. Problema
 
@@ -99,7 +104,7 @@ Model Performance muestra también el [informe de diagnóstico versionado](docs/
 
 ## 11. Dashboard
 
-Ejecute `streamlit run app/dashboard.py`. Incluye nueve secciones, constructor de escenarios por ubicación/hora, mapa interactivo de AP sintéticos y asistente determinista. No presenta telemetría en vivo.
+Ejecute `streamlit run app/dashboard.py`. Incluye diez secciones, escenarios por ubicación/hora, mapa de AP sintéticos, historial de experimentos y asistente determinista. No presenta telemetría en vivo.
 
 ## 12. API
 

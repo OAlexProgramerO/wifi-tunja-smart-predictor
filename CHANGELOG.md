@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased — V5.0.0 implementation candidate
+
+- Added reproducible synthetic capacity-planning scenarios, deterministic resource-budget allocation, SQLite experiment history, paginated retrieval, and JSON/Markdown exports through the existing API.
+- Added compatibility-checked scenario comparison, dataset/model fingerprints, and a date-filtered synthetic demand summary by geographic zone.
+- Added an Experiment History dashboard workflow, deterministic bilingual assistant explanations for saved results, and a dedicated persistent Compose volume. All demand, capacity, and allocation values remain synthetic connection-count simulations.
+- Updated the project/package/image candidate version to `0.5.0`. Docker runtime, security audit, and remote CI results must be verified before publication; no V5.0.0 tag or GitHub Release is claimed.
+
 ## Unreleased — V4.4.0
 
 ### Candidate changes
