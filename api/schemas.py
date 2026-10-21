@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 ZoneType = Literal[
     "DOWNTOWN",
@@ -217,3 +217,64 @@ class ScenarioPredictionResponse(BaseModel):
     explanation: dict[str, Any]
     traceability: PredictionTraceability | None = None
     disclaimer: str
+
+
+class PlanningZoneRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    zone_id: str = Field(min_length=1, max_length=40)
+    capacity_connections: float = Field(ge=0, le=100_000)
+
+
+class PlanningScenarioRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=120)
+    description: str = Field(default="", max_length=500)
+    datetime: datetime
+    zones: list[PlanningZoneRequest] = Field(min_length=1, max_length=12)
+    resource_budget_connections: float = Field(default=0, ge=0, le=100_000)
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("name must contain a non-space character")
+        return value.strip()
+
+    @model_validator(mode="after")
+    def unique_zones(self) -> PlanningScenarioRequest:
+        ids = [zone.zone_id for zone in self.zones]
+        if len(ids) != len(set(ids)):
+            raise ValueError("zone_id values must be unique")
+        return self
+
+
+class ExperimentComparisonRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    experiment_ids: list[str] = Field(min_length=2, max_length=10)
+
+    @model_validator(mode="after")
+    def unique_ids(self) -> ExperimentComparisonRequest:
+        if len(self.experiment_ids) != len(set(self.experiment_ids)):
+            raise ValueError("experiment_ids must be unique")
+        return self
+
+
+class ExperimentRecord(BaseModel):
+    id: str
+    created_at_utc: datetime
+    updated_at_utc: datetime
+    status: Literal["COMPLETED"]
+    experiment_type: Literal["capacity_scenario"]
+    name: str
+    schema_version: str
+    configuration: dict[str, Any]
+    result: dict[str, Any]
+
+
+class ExperimentPage(BaseModel):
+    items: list[ExperimentRecord]
+    limit: int
+    offset: int

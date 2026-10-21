@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from api.routes.experiments import router as experiments_router
 from api.routes.prediction import router as prediction_router
 from api.security import install_api_security
 from wifi_tunja_smart_predictor.config import (
@@ -72,3 +73,4 @@ def root() -> dict[str, str]:
 
 
 app.include_router(prediction_router)
+app.include_router(experiments_router)

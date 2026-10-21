@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -94,6 +95,12 @@ class ScenarioPredictionService:
         regressor_path: Path = REGRESSION_MODEL_PATH,
     ) -> None:
         self.frame = frame if frame is not None else load_analysis_dataset()
+        dataset_hasher = hashlib.sha256()
+        dataset_hasher.update("\0".join(str(column) for column in self.frame.columns).encode())
+        dataset_hasher.update(
+            pd.util.hash_pandas_object(self.frame, index=True).to_numpy().tobytes()
+        )
+        self.dataset_sha256 = dataset_hasher.hexdigest()
         self.builder = ScenarioBuilder(self.frame)
         self.classifier_artifact = (
             load_model_artifact(str(classifier_path)) if classifier is None else None
@@ -170,6 +177,8 @@ class ScenarioPredictionService:
                 "classification_threshold": CLASSIFICATION_THRESHOLD,
                 "model_version": self.classification_metadata.get("project_version"),
                 "dataset_version": self.regression_metadata.get("dataset_version", DATASET_VERSION),
+                "dataset_sha256": self.dataset_sha256,
+                "dataset_fingerprint_algorithm": "pandas_hash_pandas_object_sha256_v1",
                 "preprocessing_version": self.regression_metadata.get(
                     "preprocessing_version", PREPROCESSING_VERSION
                 ),

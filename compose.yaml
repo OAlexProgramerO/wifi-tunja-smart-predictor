@@ -1,13 +1,13 @@
 name: wifi-tunja-smart-predictor
 
 x-app: &app
-  image: wifi-tunja-smart-predictor:0.4.4
+  image: wifi-tunja-smart-predictor:0.5.0
   platform: linux/amd64
   build:
     context: .
     dockerfile: Dockerfile
     args:
-      APP_VERSION: "0.4.4"
+      APP_VERSION: "0.5.0"
   init: true
   user: "10001:10001"
   read_only: true
@@ -31,6 +31,10 @@ services:
       - runtime-data:/app/data
       - runtime-models:/app/models
       - runtime-reports:/app/reports
+      - runtime-experiments:/app/experiments
+    environment:
+      <<: *app-environment
+      EXPERIMENT_DB_PATH: /app/experiments/experiments.sqlite3
 
   main-api:
     <<: *app
@@ -43,6 +47,10 @@ services:
       - runtime-data:/app/data:ro
       - runtime-models:/app/models:ro
       - runtime-reports:/app/reports:ro
+      - runtime-experiments:/app/experiments:rw
+    environment:
+      <<: *app-environment
+      EXPERIMENT_DB_PATH: /app/experiments/experiments.sqlite3
     ports:
       - "127.0.0.1:${MAIN_API_HOST_PORT:-8000}:8000"
     healthcheck:
@@ -63,7 +71,14 @@ services:
     depends_on:
       runtime-init:
         condition: service_completed_successfully
-    volumes: *runtime-readonly
+    volumes:
+      - runtime-data:/app/data:ro
+      - runtime-models:/app/models:ro
+      - runtime-reports:/app/reports:ro
+      - runtime-experiments:/app/experiments:ro
+    environment:
+      <<: *app-environment
+      EXPERIMENT_DB_PATH: /app/experiments/experiments.sqlite3
     ports:
       - "127.0.0.1:${ASSISTANT_API_HOST_PORT:-8001}:8001"
     healthcheck:
@@ -98,7 +113,11 @@ services:
       <<: *app-environment
       MAIN_API_URL: ${MAIN_API_URL:-http://main-api:8000}
       ASSISTANT_API_URL: ${ASSISTANT_API_URL:-http://assistant-api:8001}
-    volumes: *runtime-readonly
+    volumes:
+      - runtime-data:/app/data:ro
+      - runtime-models:/app/models:ro
+      - runtime-reports:/app/reports:ro
+      - runtime-experiments:/app/experiments:ro
     ports:
       - "127.0.0.1:${DASHBOARD_HOST_PORT:-8501}:8501"
     healthcheck:
@@ -116,3 +135,4 @@ volumes:
   runtime-data:
   runtime-models:
   runtime-reports:
+  runtime-experiments:

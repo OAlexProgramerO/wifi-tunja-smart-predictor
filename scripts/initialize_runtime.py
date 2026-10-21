@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from collections.abc import Callable, Sequence
@@ -15,6 +16,7 @@ from wifi_tunja_smart_predictor.deployment import (
     missing_demo_assets,
     model_artifacts_available,
 )
+from wifi_tunja_smart_predictor.experiments.store import ExperimentStore
 
 STAGES = (
     "scripts/generate_synthetic_dataset.py",
@@ -33,6 +35,10 @@ def initialize_runtime(
     metrics_dir: Path = METRICS_DIR,
 ) -> int:
     """Create resources only in an empty volume; leave partial/existing data untouched."""
+    experiment_path = Path(
+        os.getenv("EXPERIMENT_DB_PATH", root / "reports" / "experiments.sqlite3")
+    )
+    ExperimentStore(experiment_path)
     marker = next(
         (asset for asset in assets if asset.name == RUNTIME_READY_MARKER.name),
         RUNTIME_READY_MARKER,
