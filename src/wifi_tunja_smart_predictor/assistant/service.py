@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import logging
+import os
+import sqlite3
 from datetime import datetime, time, timedelta
 from html import escape
+from pathlib import Path
 from threading import RLock
 from time import perf_counter
 from typing import Any
@@ -33,6 +36,7 @@ from wifi_tunja_smart_predictor.assistant.tools import (
 )
 from wifi_tunja_smart_predictor.data.loader import load_analysis_dataset
 from wifi_tunja_smart_predictor.exceptions import AssistantQueryError, LocationResolutionError
+from wifi_tunja_smart_predictor.experiments.store import ExperimentStore
 from wifi_tunja_smart_predictor.geospatial.locations import LocationResolver
 from wifi_tunja_smart_predictor.observability import current_request_id, emit_event
 from wifi_tunja_smart_predictor.scenarios.builder import ScenarioRequest
@@ -42,6 +46,8 @@ logger = logging.getLogger(__name__)
 
 
 def _assistant_operation(intent: str) -> str:
+    if intent == "EXPERIMENT_HISTORY":
+        return "experiment_history"
     if intent.startswith("HISTORICAL"):
         return "historical_query"
     if intent == "DATA_QUERY":
@@ -238,6 +244,11 @@ def _response_language(message: str) -> str:
                 "demanda",
                 "por que",
                 "prediccion",
+                "experimento",
+                "planificacion",
+                "planificación",
+                "experimentos",
+                "sobrecarga",
             )
         )
         else "en"
@@ -371,6 +382,56 @@ class AssistantService:
                 ["deterministic_conversation_templates"],
                 None,
             )
+        if parsed.intent == "EXPERIMENT_HISTORY":
+            language = _response_language(message)
+            try:
+                path = Path(os.getenv("EXPERIMENT_DB_PATH", "reports/experiments.sqlite3"))
+                recent = ExperimentStore(path, readonly=True).list(limit=5)
+            except (OSError, ValueError, sqlite3.DatabaseError):
+                recent = []
+            if not recent:
+                answer = (
+                    "No hay experimentos de capacidad guardados todavía. Ejecuta y guarda un escenario desde el panel. Todos los valores son simulaciones sintéticas."
+                    if language == "es"
+                    else "There are no saved capacity experiments yet. Run and save a scenario from the dashboard. All values are synthetic simulations."
+                )
+            else:
+                latest = recent[0]
+                zones = latest["result"].get("zones", [])
+                overload = sum(item.get("overload_connections", 0) for item in zones)
+                normalized = normalize_message(message)
+                if "compare" in normalized or "comparar" in normalized:
+                    answer = self._compare_saved_experiments(recent, language)
+                elif any(term in normalized for term in ("overload", "sobrecarga", "sobrecargado")):
+                    constrained = [row for row in zones if row.get("overload_connections", 0) > 0]
+                    if constrained:
+                        details = "; ".join(
+                            f"{row['zone_id']}: demand {row['demand']:.1f}, capacity {row['effective_capacity']:.1f}, overload {row['overload_connections']:.1f} connections"
+                            for row in constrained[:5]
+                        )
+                        answer = (
+                            f"La simulación marca sobrecarga porque la demanda estimada supera la capacidad configurada: {details}. Es una explicación de supuestos sintéticos, no una recomendación de red real."
+                            if language == "es"
+                            else f"The simulation flags overload because estimated demand exceeds configured capacity: {details}. This explains synthetic assumptions, not a real-network recommendation."
+                        )
+                    else:
+                        answer = (
+                            "El experimento más reciente no tiene zonas con sobrecarga simulada. Los datos son sintéticos."
+                            if language == "es"
+                            else "The latest experiment has no zones flagged with simulated overload. The data is synthetic."
+                        )
+                else:
+                    answer = (
+                        f"El experimento más reciente es {latest['name']}, con {len(zones)} zonas y {overload:.1f} conexiones de sobrecarga simulada. Son datos sintéticos, no una recomendación para una red real."
+                        if language == "es"
+                        else f"The latest experiment is {latest['name']}, with {len(zones)} zones and {overload:.1f} simulated overload connections. These are synthetic data, not a recommendation for a real network."
+                    )
+            return (
+                "EXPERIMENT_HISTORY",
+                {"answer": answer, "experiments": recent},
+                ["experiment_store"],
+                None,
+            )
         if parsed.intent in {"DASHBOARD_SECTION_HELP", "METRIC_EXPLANATION"}:
             section = parsed.dashboard_section or state.get("dashboard_section")
             language = _response_language(message)
@@ -447,6 +508,7 @@ class AssistantService:
                 response_sources,
                 None,
             )
+
         if parsed.intent in {"DASHBOARD_SECTION_HELP", "METRIC_EXPLANATION"}:
             section = parsed.dashboard_section or state.get("dashboard_section")
             metric = _metric_name(normalize_message(message))
@@ -563,6 +625,88 @@ class AssistantService:
             self._dashboard_help(text),
             ["dashboard_summary_tool"],
             None,
+        )
+
+    @staticmethod
+    def _compare_saved_experiments(recent: list[dict[str, Any]], language: str) -> str:
+        if len(recent) < 2:
+            return (
+                "Se necesitan al menos dos experimentos guardados para compararlos."
+                if language == "es"
+                else "At least two saved experiments are needed for comparison."
+            )
+        newer, baseline = recent[0], recent[1]
+        new_result, base_result = newer["result"], baseline["result"]
+
+        def signature(result: dict[str, Any]) -> tuple[Any, ...]:
+            provenance = result.get("provenance", {})
+            dataset_sha256 = provenance.get("dataset_sha256")
+            dataset_version = provenance.get("dataset_version")
+            fingerprint_algorithm = provenance.get("dataset_fingerprint_algorithm")
+            if (
+                not isinstance(dataset_sha256, str)
+                or len(dataset_sha256) != 64
+                or not isinstance(dataset_version, str)
+                or not isinstance(fingerprint_algorithm, str)
+            ):
+                return ()
+            models = []
+            for trace in provenance.get("models", []):
+                classifier = trace.get("classifier") or {}
+                regressor = trace.get("regressor") or {}
+                classifier_sha = classifier.get("artifact_sha256")
+                regressor_sha = regressor.get("artifact_sha256")
+                if (
+                    not isinstance(classifier_sha, str)
+                    or len(classifier_sha) != 64
+                    or not isinstance(regressor_sha, str)
+                    or len(regressor_sha) != 64
+                ):
+                    return ()
+                models.append(
+                    (
+                        classifier_sha,
+                        classifier.get("model_version"),
+                        regressor_sha,
+                        regressor.get("model_version"),
+                    )
+                )
+            if not models:
+                return ()
+            return (
+                result.get("time_window"),
+                dataset_sha256,
+                fingerprint_algorithm,
+                dataset_version,
+                tuple(sorted(models)),
+            )
+
+        new_signature, base_signature = signature(new_result), signature(base_result)
+        if not new_signature or not base_signature or new_signature != base_signature:
+            return (
+                "Los experimentos más recientes usan ventanas, conjuntos de datos o modelos distintos y no deben compararse directamente."
+                if language == "es"
+                else "The latest experiments use different time windows, datasets, or models and should not be compared directly."
+            )
+        new_overload = (
+            new_result.get("capacity_plan", {}).get("aggregate", {}).get("overload_connections")
+        )
+        base_overload = (
+            base_result.get("capacity_plan", {}).get("aggregate", {}).get("overload_connections")
+        )
+        if not isinstance(new_overload, (int, float)) or not isinstance(
+            base_overload, (int, float)
+        ):
+            return (
+                "Faltan métricas compatibles de sobrecarga en esos experimentos."
+                if language == "es"
+                else "Compatible overload metrics are missing from those experiments."
+            )
+        delta = new_overload - base_overload
+        return (
+            f"La sobrecarga simulada cambió {delta:+.1f} conexiones entre {baseline['name']} y {newer['name']}. Es una comparación de escenarios sintéticos, no un cambio previsto en infraestructura real."
+            if language == "es"
+            else f"Simulated overload changed by {delta:+.1f} connections from {baseline['name']} to {newer['name']}. This compares synthetic scenarios, not a forecast for real infrastructure."
         )
 
     def _predict(

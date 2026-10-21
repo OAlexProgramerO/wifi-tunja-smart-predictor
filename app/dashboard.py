@@ -63,6 +63,37 @@ def _load_location_catalog() -> pd.DataFrame:
     return pd.DataFrame(main_api_request("/locations")["locations"])
 
 
+def _geospatial_zone_summary(frame: pd.DataFrame, start_date=None, end_date=None) -> pd.DataFrame:
+    """Aggregate synthetic observation summaries by synthetic zone and date range."""
+    working = frame.copy()
+    working["timestamp"] = pd.to_datetime(working["timestamp"], errors="coerce")
+    if start_date is not None:
+        working = working.loc[working["timestamp"] >= pd.Timestamp(start_date)]
+    if end_date is not None:
+        working = working.loc[working["timestamp"] < pd.Timestamp(end_date) + pd.Timedelta(days=1)]
+    if working.empty:
+        return pd.DataFrame(
+            columns=[
+                "zone_id",
+                "zone_name",
+                "observations",
+                "mean_next_hour_connections",
+                "high_demand_share",
+                "synthetic_access_points",
+            ]
+        )
+    return (
+        working.groupby(["zone_id", "zone_name"], as_index=False)
+        .agg(
+            observations=("connections_next_hour", "count"),
+            mean_next_hour_connections=("connections_next_hour", "mean"),
+            high_demand_share=("demand_level", lambda values: values.eq("HIGH").mean()),
+            synthetic_access_points=("wifi_id", "nunique"),
+        )
+        .sort_values("mean_next_hour_connections", ascending=False)
+    )
+
+
 def _json_file(path: Path) -> dict:
     if path.is_file():
         return json.loads(path.read_text(encoding="utf-8"))
@@ -637,6 +668,38 @@ def render_scenario(frame: pd.DataFrame) -> None:
     result = st.session_state.get("last_scenario_result")
     if result:
         _render_scenario_result(result)
+        st.markdown("#### Save a reproducible capacity experiment")
+        with st.form("save_capacity_experiment"):
+            experiment_name = st.text_input("Experiment name", max_chars=120)
+            capacity = st.number_input(
+                "Simulated capacity (connections)", min_value=0.0, value=100.0
+            )
+            budget = st.number_input(
+                "Additional allocation budget (connections)", min_value=0.0, value=0.0
+            )
+            save_experiment = st.form_submit_button("Run and save experiment")
+        if save_experiment:
+            scenario = result["scenario"]
+            try:
+                saved = main_api_request(
+                    "/experiments/scenarios",
+                    {
+                        "name": experiment_name or "Scenario experiment",
+                        "description": "Created from the dashboard scenario workflow.",
+                        "datetime": scenario["scenario_time"],
+                        "zones": [
+                            {
+                                "zone_id": scenario["location"]["zone_id"],
+                                "capacity_connections": capacity,
+                            }
+                        ],
+                        "resource_budget_connections": budget,
+                    },
+                )
+                st.success(f"Experiment saved: {saved['id']}")
+                st.session_state["last_experiment_id"] = saved["id"]
+            except (ApiClientError, ValueError) as exc:
+                st.error(str(exc))
     st.caption(SYNTHETIC_DATA_DISCLAIMER)
 
 
@@ -650,6 +713,32 @@ def render_geography(frame: pd.DataFrame) -> None:
         st.error(str(exc))
         return
     fig = PlotlyOpenStreetMapProvider().build_map(catalog)
+    timestamps = pd.to_datetime(frame["timestamp"], errors="coerce").dropna()
+    if not timestamps.empty:
+        first_date, last_date = timestamps.min().date(), timestamps.max().date()
+        left, right = st.columns(2)
+        start_date = left.date_input(
+            "Synthetic observation start",
+            value=first_date,
+            min_value=first_date,
+            max_value=last_date,
+        )
+        end_date = right.date_input(
+            "Synthetic observation end", value=last_date, min_value=first_date, max_value=last_date
+        )
+        if start_date <= end_date:
+            summary = _geospatial_zone_summary(frame, start_date, end_date)
+            st.subheader("Historical synthetic demand by zone")
+            st.caption(
+                "Observed synthetic records in the selected date window; descriptive, not a forecast."
+            )
+            if summary.empty:
+                st.info("No synthetic observations in this date range.")
+            else:
+                st.dataframe(summary, hide_index=True, width="stretch")
+                st.bar_chart(summary.set_index("zone_name")["mean_next_hour_connections"])
+        else:
+            st.warning("Start date must be on or before end date.")
     selection = st.plotly_chart(
         fig, width="stretch", on_select="rerun", selection_mode="points", key="geography_map"
     )
@@ -839,6 +928,7 @@ def _render_page(title: str, kind: str) -> None:
         "Assistant": "AI Assistant",
         "Advanced": "Advanced Prediction",
         "About": "About",
+        "Experiments": "Experiment History",
     }
     if kind != "Assistant":
         st.session_state["assistant_dashboard_section"] = section_names.get(kind)
@@ -893,6 +983,51 @@ def _render_page(title: str, kind: str) -> None:
         render_performance_v3()
     elif kind == "Assistant":
         render_assistant()
+    elif kind == "Experiments":
+        st.caption(
+            "Saved synthetic capacity-planning experiments. Values are estimates in connection counts."
+        )
+        try:
+            page = main_api_request("/experiments?limit=50&offset=0")
+            experiments = page["items"]
+            if not experiments:
+                st.info("No saved experiments yet. Run and save one from Scenario Prediction.")
+            else:
+                selected_id = st.selectbox(
+                    "Experiment",
+                    [item["id"] for item in experiments],
+                    format_func=lambda value: next(
+                        f"{item['name']} · {item['created_at_utc']}"
+                        for item in experiments
+                        if item["id"] == value
+                    ),
+                )
+                record = main_api_request(f"/experiments/{selected_id}")
+                st.json(record["result"]["capacity_plan"])
+                compare_ids = st.multiselect(
+                    "Compare compatible experiments",
+                    [item["id"] for item in experiments if item["id"] != selected_id],
+                    format_func=lambda value: next(
+                        item["name"] for item in experiments if item["id"] == value
+                    ),
+                )
+                if st.button("Compare with selected experiment", disabled=not compare_ids):
+                    try:
+                        comparison = main_api_request(
+                            "/experiments/compare", {"experiment_ids": [selected_id, *compare_ids]}
+                        )
+                        st.json(comparison)
+                    except ApiClientError as exc:
+                        st.error(str(exc))
+                report = main_api_request(f"/experiments/{selected_id}/report?format=json")
+                st.download_button(
+                    "Download JSON report",
+                    json.dumps(report, indent=2, ensure_ascii=False),
+                    file_name=f"experiment-{selected_id}.json",
+                    mime="application/json",
+                )
+        except ApiClientError as exc:
+            st.error(str(exc))
     elif kind == "Advanced":
         render_prediction(_load_frame())
     else:
@@ -954,6 +1089,12 @@ def main() -> None:
             url_path="advanced",
         ),
         st.Page(lambda: _render_page("About", "About"), title="About", icon="ℹ️", url_path="about"),
+        st.Page(
+            lambda: _render_page("Experiment History", "Experiments"),
+            title="Experiment History",
+            icon="🧪",
+            url_path="experiments",
+        ),
     ]
     navigation = st.navigation(pages, position="sidebar")
     st.sidebar.caption(f"v{PROJECT_VERSION} · simulated data")

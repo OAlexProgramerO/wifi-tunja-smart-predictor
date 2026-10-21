@@ -145,6 +145,32 @@ def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
         "en qué puedes ayudarme",
     }:
         intent = "CAPABILITIES"
+    elif any(
+        term in text
+        for term in (
+            "experiment history",
+            "saved experiment",
+            "latest experiment",
+            "capacity experiment",
+            "historial de experimentos",
+            "experimento guardado",
+            "ultimo experimento",
+            "último experimento",
+            "planificacion de capacidad",
+            "planificación de capacidad",
+            "compare experiments",
+            "compare saved scenarios",
+            "comparar experimentos",
+            "comparar escenarios guardados",
+            "why simulated overload",
+            "why is it overloaded",
+            "por que hay sobrecarga",
+            "por qué hay sobrecarga",
+            "por que esta sobrecargado",
+            "por qué está sobrecargado",
+        )
+    ):
+        intent = "EXPERIMENT_HISTORY"
     elif (
         historical_kind
         and "historically" in comparable

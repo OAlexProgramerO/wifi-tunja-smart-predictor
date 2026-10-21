@@ -3,6 +3,7 @@
 import json
 from pathlib import Path
 
+import pandas as pd
 from streamlit.testing.v1 import AppTest
 
 
@@ -69,3 +70,20 @@ def test_scenario_result_separates_classification_and_regression_outputs():
     assert any(metric.label == "Probability of HIGH demand" for metric in app.metric)
     assert any(metric.label == "Estimated connections" for metric in app.metric)
     assert any("SHA-256" in code.value for code in app.code)
+
+
+def test_geospatial_summary_aggregates_only_selected_synthetic_window(mini_frame):
+    from app.dashboard import _geospatial_zone_summary
+
+    frame = mini_frame.copy()
+    frame["timestamp"] = pd.to_datetime(frame["timestamp"])
+    summary = _geospatial_zone_summary(
+        frame,
+        frame["timestamp"].min().date(),
+        frame["timestamp"].min().date(),
+    )
+    assert (
+        summary["observations"].sum()
+        == frame["timestamp"].dt.date.eq(frame["timestamp"].min().date()).sum()
+    )
+    assert set(summary["zone_id"]).issubset(set(frame["zone_id"]))

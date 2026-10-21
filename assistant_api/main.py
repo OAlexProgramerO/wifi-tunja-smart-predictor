@@ -101,6 +101,8 @@ def suggestions() -> dict[str, list[str]]:
             "Compara dos zonas.",
             "¿Qué zona tiene mayor demanda?",
             "¿Qué día tiene mayor demanda?",
+            "Show experiment history.",
+            "¿Qué muestra el historial de experimentos?",
         ]
     }
 
