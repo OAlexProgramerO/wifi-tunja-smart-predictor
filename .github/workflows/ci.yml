@@ -40,6 +40,9 @@ jobs:
           python -m pip install pip-audit==2.10.1
           pip-audit -r requirements.lock --disable-pip --no-deps
 
+      - name: Generate deterministic synthetic dataset for integration tests
+        run: python scripts/generate_synthetic_dataset.py
+
       - name: Pytest
         run: pytest
 

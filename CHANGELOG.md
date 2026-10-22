@@ -12,10 +12,12 @@
 ### Improved
 
 - Updated the Python package and Docker image candidate versions to `0.5.1` for product candidate V5.1.0. Model artifacts and their training metadata are unchanged.
+- Updated the hashed runtime lock to Streamlit `1.66.1` so it accepts patched Pillow `13.0.0`; removed the no-longer-required `toml` transitive pin.
 
 ### Tested
 
 - Regression coverage added for connection closure, working-directory-independent shared storage, malformed API/assistant comparisons, and refreshing reports for existing model volumes without retraining. Final check results are recorded in [the V5.1.0 validation record](docs/releases/v5.1.0.md).
+- The first remote CI run exposed a Streamlit/Pillow lock conflict and three integration tests that need the generated synthetic CSV; the lock and CI fixture setup are corrected, with full remote verification pending.
 
 ### Known limitations and compatibility
 
