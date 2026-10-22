@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V5.1.0 — stabilization candidate; not released
+
+Fixes experiment database connection cleanup, rejects malformed persisted comparison provenance/metrics safely in the API and assistant, makes API/assistant default experiment storage independent of the process working directory, and refreshes stale evaluation reports against an integrity-validated existing model bundle without retraining. Product candidate V5.1.0 uses Python package and Docker image version `0.5.1`. No V5.1.0 tag or GitHub Release is claimed; see the [V5.1.0 validation record](releases/v5.1.0.md). All observations and predictions remain synthetic.
+
 ## V5.0.0 — implementation candidate; not released
 
 Adds deterministic synthetic capacity planning, multi-zone scenario execution through the existing model service, SQLite experiment persistence, API retrieval and reporting, and dashboard experiment history. The package and image candidate version is `0.5.0`. Docker runtime, security audit, and remote CI require fresh verification. No V5.0.0 tag or GitHub Release is claimed. All analysis remains synthetic. See the [V5.0.0 validation record](releases/v5.0.0.md), [capacity-planning guide](capacity-planning.md), and [experiment guide](experiments.md).
@@ -107,6 +111,9 @@ The public GitHub Releases API returned zero releases; a Git tag is therefore no
 | V4.2.0 | `c6f04704228571e1fb785bf95b36180964938262` (candidate) | Missing | Missing | None observed | Documented candidate with Docker and Actions gates pending; no tag created. |
 | V4.3.0 | `53fb0749996938f692cbe0adbdbd0d09211cc0f8` (candidate on `main`) | Missing | Missing | None observed | Docker runtime and remote Actions gates are pending; no stable tag created. |
 | V4.4.0 | `99a849796b01c67e4ccfa4f9403ad53745d154f7` (candidate) | Missing | Missing | None observed | Docker, security, and remote Actions gates are pending; no stable tag created. |
-| V5.0.0 | Current implementation candidate; final commit pending | Missing | Missing | None observed | No tag or release is created before Docker, security, CI, and local quality gates are complete. |
+| V5.0.0 | `0107e883f6fff6b5681d92b413f950694c002c48` | Missing | Missing | None observed | Implementation candidate; local checks pass, but Docker runtime and Actions were not confirmed at that release audit. |
+| V5.1.0 | Candidate; final commit pending | Missing | Missing | None observed | Tag and GitHub Release require all applicable V5.1.0 quality, security, runtime, and remote CI gates. |
 
 The 2026-10-21 audit fetched `origin` before implementation: remote `main` was `e1af8606133dc7cbca80eba681b97ef90c16f53a`; local and remote agreed. Existing remote tags `v3.0.0`–`v3.9.0` and `v4.1.0` were preserved and their peeled commit targets reviewed. Historical gaps `v4.0.0`, `v4.2.0`, `v4.3.0`, and `v4.4.0` remain unresolved candidates, not missing releases to synthesize: prior records explicitly document unreleased status or incomplete gates. No existing or older tags were moved. The public GitHub Releases API listed no releases and the Actions API had no workflow runs at audit time.
+
+The 2026-10-22 V5.1.0 audit confirmed that `main` was clean and matched `origin/main` at `0107e883f6fff6b5681d92b413f950694c002c48`; no `v5.1.0` tag existed. V5.1.0 release status must be updated only after its commit has been pushed and the remote CI and publication state have been queried.

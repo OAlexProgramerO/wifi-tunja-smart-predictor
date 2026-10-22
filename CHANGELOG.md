@@ -1,6 +1,28 @@
 # Changelog
 
-## Unreleased — V5.0.0 implementation candidate
+## Unreleased — V5.1.0 stabilization candidate
+
+### Fixed
+
+- Experiment-store SQLite connections now close reliably after reads and writes, preventing open database handles from lingering (including on Windows).
+- Experiment comparison now rejects malformed saved provenance, model traces, and zone metrics with a safe conflict response; the deterministic assistant returns a clarification for malformed comparisons instead of raising an internal exception.
+- API and assistant resolve the same default experiment database under the repository root, independent of the process working directory. Relative `EXPERIMENT_DB_PATH` values also resolve from the repository root.
+- Runtime initialization refreshes stale versioned evaluation reports only after validating the existing model bundle, without retraining or replacing model artifacts.
+
+### Improved
+
+- Updated the Python package and Docker image candidate versions to `0.5.1` for product candidate V5.1.0. Model artifacts and their training metadata are unchanged.
+
+### Tested
+
+- Regression coverage added for connection closure, working-directory-independent shared storage, malformed API/assistant comparisons, and refreshing reports for existing model volumes without retraining. Final check results are recorded in [the V5.1.0 validation record](docs/releases/v5.1.0.md).
+
+### Known limitations and compatibility
+
+- V5.1.0 remains a candidate until local quality, dependency audit, Docker/runtime, and remote CI evidence is recorded. No tag or GitHub Release is claimed by this changelog entry.
+- No API schemas, saved experiment schema, model artifacts, or prediction algorithms were changed. All data, observations, predictions, and capacity estimates remain synthetic and are not verified against real Tunja WiFi demand.
+
+## V5.0.0 implementation candidate (historical; not released)
 
 - Added reproducible synthetic capacity-planning scenarios, deterministic resource-budget allocation, SQLite experiment history, paginated retrieval, and JSON/Markdown exports through the existing API.
 - Added compatibility-checked scenario comparison, dataset/model fingerprints, and a date-filtered synthetic demand summary by geographic zone.

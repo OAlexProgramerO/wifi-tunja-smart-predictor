@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V5.0.0 implementation candidate
+# WiFi Tunja Smart Predictor — V5.1.0 stabilization candidate
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,9 +9,9 @@
 
 Read this in [Español](README.es.md)
 
-WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. The V5.0.0 candidate adds multi-zone scenario capacity planning, a transparent resource-budget simulation, persistent experiment history, and reusable JSON/Markdown reports.
+WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. The V5.0.0 implementation introduced multi-zone capacity scenarios, persistent experiment history, and reusable reports. The V5.1.0 stabilization candidate fixes experiment database handle cleanup, malformed comparison handling, default database path consistency, and stale diagnostics refresh for existing validated model volumes without retraining.
 
-**Release status:** V5.0.0 is an implementation candidate, not a published release. The Python package and Docker image candidate use `0.5.0`; no V5.0.0 Git tag or GitHub Release is asserted. See the [V5.0.0 validation record](docs/releases/v5.0.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
+**Release status:** V5.1.0 is a stabilization candidate, not a published release. Its Python package and Docker image candidate use `0.5.1`; no V5.1.0 Git tag or GitHub Release is asserted. See the [V5.1.0 validation record](docs/releases/v5.1.0.md), the historical [V5.0.0 validation record](docs/releases/v5.0.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 
@@ -33,7 +33,7 @@ docker compose up --build --wait --wait-timeout 900
 
 On its first run, the `runtime-init` service creates the synthetic dataset, trains both existing models, and evaluates them to create the diagnostics report in Compose-managed volumes. Wait for the APIs and dashboard to become healthy. Open the dashboard at <http://localhost:8501>, the main API docs at <http://localhost:8000/docs>, and assistant API docs at <http://localhost:8001/docs>. Inspect with `docker compose ps`, follow logs with `docker compose logs -f`, run the HTTP smoke checks from the dashboard container with `docker compose exec -T dashboard python scripts/smoke_test.py`, and stop with `docker compose down`. Data/model volumes persist after `down`; `docker compose down -v` removes only this Compose project's generated volumes.
 
-The V5.0.0 candidate must pass applicable Docker runtime, dependency-security, and remote CI gates before stable publication. See the [V5.0.0 validation record](docs/releases/v5.0.0.md) for observed results.
+The V5.1.0 candidate must pass applicable Docker runtime, dependency-security, and remote CI gates before stable publication. See the [V5.1.0 validation record](docs/releases/v5.1.0.md) for observed results.
 
 ## 1. Project overview
 

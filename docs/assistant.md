@@ -36,7 +36,7 @@ The assistant explains Overview, Live Scenario, Demand Explorer, Geographic Anal
 
 The Streamlit page passes the last visited dashboard section and the currently displayed scenario result through the existing chat context. The assistant remains deterministic and requires no LLM credential.
 
-## Saved experiment questions (V5.0.0 candidate)
+## Saved experiment questions (V5.1.0 stabilization candidate)
 
 The assistant reads the versioned SQLite experiment database through a read-only connection. English and Spanish questions about experiment history return saved results; overload explanations use the latest saved zone demand and configured effective capacity; comparisons use the two latest runs only when time, dataset fingerprint, and model artifact fingerprints are compatible. Missing history, incomplete provenance, and incompatible comparisons receive explicit deterministic responses. Conversation bodies are not logged. The source data and all scenario metrics remain synthetic.
 
