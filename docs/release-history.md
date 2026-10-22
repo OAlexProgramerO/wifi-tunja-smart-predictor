@@ -1,8 +1,8 @@
 # Release history and V4.0 readiness
 
-## V5.1.0 — stabilization candidate; not released
+## V5.1.0 — Stabilization Patch — released 2026-10-22
 
-Fixes experiment database connection cleanup, rejects malformed persisted comparison provenance/metrics safely in the API and assistant, makes API/assistant default experiment storage independent of the process working directory, and refreshes stale evaluation reports against an integrity-validated existing model bundle without retraining. Product candidate V5.1.0 uses Python package and Docker image version `0.5.1`. No V5.1.0 tag or GitHub Release is claimed; see the [V5.1.0 validation record](releases/v5.1.0.md). All observations and predictions remain synthetic.
+Fixes experiment database connection cleanup, rejects malformed persisted comparison provenance/metrics safely in the API and assistant, makes API/assistant default experiment storage independent of the process working directory, and refreshes stale evaluation reports against an integrity-validated existing model bundle without retraining. It also fixes Docker experiment-volume permissions and classifier/regressor fingerprint matching. Product V5.1.0 uses Python package and Docker image version `0.5.1`. The annotated tag [`v5.1.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v5.1.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v5.1.0) were published separately. See the [V5.1.0 validation record](releases/v5.1.0.md). All observations and predictions remain synthetic.
 
 ## V5.0.0 — implementation candidate; not released
 
@@ -112,8 +112,8 @@ The public GitHub Releases API returned zero releases; a Git tag is therefore no
 | V4.3.0 | `53fb0749996938f692cbe0adbdbd0d09211cc0f8` (candidate on `main`) | Missing | Missing | None observed | Docker runtime and remote Actions gates are pending; no stable tag created. |
 | V4.4.0 | `99a849796b01c67e4ccfa4f9403ad53745d154f7` (candidate) | Missing | Missing | None observed | Docker, security, and remote Actions gates are pending; no stable tag created. |
 | V5.0.0 | `0107e883f6fff6b5681d92b413f950694c002c48` | Missing | Missing | None observed | Implementation candidate; local checks pass, but Docker runtime and Actions were not confirmed at that release audit. |
-| V5.1.0 | Candidate; final commit pending | Missing | Missing | None observed | Tag and GitHub Release require all applicable V5.1.0 quality, security, runtime, and remote CI gates. |
+| V5.1.0 | `789478211d3b99295cf54030d7690187413b4644` | `v5.1.0` | `v5.1.0` | `39861122427` passed | Published after local tests, lint/format/security checks, and remote Docker startup, API smoke, and persistence checks passed; see the V5.1.0 validation record. |
 
 The 2026-10-21 audit fetched `origin` before implementation: remote `main` was `e1af8606133dc7cbca80eba681b97ef90c16f53a`; local and remote agreed. Existing remote tags `v3.0.0`–`v3.9.0` and `v4.1.0` were preserved and their peeled commit targets reviewed. Historical gaps `v4.0.0`, `v4.2.0`, `v4.3.0`, and `v4.4.0` remain unresolved candidates, not missing releases to synthesize: prior records explicitly document unreleased status or incomplete gates. No existing or older tags were moved. The public GitHub Releases API listed no releases and the Actions API had no workflow runs at audit time.
 
-The 2026-10-22 V5.1.0 audit confirmed that `main` was clean and matched `origin/main` at `0107e883f6fff6b5681d92b413f950694c002c48`; no `v5.1.0` tag existed. V5.1.0 release status must be updated only after its commit has been pushed and the remote CI and publication state have been queried.
+The 2026-10-22 audit began from clean `main` at `0107e883f6fff6b5681d92b413f950694c002c48` with no `v5.1.0` tag. After fixes and successful verification, release commit `789478211d3b99295cf54030d7690187413b4644` was pushed, tagged, and published as a stable GitHub Release. The final Actions run `39861122427` passed both jobs for that commit.

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — V5.1.0 stabilization candidate
+## V5.1.0 — Stabilization Patch — 2026-10-22
 
 ### Fixed
 
@@ -13,7 +13,7 @@
 
 ### Improved
 
-- Updated the Python package and Docker image candidate versions to `0.5.1` for product candidate V5.1.0. Model artifacts and their training metadata are unchanged.
+- Updated the Python package and Docker image versions to `0.5.1` for product release V5.1.0. Model artifacts and their training metadata were not replaced.
 - Updated the hashed runtime lock to Streamlit `1.66.1` so it accepts patched Pillow `13.0.0`; removed the no-longer-required `toml` transitive pin.
 
 ### Tested
@@ -23,7 +23,7 @@
 
 ### Known limitations and compatibility
 
-- Local quality and dependency checks plus remote Docker/runtime and CI gates passed for the release candidate. The V5.1.0 tag and GitHub Release are still pending at this changelog revision; these are separate publication steps.
+- Local quality and dependency checks and remote Docker/runtime and CI gates passed. Git tag `v5.1.0` and the GitHub Release were published as distinct operations.
 - No API schemas, saved experiment schema, model artifacts, or prediction algorithms were changed. All data, observations, predictions, and capacity estimates remain synthetic and are not verified against real Tunja WiFi demand.
 
 ## V5.0.0 implementation candidate (historical; not released)
