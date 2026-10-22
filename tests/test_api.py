@@ -88,7 +88,7 @@ def test_model_diagnostics_endpoint_returns_validated_report(
         lambda: {
             "schema_version": "1.0",
             "generated_at_utc": "2026-10-20T10:00:00+00:00",
-            "project_version": "0.5.0",
+            "project_version": "0.5.1",
             "model_version": "0.5.0",
             "dataset": {},
             "data_quality": {},
