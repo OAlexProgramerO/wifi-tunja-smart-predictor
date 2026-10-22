@@ -5,11 +5,13 @@ from __future__ import annotations
 import sqlite3
 from datetime import UTC, datetime
 
+import pytest
 from fastapi.testclient import TestClient
 
 from api.main import app
 from api.routes import experiments as experiment_routes
 from tests.conftest import make_mini_frame
+from wifi_tunja_smart_predictor import config
 from wifi_tunja_smart_predictor.assistant.schemas import ChatRequest
 from wifi_tunja_smart_predictor.assistant.service import AssistantService
 from wifi_tunja_smart_predictor.capacity import plan_capacity
@@ -72,6 +74,52 @@ def test_experiment_store_persists_and_paginates(tmp_path) -> None:
     assert store.get(first["id"])["configuration"] == {"seed": 42}
     assert len(store.list(limit=1, offset=0)) == 1
     assert store.list(limit=1, offset=1)[0]["name"] == "First"
+
+
+def test_experiment_store_closes_connections_after_each_operation(monkeypatch, tmp_path) -> None:
+    store = ExperimentStore(tmp_path / "closed.sqlite3")
+    connections = []
+    connect = sqlite3.connect
+
+    def tracked_connect(*args, **kwargs):
+        connection = connect(*args, **kwargs)
+        connections.append(connection)
+        return connection
+
+    monkeypatch.setattr(
+        "wifi_tunja_smart_predictor.experiments.store.sqlite3.connect", tracked_connect
+    )
+    record = store.save("close handles", {}, {})
+    store.get(record["id"])
+    store.list()
+
+    assert len(connections) == 3
+    for connection in connections:
+        with pytest.raises(sqlite3.ProgrammingError, match="closed database"):
+            connection.execute("SELECT 1")
+
+
+def test_experiment_database_default_is_shared_and_independent_of_cwd(
+    monkeypatch, tmp_path
+) -> None:
+    project_root = tmp_path / "checkout"
+    monkeypatch.setattr(config, "PROJECT_ROOT", project_root)
+    monkeypatch.delenv("EXPERIMENT_DB_PATH", raising=False)
+    monkeypatch.chdir(tmp_path)
+
+    expected = project_root / "reports" / "experiments.sqlite3"
+    assert config.experiment_database_path() == expected
+    ExperimentStore(expected).save("created outside cwd", {}, {"zones": []})
+    experiment_routes._store.cache_clear()
+    assert experiment_routes._store().path == expected
+    response = AssistantService(frame=make_mini_frame(8)).handle(
+        ChatRequest(message="Show experiment history")
+    )
+    assert "created outside cwd" in response.answer
+    experiment_routes._store.cache_clear()
+
+    monkeypatch.setenv("EXPERIMENT_DB_PATH", "data/experiment-history.sqlite3")
+    assert config.experiment_database_path() == project_root / "data" / "experiment-history.sqlite3"
 
 
 def test_experiment_store_migrates_legacy_records_without_data_loss(tmp_path) -> None:
@@ -153,7 +201,7 @@ def test_scenario_experiment_api_saves_model_trace_and_exports(monkeypatch, tmp_
     monkeypatch.setenv("EXPERIMENT_DB_PATH", str(tmp_path / "experiments.sqlite3"))
     experiment_routes._store.cache_clear()
     zone_id = str(make_mini_frame(8)["zone_id"].iloc[0])
-    client = TestClient(app)
+    client = TestClient(app, raise_server_exceptions=False)
     response = client.post(
         "/experiments/scenarios",
         json={
@@ -212,6 +260,62 @@ def test_scenario_experiment_api_saves_model_trace_and_exports(monkeypatch, tmp_
         "/experiments/compare", json={"experiment_ids": [experiment["id"], incompatible["id"]]}
     )
     assert conflict.status_code == 409
+    malformed_a = experiment_routes._store().save(
+        "malformed A", {}, {"provenance": ["invalid"], "time_window": "2025-01-01"}
+    )
+    malformed_b = experiment_routes._store().save(
+        "malformed B", {}, {"provenance": ["invalid"], "time_window": "2025-01-01"}
+    )
+    malformed_response = client.post(
+        "/experiments/compare",
+        json={"experiment_ids": [malformed_a["id"], malformed_b["id"]]},
+    )
+    assert malformed_response.status_code == 409
+    malformed_trace_provenance = {
+        **experiment["result"]["provenance"],
+        "models": ["invalid trace"],
+    }
+    malformed_trace_a = experiment_routes._store().save(
+        "malformed trace A",
+        {},
+        {
+            "time_window": "2025-01-01T10:00:00",
+            "provenance": malformed_trace_provenance,
+            "zones": [],
+        },
+    )
+    malformed_trace_b = experiment_routes._store().save(
+        "malformed trace B",
+        {},
+        {
+            "time_window": "2025-01-01T10:00:00",
+            "provenance": malformed_trace_provenance,
+            "zones": [],
+        },
+    )
+    assert (
+        client.post(
+            "/experiments/compare",
+            json={"experiment_ids": [malformed_trace_a["id"], malformed_trace_b["id"]]},
+        ).status_code
+        == 409
+    )
+    malformed_zone = experiment_routes._store().save(
+        "malformed zone",
+        {},
+        {
+            "time_window": experiment["result"]["time_window"],
+            "provenance": experiment["result"]["provenance"],
+            "zones": [{"zone_id": zone_id, "demand": "unknown"}],
+        },
+    )
+    assert (
+        client.post(
+            "/experiments/compare",
+            json={"experiment_ids": [experiment["id"], malformed_zone["id"]]},
+        ).status_code
+        == 409
+    )
     experiment_routes._store.cache_clear()
 
 
@@ -256,6 +360,29 @@ def test_assistant_compares_compatible_saved_capacity_experiments(monkeypatch, t
     )
     assert "changed by -5.0 connections" in result.answer
     assert "synthetic scenarios" in result.answer
+
+
+def test_assistant_rejects_malformed_saved_experiment_comparison(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("EXPERIMENT_DB_PATH", str(tmp_path / "corrupt-history.sqlite3"))
+    store = ExperimentStore(tmp_path / "corrupt-history.sqlite3")
+    malformed = {
+        "time_window": "2025-01-01T10:00:00",
+        "provenance": {
+            "dataset_version": "synthetic-v1",
+            "dataset_sha256": "d" * 64,
+            "dataset_fingerprint_algorithm": "pandas_hash_pandas_object_sha256_v1",
+            "models": ["malformed trace"],
+        },
+        "capacity_plan": {"aggregate": {"overload_connections": 0}},
+    }
+    store.save("malformed A", {}, malformed)
+    store.save("malformed B", {}, malformed)
+
+    result = AssistantService(frame=make_mini_frame(8)).handle(
+        ChatRequest(message="Compare experiments")
+    )
+
+    assert "should not be compared directly" in result.answer
 
 
 def test_report_rejects_malformed_record() -> None:

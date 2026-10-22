@@ -5,6 +5,8 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -74,11 +76,16 @@ class ExperimentStore:
                     result_json TEXT NOT NULL
                 )""")
 
-    def _connect(self) -> sqlite3.Connection:
+    @contextmanager
+    def _connect(self) -> Iterator[sqlite3.Connection]:
         target = f"file:{self.path.as_posix()}?mode=ro" if self.readonly else self.path
         connection = sqlite3.connect(target, timeout=10, uri=self.readonly)
         connection.row_factory = sqlite3.Row
-        return connection
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
 
     def save(
         self, name: str, configuration: dict[str, Any], result: dict[str, Any]

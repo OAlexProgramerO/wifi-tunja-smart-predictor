@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import os
 import sqlite3
 from functools import lru_cache
-from pathlib import Path
+from math import isfinite
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import Response
@@ -17,7 +16,7 @@ from api.schemas import (
     ExperimentRecord,
     PlanningScenarioRequest,
 )
-from wifi_tunja_smart_predictor.config import PROJECT_ROOT
+from wifi_tunja_smart_predictor.config import experiment_database_path
 from wifi_tunja_smart_predictor.exceptions import (
     LocationResolutionError,
     ModelArtifactError,
@@ -37,10 +36,32 @@ from wifi_tunja_smart_predictor.reporting.service import (
 router = APIRouter(prefix="/experiments", tags=["experiments"])
 
 
+def _comparison_zone_map(result: dict) -> dict[str, dict]:
+    zones = result.get("zones")
+    if not isinstance(zones, list):
+        raise HTTPException(status_code=409, detail="Experiment zone data is malformed.")
+    mapped = {}
+    for row in zones:
+        if not isinstance(row, dict) or not isinstance(row.get("zone_id"), str):
+            raise HTTPException(status_code=409, detail="Experiment zone data is malformed.")
+        zone_id = row["zone_id"]
+        if zone_id in mapped:
+            raise HTTPException(status_code=409, detail="Experiment zone data is malformed.")
+        for field in ("demand", "effective_capacity", "overload_connections"):
+            number = row.get(field)
+            if (
+                isinstance(number, bool)
+                or not isinstance(number, (int, float))
+                or not isfinite(number)
+            ):
+                raise HTTPException(status_code=409, detail="Experiment zone data is malformed.")
+        mapped[zone_id] = row
+    return mapped
+
+
 @lru_cache(maxsize=1)
 def _store() -> ExperimentStore:
-    path = Path(os.getenv("EXPERIMENT_DB_PATH", PROJECT_ROOT / "reports" / "experiments.sqlite3"))
-    return ExperimentStore(path)
+    return ExperimentStore(experiment_database_path())
 
 
 def _read_store(operation):
@@ -102,13 +123,16 @@ def compare_experiments(payload: ExperimentComparisonRequest) -> dict:
     signatures = []
     for record in valid_records:
         result = record["result"]
-        provenance = result.get("provenance", {})
+        provenance = result.get("provenance")
+        if not isinstance(provenance, dict):
+            raise HTTPException(status_code=409, detail="Experiment provenance is malformed.")
         dataset_sha256 = provenance.get("dataset_sha256")
         dataset_version = provenance.get("dataset_version")
         dataset_fingerprint_algorithm = provenance.get("dataset_fingerprint_algorithm")
         if (
             not isinstance(dataset_sha256, str)
             or len(dataset_sha256) != 64
+            or any(character not in "0123456789abcdefABCDEF" for character in dataset_sha256)
             or not isinstance(dataset_version, str)
             or not isinstance(dataset_fingerprint_algorithm, str)
         ):
@@ -117,18 +141,28 @@ def compare_experiments(payload: ExperimentComparisonRequest) -> dict:
                 detail="Experiment dataset fingerprint is missing; comparison is unsafe.",
             )
         model_signatures = set()
-        for trace in provenance.get("models", []):
+        model_traces = provenance.get("models")
+        if not isinstance(model_traces, list) or not model_traces:
+            raise HTTPException(
+                status_code=409,
+                detail="Experiment model fingerprints are missing; comparison is unsafe.",
+            )
+        for trace in model_traces:
             if not isinstance(trace, dict):
-                continue
-            classifier = trace.get("classifier") or {}
-            regressor = trace.get("regressor") or {}
+                raise HTTPException(status_code=409, detail="Experiment model data is malformed.")
+            classifier = trace.get("classifier")
+            regressor = trace.get("regressor")
+            if not isinstance(classifier, dict) or not isinstance(regressor, dict):
+                raise HTTPException(status_code=409, detail="Experiment model data is malformed.")
             classifier_hash = classifier.get("artifact_sha256")
             regressor_hash = regressor.get("artifact_sha256")
             if (
                 not isinstance(classifier_hash, str)
                 or len(classifier_hash) != 64
+                or any(character not in "0123456789abcdefABCDEF" for character in classifier_hash)
                 or not isinstance(regressor_hash, str)
                 or len(regressor_hash) != 64
+                or any(character not in "0123456789abcdefABCDEF" for character in regressor_hash)
             ):
                 raise HTTPException(
                     status_code=409,
@@ -151,16 +185,18 @@ def compare_experiments(payload: ExperimentComparisonRequest) -> dict:
                 tuple(sorted(model_signatures)),
             )
         )
+        if not isinstance(result.get("time_window"), str) or not model_signatures:
+            raise HTTPException(status_code=409, detail="Experiment comparison data is incomplete.")
     if len(set(signatures)) != 1:
         raise HTTPException(
             status_code=409,
             detail="Experiments use incompatible time windows, datasets, or model artifacts.",
         )
     baseline = valid_records[0]
-    baseline_zones = {row["zone_id"]: row for row in baseline["result"].get("zones", [])}
+    baseline_zones = _comparison_zone_map(baseline["result"])
     comparisons = []
     for record in valid_records[1:]:
-        zones = {row["zone_id"]: row for row in record["result"].get("zones", [])}
+        zones = _comparison_zone_map(record["result"])
         shared = sorted(set(baseline_zones) & set(zones))
         comparisons.append(
             {

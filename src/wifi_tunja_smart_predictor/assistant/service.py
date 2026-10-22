@@ -3,11 +3,10 @@
 from __future__ import annotations
 
 import logging
-import os
 import sqlite3
 from datetime import datetime, time, timedelta
 from html import escape
-from pathlib import Path
+from math import isfinite
 from threading import RLock
 from time import perf_counter
 from typing import Any
@@ -34,6 +33,7 @@ from wifi_tunja_smart_predictor.assistant.tools import (
     model_info_tool,
     prediction_tool,
 )
+from wifi_tunja_smart_predictor.config import experiment_database_path
 from wifi_tunja_smart_predictor.data.loader import load_analysis_dataset
 from wifi_tunja_smart_predictor.exceptions import AssistantQueryError, LocationResolutionError
 from wifi_tunja_smart_predictor.experiments.store import ExperimentStore
@@ -385,8 +385,7 @@ class AssistantService:
         if parsed.intent == "EXPERIMENT_HISTORY":
             language = _response_language(message)
             try:
-                path = Path(os.getenv("EXPERIMENT_DB_PATH", "reports/experiments.sqlite3"))
-                recent = ExperimentStore(path, readonly=True).list(limit=5)
+                recent = ExperimentStore(experiment_database_path(), readonly=True).list(limit=5)
             except (OSError, ValueError, sqlite3.DatabaseError):
                 recent = []
             if not recent:
@@ -639,28 +638,42 @@ class AssistantService:
         new_result, base_result = newer["result"], baseline["result"]
 
         def signature(result: dict[str, Any]) -> tuple[Any, ...]:
-            provenance = result.get("provenance", {})
+            provenance = result.get("provenance")
+            if not isinstance(provenance, dict):
+                return ()
             dataset_sha256 = provenance.get("dataset_sha256")
             dataset_version = provenance.get("dataset_version")
             fingerprint_algorithm = provenance.get("dataset_fingerprint_algorithm")
             if (
                 not isinstance(dataset_sha256, str)
                 or len(dataset_sha256) != 64
+                or any(character not in "0123456789abcdefABCDEF" for character in dataset_sha256)
                 or not isinstance(dataset_version, str)
                 or not isinstance(fingerprint_algorithm, str)
             ):
                 return ()
+            model_traces = provenance.get("models")
+            if not isinstance(model_traces, list):
+                return ()
             models = []
-            for trace in provenance.get("models", []):
-                classifier = trace.get("classifier") or {}
-                regressor = trace.get("regressor") or {}
+            for trace in model_traces:
+                if not isinstance(trace, dict):
+                    return ()
+                classifier = trace.get("classifier")
+                regressor = trace.get("regressor")
+                if not isinstance(classifier, dict) or not isinstance(regressor, dict):
+                    return ()
                 classifier_sha = classifier.get("artifact_sha256")
                 regressor_sha = regressor.get("artifact_sha256")
                 if (
                     not isinstance(classifier_sha, str)
                     or len(classifier_sha) != 64
+                    or any(
+                        character not in "0123456789abcdefABCDEF" for character in classifier_sha
+                    )
                     or not isinstance(regressor_sha, str)
                     or len(regressor_sha) != 64
+                    or any(character not in "0123456789abcdefABCDEF" for character in regressor_sha)
                 ):
                     return ()
                 models.append(
@@ -671,7 +684,7 @@ class AssistantService:
                         regressor.get("model_version"),
                     )
                 )
-            if not models:
+            if not models or not isinstance(result.get("time_window"), str):
                 return ()
             return (
                 result.get("time_window"),
@@ -688,14 +701,23 @@ class AssistantService:
                 if language == "es"
                 else "The latest experiments use different time windows, datasets, or models and should not be compared directly."
             )
+        new_plan = new_result.get("capacity_plan")
+        base_plan = base_result.get("capacity_plan")
+        new_aggregate = new_plan.get("aggregate") if isinstance(new_plan, dict) else None
+        base_aggregate = base_plan.get("aggregate") if isinstance(base_plan, dict) else None
         new_overload = (
-            new_result.get("capacity_plan", {}).get("aggregate", {}).get("overload_connections")
+            new_aggregate.get("overload_connections") if isinstance(new_aggregate, dict) else None
         )
         base_overload = (
-            base_result.get("capacity_plan", {}).get("aggregate", {}).get("overload_connections")
+            base_aggregate.get("overload_connections") if isinstance(base_aggregate, dict) else None
         )
-        if not isinstance(new_overload, (int, float)) or not isinstance(
-            base_overload, (int, float)
+        if (
+            not isinstance(new_overload, (int, float))
+            or not isinstance(base_overload, (int, float))
+            or isinstance(new_overload, bool)
+            or isinstance(base_overload, bool)
+            or not isfinite(new_overload)
+            or not isfinite(base_overload)
         ):
             return (
                 "Faltan métricas compatibles de sobrecarga en esos experimentos."

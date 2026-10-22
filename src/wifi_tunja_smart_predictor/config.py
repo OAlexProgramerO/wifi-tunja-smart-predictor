@@ -1,4 +1,4 @@
-"""Central configuration for WiFi Tunja Smart Predictor (VERSION 0.5.0).
+"""Central configuration for WiFi Tunja Smart Predictor (VERSION 0.5.1).
 
 Paths are resolved relative to the repository root so the project works on any
 machine as long as it is executed from a clone of this repository.
@@ -17,12 +17,23 @@ load_dotenv()
 try:
     PROJECT_VERSION = version("wifi-tunja-smart-predictor")
 except PackageNotFoundError:
-    PROJECT_VERSION = "0.5.0"
+    PROJECT_VERSION = "0.5.1"
 PROJECT_NAME = "WiFi Tunja Smart Predictor"
 RANDOM_SEED = int(os.getenv("RANDOM_SEED", "42"))
 
 # Repository root: src/wifi_tunja_smart_predictor/config.py -> parents[2]
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+
+def experiment_database_path(project_root: Path | None = None) -> Path:
+    """Return the shared experiment database path independent of the process CWD."""
+    project_root = project_root or PROJECT_ROOT
+    configured = os.getenv("EXPERIMENT_DB_PATH")
+    if configured:
+        path = Path(configured)
+        return path if path.is_absolute() else project_root / path
+    return project_root / "reports" / "experiments.sqlite3"
+
 
 DATA_DIR = PROJECT_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"

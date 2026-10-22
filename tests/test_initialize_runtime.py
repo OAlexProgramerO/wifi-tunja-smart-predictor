@@ -18,6 +18,7 @@ def test_initializer_runs_existing_pipeline_once_and_then_skips(tmp_path, capsys
         initialize_runtime.initialize_runtime(
             assets=assets,
             run_stage=run_stage,
+            validate_model_bundle=lambda: True,
             validate_model_artifacts=lambda: True,
             root=tmp_path,
             metrics_dir=tmp_path / "metrics",
@@ -31,6 +32,7 @@ def test_initializer_runs_existing_pipeline_once_and_then_skips(tmp_path, capsys
         initialize_runtime.initialize_runtime(
             assets=assets,
             run_stage=lambda _: (_ for _ in ()).throw(AssertionError("pipeline should not rerun")),
+            validate_model_bundle=lambda: True,
             validate_model_artifacts=lambda: True,
             root=tmp_path,
             metrics_dir=tmp_path / "metrics",
@@ -68,6 +70,7 @@ def test_initializer_restores_missing_marker_only_after_validation(tmp_path, cap
 
     result = initialize_runtime.initialize_runtime(
         assets=(marker, dataset, model),
+        validate_model_bundle=lambda: True,
         validate_model_artifacts=lambda: True,
         root=tmp_path,
     )
@@ -106,6 +109,7 @@ def test_initializer_refuses_invalid_complete_model_volume_without_overwriting(t
     result = initialize_runtime.initialize_runtime(
         assets=assets,
         run_stage=lambda command: calls.append(command) or 0,
+        validate_model_bundle=lambda: False,
         validate_model_artifacts=lambda: False,
         root=tmp_path,
         metrics_dir=tmp_path / "metrics",
@@ -115,3 +119,31 @@ def test_initializer_refuses_invalid_complete_model_volume_without_overwriting(t
     assert calls == []
     assert [asset.read_text(encoding="utf-8") for asset in assets] == ["existing"] * len(assets)
     assert "failed validation" in capsys.readouterr().err
+
+
+def test_initializer_refreshes_stale_reports_without_retraining_complete_models(tmp_path, capsys):
+    assets = (tmp_path / ".runtime-ready", tmp_path / "dataset.csv", tmp_path / "model.joblib")
+    for asset in assets:
+        asset.touch()
+    calls = []
+    diagnostics_are_current = False
+
+    def refresh_report(command):
+        nonlocal diagnostics_are_current
+        calls.append(command[-1])
+        diagnostics_are_current = True
+        return 0
+
+    result = initialize_runtime.initialize_runtime(
+        assets=assets,
+        run_stage=refresh_report,
+        validate_model_bundle=lambda: True,
+        validate_model_artifacts=lambda: diagnostics_are_current,
+        root=tmp_path,
+        metrics_dir=tmp_path / "metrics",
+    )
+
+    assert result == 0
+    assert calls == ["scripts/evaluate_model.py"]
+    assert all(asset.is_file() for asset in assets)
+    assert "without retraining models" in capsys.readouterr().out
