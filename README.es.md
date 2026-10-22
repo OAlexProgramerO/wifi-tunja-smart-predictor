@@ -4,7 +4,7 @@
 
 Leer en [English](README.md)
 
-WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V5.0.0 incorporó escenarios de capacidad multizona, historial persistente de experimentos e informes reutilizables. La candidata de estabilización V5.1.0 corrige el cierre de conexiones SQLite, el manejo de comparaciones malformadas, la ruta predeterminada compartida de la base y la actualización de diagnósticos obsoletos en volúmenes de modelos validados, sin reentrenarlos.
+WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V5.0.0 incorporó escenarios de capacidad multizona, historial persistente de experimentos e informes reutilizables. La candidata de estabilización V5.1.0 corrige el cierre de conexiones SQLite, el manejo de comparaciones malformadas, la ruta predeterminada compartida de la base y la actualización de diagnósticos obsoletos en volúmenes de modelos validados sin reentrenarlos; también valida las huellas de metadatos de los modelos clasificador y regresor.
 
 **Estado de publicación:** V5.1.0 es una candidata de estabilización, no una publicación formal. El paquete Python y la imagen Docker candidatos usan `0.5.1`; no se afirma que exista una etiqueta Git o GitHub Release V5.1.0. Consulte el [registro de validación V5.1.0](docs/releases/v5.1.0.md), el registro histórico de [V5.0.0](docs/releases/v5.0.0.md), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
 

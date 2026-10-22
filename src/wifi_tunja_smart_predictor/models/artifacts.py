@@ -191,10 +191,6 @@ def model_artifacts_available() -> bool:
             regressor = regressor_artifact.estimator
         else:
             regressor = load_regression_model()
-        if classifier_artifact is not None and not artifact_matches_metadata(
-            combined_regression, classifier_artifact
-        ):
-            return False
         if regressor_artifact is not None and not artifact_matches_metadata(
             combined_regression, regressor_artifact
         ):

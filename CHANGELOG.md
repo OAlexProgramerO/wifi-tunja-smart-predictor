@@ -9,6 +9,7 @@
 - API and assistant resolve the same default experiment database under the repository root, independent of the process working directory. Relative `EXPERIMENT_DB_PATH` values also resolve from the repository root.
 - Runtime initialization refreshes stale versioned evaluation reports only after validating the existing model bundle, without retraining or replacing model artifacts.
 - The Docker image now creates and grants the unprivileged application user ownership of the mounted experiment-volume directory, allowing first-start SQLite initialization.
+- Runtime model validation now checks classifier and regressor fingerprints against their corresponding metadata records, so newly generated integrity-tracked bundles pass readiness validation.
 
 ### Improved
 

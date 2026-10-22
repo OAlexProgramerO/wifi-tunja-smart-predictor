@@ -306,3 +306,28 @@ def test_runtime_readiness_rejects_artifact_fingerprint_mismatch(monkeypatch, mi
     monkeypatch.setattr(artifacts, "load_regression_artifact", lambda: regressor_artifact)
 
     assert artifacts.model_artifacts_available() is False
+
+
+def test_runtime_readiness_accepts_fingerprinted_classifier_and_regressor_bundle(monkeypatch):
+    import wifi_tunja_smart_predictor.models.predict as prediction
+
+    classifier_artifact = LoadedArtifact(_Classifier(), "a" * 64, 10)
+    regressor_artifact = LoadedArtifact(_Regressor(), "b" * 64, 12)
+    classifier_metadata = {
+        **_metadata("0.5.1", "random_forest"),
+        "artifact_sha256": classifier_artifact.sha256,
+        "artifact_size_bytes": classifier_artifact.size_bytes,
+        "regression": {
+            **_metadata("0.5.1", "random_forest_regressor"),
+            "artifact_sha256": regressor_artifact.sha256,
+            "artifact_size_bytes": regressor_artifact.size_bytes,
+        },
+    }
+    monkeypatch.setattr(artifacts, "load_classifier_metadata", lambda: classifier_metadata)
+    monkeypatch.setattr(
+        artifacts, "load_regression_metadata", lambda: classifier_metadata["regression"]
+    )
+    monkeypatch.setattr(prediction, "load_model_artifact", lambda: classifier_artifact)
+    monkeypatch.setattr(artifacts, "load_regression_artifact", lambda: regressor_artifact)
+
+    assert artifacts.model_artifacts_available() is True
