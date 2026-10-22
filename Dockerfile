@@ -15,8 +15,8 @@ LABEL org.opencontainers.image.title="WiFi Tunja Smart Predictor" \
 RUN groupadd --gid 10001 app \
     && useradd --uid 10001 --gid app --create-home --shell /usr/sbin/nologin app \
     && mkdir -p /app/data/raw /app/data/processed /app/data/sample /app/data/interim \
-        /app/models /app/reports/metrics /app/reports/figures \
-    && chown -R app:app /app/data /app/models /app/reports
+        /app/models /app/reports/metrics /app/reports/figures /app/experiments \
+    && chown -R app:app /app/data /app/models /app/reports /app/experiments
 
 COPY requirements.lock ./
 RUN python -m pip install --no-cache-dir --require-hashes -r requirements.lock

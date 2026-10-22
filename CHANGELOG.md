@@ -8,6 +8,7 @@
 - Experiment comparison now rejects malformed saved provenance, model traces, and zone metrics with a safe conflict response; the deterministic assistant returns a clarification for malformed comparisons instead of raising an internal exception.
 - API and assistant resolve the same default experiment database under the repository root, independent of the process working directory. Relative `EXPERIMENT_DB_PATH` values also resolve from the repository root.
 - Runtime initialization refreshes stale versioned evaluation reports only after validating the existing model bundle, without retraining or replacing model artifacts.
+- The Docker image now creates and grants the unprivileged application user ownership of the mounted experiment-volume directory, allowing first-start SQLite initialization.
 
 ### Improved
 
@@ -17,7 +18,7 @@
 ### Tested
 
 - Regression coverage added for connection closure, working-directory-independent shared storage, malformed API/assistant comparisons, and refreshing reports for existing model volumes without retraining. Final check results are recorded in [the V5.1.0 validation record](docs/releases/v5.1.0.md).
-- The first remote CI run exposed a Streamlit/Pillow lock conflict and three integration tests that need the generated synthetic CSV; the lock and CI fixture setup are corrected, with full remote verification pending.
+- Remote CI exposed a Streamlit/Pillow lock conflict, missing synthetic test data, and a missing writable experiment-volume mount point. The dependency lock, CI fixture setup, and image directory ownership are corrected; full remote verification remains pending.
 
 ### Known limitations and compatibility
 
