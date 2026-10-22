@@ -18,12 +18,12 @@
 
 ### Tested
 
-- Regression coverage added for connection closure, working-directory-independent shared storage, malformed API/assistant comparisons, and refreshing reports for existing model volumes without retraining. Final check results are recorded in [the V5.1.0 validation record](docs/releases/v5.1.0.md).
-- Remote CI exposed a Streamlit/Pillow lock conflict, missing synthetic test data, and a missing writable experiment-volume mount point. The dependency lock, CI fixture setup, and image directory ownership are corrected; full remote verification remains pending.
+- Regression coverage added for connection closure, working-directory-independent shared storage, malformed API/assistant comparisons, refreshing reports for existing model volumes without retraining, and integrity-tracked classifier/regressor bundles. Final check results are recorded in [the V5.1.0 validation record](docs/releases/v5.1.0.md).
+- Remote CI exposed a Streamlit/Pillow lock conflict, missing synthetic test data, a missing writable experiment-volume mount point, and incorrect classifier/regressor fingerprint matching. Each was corrected; the final workflow passed both jobs, including container startup, HTTP smoke tests, and volume persistence (see the validation record for run evidence).
 
 ### Known limitations and compatibility
 
-- V5.1.0 remains a candidate until local quality, dependency audit, Docker/runtime, and remote CI evidence is recorded. No tag or GitHub Release is claimed by this changelog entry.
+- Local quality and dependency checks plus remote Docker/runtime and CI gates passed for the release candidate. The V5.1.0 tag and GitHub Release are still pending at this changelog revision; these are separate publication steps.
 - No API schemas, saved experiment schema, model artifacts, or prediction algorithms were changed. All data, observations, predictions, and capacity estimates remain synthetic and are not verified against real Tunja WiFi demand.
 
 ## V5.0.0 implementation candidate (historical; not released)
