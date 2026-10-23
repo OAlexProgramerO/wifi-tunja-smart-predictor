@@ -11,7 +11,7 @@ Read this in [Español](README.es.md)
 
 WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V5.2.0 improves interpretation of compatible experiment comparisons, adds bounded page navigation to Experiment History, and makes results with no shared zones explicitly not assessable. V5.1.0 stabilization fixes remain in place.
 
-**Release status:** V5.2.0 has passed local checks and both remote CI jobs; tag and GitHub Release publication are pending. Its Python package and Docker image use version `0.5.2`. See the [V5.2.0 validation record](docs/releases/v5.2.0.md), published [V5.1.0 release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v5.1.0), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
+**Release status:** V5.2.0 is published as annotated Git tag [`v5.2.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v5.2.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v5.2.0). Its Python package and Docker image use version `0.5.2`. See the [V5.2.0 validation record](docs/releases/v5.2.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 

@@ -1,8 +1,8 @@
 # Release history and V4.0 readiness
 
-## V5.2.0 — engineering upgrade candidate; not released
+## V5.2.0 — Engineering upgrade — released 2026-10-23
 
-Adds explicit comparison interpretation for compatible experiments with or without shared synthetic zone IDs, plus bounded page navigation in Experiment History. Target package/image version is `0.5.2`. Tests, Docker/runtime validation, dependency review, and remote CI evidence must be recorded before publication. No `v5.2.0` tag or GitHub Release is claimed. See the [V5.2.0 validation record](releases/v5.2.0.md).
+Adds explicit comparison interpretation for compatible experiments with or without shared synthetic zone IDs, plus bounded page navigation in Experiment History. Product V5.2.0 uses Python package and Docker image `0.5.2`. Annotated tag [`v5.2.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v5.2.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v5.2.0) point to release commit `64c4d9369dbe8efbf69e808d2cc82616f60b8dfd`. Local checks and remote CI passed; Docker runtime, HTTP smoke, and persistence passed in [workflow 40039016215](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40039016215). All data and metrics remain synthetic. See the [V5.2.0 validation record](releases/v5.2.0.md).
 
 ## V5.1.0 — Stabilization Patch — released 2026-10-22
 

@@ -13,7 +13,7 @@ Improves experiment comparison interpretation and history navigation while prese
 
 ### Fixed and tested
 
-- Added regression coverage for compatible/no-overlap comparison interpretation and dashboard page navigation. Local checks passed (240 pytest tests, Ruff, Black, compileall, and Compose configuration); GitHub Actions passed both code-quality and container-smoke jobs for commit `22f6524`. See [the V5.2.0 validation record](docs/releases/v5.2.0.md).
+- Added regression coverage for compatible/no-overlap comparison interpretation and dashboard page navigation. Local checks passed (240 pytest tests, Ruff, Black, compileall, and Compose configuration); GitHub Actions passed both code-quality and container-smoke jobs for tagged release commit `64c4d93` ([run 40039016215](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40039016215)). See [the V5.2.0 validation record](docs/releases/v5.2.0.md).
 
 ### Compatibility and limitations
 
