@@ -314,11 +314,11 @@ def test_runtime_readiness_accepts_fingerprinted_classifier_and_regressor_bundle
     classifier_artifact = LoadedArtifact(_Classifier(), "a" * 64, 10)
     regressor_artifact = LoadedArtifact(_Regressor(), "b" * 64, 12)
     classifier_metadata = {
-        **_metadata("0.5.1", "random_forest"),
+        **_metadata("0.5.2", "random_forest"),
         "artifact_sha256": classifier_artifact.sha256,
         "artifact_size_bytes": classifier_artifact.size_bytes,
         "regression": {
-            **_metadata("0.5.1", "random_forest_regressor"),
+            **_metadata("0.5.2", "random_forest_regressor"),
             "artifact_sha256": regressor_artifact.sha256,
             "artifact_size_bytes": regressor_artifact.size_bytes,
         },

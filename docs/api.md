@@ -10,7 +10,7 @@
 | `POST /experiments/compare` | Compare 2–10 records only when time window, dataset identity, and model artifact fingerprints agree (409 otherwise). |
 | `GET /experiments/{experiment_id}/report?format=json` | Export a structured report; `format=markdown` returns a readable report. |
 
-The comparison is relative to the first supplied experiment and reports only shared zone IDs. All demand and capacity values are synthetic connection counts, not throughput or real-network advice.
+The comparison is relative to the first supplied experiment and reports only shared zone IDs. Its additive `comparison_status`, `scientific_comparability`, `comparability_reasons`, and `interpretation_detail` fields distinguish a technically compatible comparison from one with no shared zones; the latter returns no zone deltas and is marked `not_assessable`. Shared-zone results remain limited synthetic comparisons, not evidence of real-world equivalence. All demand and capacity values are synthetic connection counts, not throughput or real-network advice.
 
 ## Main API (port 8000)
 

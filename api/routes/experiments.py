@@ -204,6 +204,16 @@ def compare_experiments(payload: ExperimentComparisonRequest) -> dict:
                 "name": record["name"],
                 "baseline_experiment_id": baseline["id"],
                 "shared_zones": shared,
+                "comparison_status": "comparable" if shared else "no_shared_zones",
+                "scientific_comparability": "not_assessable" if not shared else "limited",
+                "comparability_reasons": (
+                    ["The experiments share no zone IDs."] if not shared else []
+                ),
+                "interpretation_detail": (
+                    "Synthetic scenario differences only; not a real-network forecast."
+                    if shared
+                    else "These experiments share no zone IDs, so there are no zone-level results to compare."
+                ),
                 "changes": {
                     zone_id: {
                         "demand_connections": zones[zone_id]["demand"]

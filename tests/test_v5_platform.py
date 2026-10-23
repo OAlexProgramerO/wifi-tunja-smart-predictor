@@ -253,6 +253,7 @@ def test_scenario_experiment_api_saves_model_trace_and_exports(monkeypatch, tmp_
     )
     assert compared.status_code == 200
     assert compared.json()["comparisons"][0]["changes"][zone_id]["capacity_connections"] == 7.5
+    assert compared.json()["comparisons"][0]["comparison_status"] == "comparable"
     incompatible = experiment_routes._store().save(
         "different time", {}, {"time_window": "2025-02-01T10:00:00", "zones": [], "provenance": {}}
     )
@@ -300,6 +301,34 @@ def test_scenario_experiment_api_saves_model_trace_and_exports(monkeypatch, tmp_
         ).status_code
         == 409
     )
+    disjoint_zone = "SYNTHETIC_ZONE_WITH_NO_SHARED_ID"
+    no_overlap = experiment_routes._store().save(
+        "different zone",
+        {},
+        {
+            "time_window": experiment["result"]["time_window"],
+            "provenance": experiment["result"]["provenance"],
+            "zones": [
+                {
+                    "zone_id": disjoint_zone,
+                    "demand": 8,
+                    "effective_capacity": 8,
+                    "overload_connections": 0,
+                }
+            ],
+        },
+    )
+    no_overlap_response = client.post(
+        "/experiments/compare", json={"experiment_ids": [experiment["id"], no_overlap["id"]]}
+    )
+    no_overlap_result = no_overlap_response.json()["comparisons"][0]
+    assert no_overlap_response.status_code == 200
+    assert no_overlap_result["shared_zones"] == []
+    assert no_overlap_result["changes"] == {}
+    assert no_overlap_result["comparison_status"] == "no_shared_zones"
+    assert "no zone-level results" in no_overlap_result["interpretation_detail"]
+    assert no_overlap_result["scientific_comparability"] == "not_assessable"
+    assert no_overlap_result["comparability_reasons"] == ["The experiments share no zone IDs."]
     malformed_zone = experiment_routes._store().save(
         "malformed zone",
         {},

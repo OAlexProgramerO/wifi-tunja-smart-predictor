@@ -1,5 +1,20 @@
 # Changelog
 
+## Unreleased — V5.2.0 engineering upgrade
+
+### Added and improved
+
+- Experiment comparison responses now explicitly distinguish matching technical provenance from limited scientific interpretation; comparisons with no shared synthetic zone IDs return the `not_assessable` marker and a reason while preserving existing fields and status codes.
+- Experiment History now navigates bounded 25-record pages through the existing API and shows a clear empty-page state.
+
+### Fixed and tested
+
+- Added regression coverage for compatible/no-overlap comparison interpretation and dashboard page navigation. Verification evidence is tracked in [the V5.2.0 validation record](docs/releases/v5.2.0.md); this section describes work in progress, not a published release.
+
+### Compatibility and limitations
+
+- Product target V5.2.0 uses Python package and Docker image candidate `0.5.2`; no API route or saved-experiment schema changed. Comparison fields are additive. All data and estimates remain synthetic and do not establish real Tunja WiFi forecast validity.
+
 ## V5.1.0 — Stabilization Patch — 2026-10-22
 
 ### Fixed

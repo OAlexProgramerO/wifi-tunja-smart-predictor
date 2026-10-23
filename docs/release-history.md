@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V5.2.0 — engineering upgrade candidate; not released
+
+Adds explicit comparison interpretation for compatible experiments with or without shared synthetic zone IDs, plus bounded page navigation in Experiment History. Target package/image version is `0.5.2`. Tests, Docker/runtime validation, dependency review, and remote CI evidence must be recorded before publication. No `v5.2.0` tag or GitHub Release is claimed. See the [V5.2.0 validation record](releases/v5.2.0.md).
+
 ## V5.1.0 — Stabilization Patch — released 2026-10-22
 
 Fixes experiment database connection cleanup, rejects malformed persisted comparison provenance/metrics safely in the API and assistant, makes API/assistant default experiment storage independent of the process working directory, and refreshes stale evaluation reports against an integrity-validated existing model bundle without retraining. It also fixes Docker experiment-volume permissions and classifier/regressor fingerprint matching. Product V5.1.0 uses Python package and Docker image version `0.5.1`. The annotated tag [`v5.1.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v5.1.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v5.1.0) were published separately. See the [V5.1.0 validation record](releases/v5.1.0.md). All observations and predictions remain synthetic.

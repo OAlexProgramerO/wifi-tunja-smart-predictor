@@ -988,11 +988,29 @@ def _render_page(title: str, kind: str) -> None:
             "Saved synthetic capacity-planning experiments. Values are estimates in connection counts."
         )
         try:
-            page = main_api_request("/experiments?limit=50&offset=0")
+            page_size = 25
+            page_number = st.number_input(
+                "History page",
+                min_value=1,
+                value=1,
+                step=1,
+                key="experiment_history_page",
+            )
+            offset = (page_number - 1) * page_size
+            page = main_api_request(f"/experiments?limit={page_size}&offset={offset}")
             experiments = page["items"]
             if not experiments:
-                st.info("No saved experiments yet. Run and save one from Scenario Prediction.")
+                if offset:
+                    st.info(
+                        "No experiments on this page. Choose an earlier page to view saved history."
+                    )
+                else:
+                    st.info("No saved experiments yet. Run and save one from Scenario Prediction.")
             else:
+                st.caption(
+                    f"Showing records {offset + 1}–{offset + len(experiments)} · "
+                    "synthetic scenario history"
+                )
                 selected_id = st.selectbox(
                     "Experiment",
                     [item["id"] for item in experiments],
@@ -1016,6 +1034,11 @@ def _render_page(title: str, kind: str) -> None:
                         comparison = main_api_request(
                             "/experiments/compare", {"experiment_ids": [selected_id, *compare_ids]}
                         )
+                        for item in comparison.get("comparisons", []):
+                            if item.get("comparison_status") == "no_shared_zones":
+                                st.info(
+                                    item.get("interpretation_detail", "No shared zones to compare.")
+                                )
                         st.json(comparison)
                     except ApiClientError as exc:
                         st.error(str(exc))

@@ -87,3 +87,69 @@ def test_geospatial_summary_aggregates_only_selected_synthetic_window(mini_frame
         == frame["timestamp"].dt.date.eq(frame["timestamp"].min().date()).sum()
     )
     assert set(summary["zone_id"]).issubset(set(frame["zone_id"]))
+
+
+def test_experiment_history_dashboard_requests_selected_page_and_labels_no_overlap(monkeypatch):
+    from app import dashboard
+
+    requests = []
+
+    def fake_request(path, payload=None):
+        requests.append((path, payload))
+        if path.startswith("/experiments?"):
+            if "offset=25" in path:
+                return {"items": [], "limit": 25, "offset": 25}
+            return {
+                "items": [
+                    {
+                        "id": "experiment-a",
+                        "name": "Synthetic base",
+                        "created_at_utc": "2026-01-01T00:00:00+00:00",
+                    },
+                    {
+                        "id": "experiment-b",
+                        "name": "Synthetic alternative",
+                        "created_at_utc": "2026-01-02T00:00:00+00:00",
+                    },
+                ],
+                "limit": 25,
+                "offset": 25,
+            }
+        if path.endswith("/report?format=json"):
+            return {"report_schema_version": "1.0"}
+        if path == "/experiments/compare":
+            return {
+                "comparisons": [
+                    {
+                        "comparison_status": "no_shared_zones",
+                        "interpretation_detail": "These experiments share no zone IDs.",
+                    }
+                ]
+            }
+        experiment_id = path.rsplit("/", 1)[-1]
+        return {
+            "id": experiment_id,
+            "name": (
+                "Synthetic base" if experiment_id == "experiment-a" else "Synthetic alternative"
+            ),
+            "result": {"capacity_plan": {"zones": []}},
+        }
+
+    monkeypatch.setattr(dashboard, "main_api_request", fake_request)
+    script = (
+        "from app.dashboard import _render_page\n"
+        "_render_page('Experiment History', 'Experiments')\n"
+    )
+    app = AppTest.from_string(script, default_timeout=30).run()
+    assert not app.exception
+    assert requests[0][0] == "/experiments?limit=25&offset=0"
+    assert app.number_input[0].label == "History page"
+    assert "Showing records 1–2" in app.caption[2].value
+
+    app.multiselect[0].set_value(["experiment-b"]).run()
+    app.button[0].click().run()
+    assert any("These experiments share no zone IDs." in item.value for item in app.info)
+
+    app.number_input[0].set_value(2).run()
+    assert any(path == "/experiments?limit=25&offset=25" for path, _ in requests)
+    assert "No experiments on this page" in app.info[-1].value
