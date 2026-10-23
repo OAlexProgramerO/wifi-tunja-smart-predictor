@@ -6,7 +6,7 @@ Leer en [English](README.md)
 
 WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V5.2.0 mejora la interpretación de comparaciones compatibles, agrega navegación paginada al historial y marca como no evaluables las comparaciones sin zonas compartidas. Las correcciones de estabilización V5.1.0 se mantienen.
 
-**Estado de publicación:** V5.2.0 es una candidata no publicada hasta completar las verificaciones. El paquete Python y la imagen Docker candidatos usan `0.5.2`. Consulte el [registro de validación V5.2.0](docs/releases/v5.2.0.md), la [publicación V5.1.0](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v5.1.0), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V5.2.0 superó las verificaciones locales y ambos trabajos de CI remoto; falta publicar la etiqueta y GitHub Release. El paquete Python y la imagen Docker usan `0.5.2`. Consulte el [registro de validación V5.2.0](docs/releases/v5.2.0.md), la [publicación V5.1.0](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v5.1.0), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
 
 Se conservan las verificaciones de huellas de artefactos de V4.3.0 y la trazabilidad de predicciones y validaciones de V4.2.0. Consulte el [diseño de diagnósticos V4.4.0](docs/model-diagnostics.md) para ver el esquema, las métricas, las ventanas temporales y la comprobación de procedencia.
 
@@ -28,7 +28,7 @@ docker compose up --build --wait --wait-timeout 900
 
 En el primer inicio, `runtime-init` genera el dataset sintético, entrena los dos modelos existentes y los evalúa para crear el informe de diagnóstico en volúmenes administrados por Compose. Espere a que las API y el dashboard estén disponibles. Abra el dashboard en <http://localhost:8501>, la documentación de la API principal en <http://localhost:8000/docs> y la del asistente en <http://localhost:8001/docs>. Revise `docker compose ps`, siga los registros con `docker compose logs -f`, ejecute las pruebas HTTP desde el contenedor del dashboard con `docker compose exec -T dashboard python scripts/smoke_test.py` y detenga con `docker compose down`. Los volúmenes de datos/modelos persisten después de `down`; `docker compose down -v` elimina solo los volúmenes generados de este proyecto.
 
-V5.2.0 debe superar las verificaciones aplicables de Docker, seguridad de dependencias y CI remota antes de su publicación estable. Consulte el [registro de validación V5.2.0](docs/releases/v5.2.0.md) para conocer los resultados observados.
+El registro V5.2.0 incluye verificaciones remotas aprobadas de build y arranque de Docker, smoke HTTP y persistencia; esta máquina local no tenía un daemon Docker activo. Consulte el [registro de validación V5.2.0](docs/releases/v5.2.0.md) para ver los resultados y el alcance de la auditoría.
 
 ## 1. Descripción del proyecto
 

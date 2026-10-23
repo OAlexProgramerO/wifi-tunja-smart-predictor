@@ -11,7 +11,7 @@ Read this in [Español](README.es.md)
 
 WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V5.2.0 improves interpretation of compatible experiment comparisons, adds bounded page navigation to Experiment History, and makes results with no shared zones explicitly not assessable. V5.1.0 stabilization fixes remain in place.
 
-**Release status:** V5.2.0 is an unreleased candidate until its verification gates pass. Its Python package and Docker image candidate use version `0.5.2`. See the [V5.2.0 validation record](docs/releases/v5.2.0.md), published [V5.1.0 release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v5.1.0), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
+**Release status:** V5.2.0 has passed local checks and both remote CI jobs; tag and GitHub Release publication are pending. Its Python package and Docker image use version `0.5.2`. See the [V5.2.0 validation record](docs/releases/v5.2.0.md), published [V5.1.0 release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v5.1.0), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 
@@ -33,7 +33,7 @@ docker compose up --build --wait --wait-timeout 900
 
 On its first run, the `runtime-init` service creates the synthetic dataset, trains both existing models, and evaluates them to create the diagnostics report in Compose-managed volumes. Wait for the APIs and dashboard to become healthy. Open the dashboard at <http://localhost:8501>, the main API docs at <http://localhost:8000/docs>, and assistant API docs at <http://localhost:8001/docs>. Inspect with `docker compose ps`, follow logs with `docker compose logs -f`, run the HTTP smoke checks from the dashboard container with `docker compose exec -T dashboard python scripts/smoke_test.py`, and stop with `docker compose down`. Data/model volumes persist after `down`; `docker compose down -v` removes only this Compose project's generated volumes.
 
-V5.2.0 must pass applicable Docker runtime, dependency-security, and remote CI gates before stable publication. See the [V5.2.0 validation record](docs/releases/v5.2.0.md) for observed results.
+The V5.2.0 verification record includes passing remote Docker build/startup, HTTP smoke, and persistence checks; this local machine did not have a running Docker engine. See the [V5.2.0 validation record](docs/releases/v5.2.0.md) for observed results and audit scope.
 
 ## 1. Project overview
 

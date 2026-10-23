@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased — V5.2.0 engineering upgrade
+## V5.2.0 — Engineering upgrade
+
+### Summary
+
+Improves experiment comparison interpretation and history navigation while preserving stored experiment formats, prediction behavior, and the synthetic-data scope.
 
 ### Added and improved
 
@@ -9,11 +13,11 @@
 
 ### Fixed and tested
 
-- Added regression coverage for compatible/no-overlap comparison interpretation and dashboard page navigation. Verification evidence is tracked in [the V5.2.0 validation record](docs/releases/v5.2.0.md); this section describes work in progress, not a published release.
+- Added regression coverage for compatible/no-overlap comparison interpretation and dashboard page navigation. Local checks passed (240 pytest tests, Ruff, Black, compileall, and Compose configuration); GitHub Actions passed both code-quality and container-smoke jobs for commit `22f6524`. See [the V5.2.0 validation record](docs/releases/v5.2.0.md).
 
 ### Compatibility and limitations
 
-- Product target V5.2.0 uses Python package and Docker image candidate `0.5.2`; no API route or saved-experiment schema changed. Comparison fields are additive. All data and estimates remain synthetic and do not establish real Tunja WiFi forecast validity.
+- Product target V5.2.0 uses Python package and Docker image `0.5.2`; no API route or saved-experiment schema changed. Comparison fields are additive. All data and estimates remain synthetic and do not establish real Tunja WiFi forecast validity.
 
 ## V5.1.0 — Stabilization Patch — 2026-10-22
 
