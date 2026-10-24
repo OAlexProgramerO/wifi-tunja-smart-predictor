@@ -1,8 +1,8 @@
 # Release history and V4.0 readiness
 
-## V5.3.0 — Experiment observability and auditability — candidate, unpublished
+## V5.3.0 — Experiment observability and auditability — released 2026-10-24
 
-Candidate package and Docker image version `0.5.3`. Adds derived experiment integrity status, reason-coded comparison failures, safe history warnings, report validation, and bilingual dashboard status. Verification is pending; no V5.3.0 tag or GitHub Release exists. See [the V5.3.0 validation record](releases/v5.3.0.md). All experiment values remain synthetic.
+Adds derived experiment integrity status, reason-coded comparison failures, safe history warnings, report validation, and bilingual dashboard status. Product V5.3.0 uses package and Docker image `0.5.3`. Annotated tag [`v5.3.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v5.3.0) points to release commit `20fb2c6e140ce774843abbb9449c4d0889d39227`; the [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v5.3.0) is published. Local checks and both remote CI jobs passed in [workflow 40138776914](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40138776914). All experiment values remain synthetic. See [the V5.3.0 validation record](releases/v5.3.0.md).
 
 ## V5.2.0 — Engineering upgrade — released 2026-10-23
 
