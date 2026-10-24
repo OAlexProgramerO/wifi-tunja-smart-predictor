@@ -2,7 +2,7 @@
 
 ## Unreleased — V5.3.0 — Experiment observability and auditability
 
-Planned work for V5.3.0: derived experiment-integrity status and stable reason codes; safe history pagination that reports and omits unreadable persisted rows without hiding valid records; structured comparison diagnostics; and JSON/Markdown reports that state integrity, assessability, and missing historical provenance explicitly. The dashboard surfaces integrity warnings and only offers comparison for verified records. Package and Docker version `0.5.3` correspond to product target V5.3.0. Verification and publication status are tracked in [the V5.3.0 validation record](docs/releases/v5.3.0.md). All experiment values remain synthetic and do not establish real-world demand validity.
+V5.3.0 candidate changes: derived experiment-integrity status and stable reason codes; safe history pagination that reports and omits unreadable persisted rows without hiding valid records; structured comparison diagnostics; and JSON/Markdown reports that state integrity, assessability, and missing historical provenance explicitly. The dashboard surfaces integrity warnings and only offers comparison for verified records. Package and Docker version `0.5.3` correspond to product target V5.3.0. Verification and publication status are tracked in [the V5.3.0 validation record](docs/releases/v5.3.0.md). All experiment values remain synthetic and do not establish real-world demand validity.
 
 ## V5.2.0 — Engineering upgrade
 
