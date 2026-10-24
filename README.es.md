@@ -1,12 +1,12 @@
-# WiFi Tunja Smart Predictor — V5.2.0
+# WiFi Tunja Smart Predictor — candidato V5.3.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V5.2.0 mejora la interpretación de comparaciones compatibles, agrega navegación paginada al historial y marca como no evaluables las comparaciones sin zonas compartidas. Las correcciones de estabilización V5.1.0 se mantienen.
+WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V5.3.0 agrega estado de integridad de experimentos, diagnósticos de comparación con códigos de motivo, listado resiliente del historial e informes más seguros. Es un candidato hasta que las verificaciones y la publicación queden documentadas.
 
-**Estado de publicación:** V5.2.0 está publicada con la etiqueta Git anotada [`v5.2.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v5.2.0) y [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v5.2.0). El paquete Python y la imagen Docker usan `0.5.2`. Consulte el [registro de validación V5.2.0](docs/releases/v5.2.0.md), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V5.3.0 aún no está publicada. El candidato usa `0.5.3` para el paquete Python y la imagen Docker; la versión de producto, la versión del paquete/imagen, la etiqueta Git y GitHub Release se registran por separado. Consulte el [registro de validación V5.3.0](docs/releases/v5.3.0.md), el [registro V5.2.0](docs/releases/v5.2.0.md), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
 
 Se conservan las verificaciones de huellas de artefactos de V4.3.0 y la trazabilidad de predicciones y validaciones de V4.2.0. Consulte el [diseño de diagnósticos V4.4.0](docs/model-diagnostics.md) para ver el esquema, las métricas, las ventanas temporales y la comprobación de procedencia.
 

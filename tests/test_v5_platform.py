@@ -188,6 +188,7 @@ def test_scenario_experiment_api_saves_model_trace_and_exports(monkeypatch, tmp_
                 },
                 "regression": {"predicted_connections_next_hour": 12.5},
                 "traceability": {
+                    "application_version": "0.5.3",
                     "classifier": {"artifact_sha256": "a" * 64, "model_version": "model-v"},
                     "regressor": {"artifact_sha256": "b" * 64, "model_version": "model-v"},
                 },
@@ -226,7 +227,8 @@ def test_scenario_experiment_api_saves_model_trace_and_exports(monkeypatch, tmp_
     )
     assert "Model artifact provenance" in report.text
     json_report = client.get(f"/experiments/{experiment['id']}/report?format=json").json()
-    assert json_report["report_schema_version"] == "1.0"
+    assert json_report["report_schema_version"] == "1.1"
+    assert json_report["integrity"]["status"] == "verified"
     assert json_report["dataset_provenance"] == "d" * 64
     fixed_time = datetime(2026, 1, 1, tzinfo=UTC)
     fixed_report = build_experiment_report(experiment, generated_at_utc=fixed_time)
@@ -234,7 +236,10 @@ def test_scenario_experiment_api_saves_model_trace_and_exports(monkeypatch, tmp_
     assert serialize_experiment_json(fixed_report) == serialize_experiment_json(repeated_report)
     second = experiment_routes._store().save(
         "comparison",
-        {},
+        {
+            "datetime": "2025-01-01T10:00:00",
+            "zones": [{"zone_id": zone_id, "capacity_connections": 20}],
+        },
         {
             "time_window": experiment["result"]["time_window"],
             "zones": [
@@ -255,17 +260,32 @@ def test_scenario_experiment_api_saves_model_trace_and_exports(monkeypatch, tmp_
     assert compared.json()["comparisons"][0]["changes"][zone_id]["capacity_connections"] == 7.5
     assert compared.json()["comparisons"][0]["comparison_status"] == "comparable"
     incompatible = experiment_routes._store().save(
-        "different time", {}, {"time_window": "2025-02-01T10:00:00", "zones": [], "provenance": {}}
+        "different time",
+        {
+            "datetime": "2025-02-01T10:00:00",
+            "zones": [{"zone_id": zone_id, "capacity_connections": 20}],
+        },
+        {
+            "time_window": "2025-02-01T10:00:00",
+            "zones": [],
+            "provenance": experiment["result"]["provenance"],
+        },
     )
     conflict = client.post(
         "/experiments/compare", json={"experiment_ids": [experiment["id"], incompatible["id"]]}
     )
     assert conflict.status_code == 409
+    assert conflict.json()["reason_code"] == "INCOMPATIBLE_PROVENANCE"
+    assert "INCOMPATIBLE_TIME_WINDOW" in conflict.json()["reason_codes"]
     malformed_a = experiment_routes._store().save(
-        "malformed A", {}, {"provenance": ["invalid"], "time_window": "2025-01-01"}
+        "malformed A",
+        {"datetime": "2025-01-01", "zones": [{"zone_id": zone_id, "capacity_connections": 1}]},
+        {"provenance": ["invalid"], "time_window": "2025-01-01"},
     )
     malformed_b = experiment_routes._store().save(
-        "malformed B", {}, {"provenance": ["invalid"], "time_window": "2025-01-01"}
+        "malformed B",
+        {"datetime": "2025-01-01", "zones": [{"zone_id": zone_id, "capacity_connections": 1}]},
+        {"provenance": ["invalid"], "time_window": "2025-01-01"},
     )
     malformed_response = client.post(
         "/experiments/compare",
@@ -278,19 +298,41 @@ def test_scenario_experiment_api_saves_model_trace_and_exports(monkeypatch, tmp_
     }
     malformed_trace_a = experiment_routes._store().save(
         "malformed trace A",
-        {},
+        {
+            "datetime": "2025-01-01T10:00:00",
+            "zones": [{"zone_id": zone_id, "capacity_connections": 1}],
+        },
         {
             "time_window": "2025-01-01T10:00:00",
-            "provenance": malformed_trace_provenance,
+            "provenance": {
+                **malformed_trace_provenance,
+                "models": [
+                    {
+                        **experiment["result"]["provenance"]["models"][0],
+                        "classifier": "invalid",
+                    }
+                ],
+            },
             "zones": [],
         },
     )
     malformed_trace_b = experiment_routes._store().save(
         "malformed trace B",
-        {},
+        {
+            "datetime": "2025-01-01T10:00:00",
+            "zones": [{"zone_id": zone_id, "capacity_connections": 1}],
+        },
         {
             "time_window": "2025-01-01T10:00:00",
-            "provenance": malformed_trace_provenance,
+            "provenance": {
+                **malformed_trace_provenance,
+                "models": [
+                    {
+                        **experiment["result"]["provenance"]["models"][0],
+                        "classifier": "invalid",
+                    }
+                ],
+            },
             "zones": [],
         },
     )
@@ -304,7 +346,10 @@ def test_scenario_experiment_api_saves_model_trace_and_exports(monkeypatch, tmp_
     disjoint_zone = "SYNTHETIC_ZONE_WITH_NO_SHARED_ID"
     no_overlap = experiment_routes._store().save(
         "different zone",
-        {},
+        {
+            "datetime": "2025-01-01T10:00:00",
+            "zones": [{"zone_id": disjoint_zone, "capacity_connections": 8}],
+        },
         {
             "time_window": experiment["result"]["time_window"],
             "provenance": experiment["result"]["provenance"],
@@ -329,9 +374,13 @@ def test_scenario_experiment_api_saves_model_trace_and_exports(monkeypatch, tmp_
     assert "no zone-level results" in no_overlap_result["interpretation_detail"]
     assert no_overlap_result["scientific_comparability"] == "not_assessable"
     assert no_overlap_result["comparability_reasons"] == ["The experiments share no zone IDs."]
+    assert no_overlap_result["comparability_reason_codes"] == ["NO_SHARED_ZONES"]
     malformed_zone = experiment_routes._store().save(
         "malformed zone",
-        {},
+        {
+            "datetime": "2025-01-01T10:00:00",
+            "zones": [{"zone_id": zone_id, "capacity_connections": 1}],
+        },
         {
             "time_window": experiment["result"]["time_window"],
             "provenance": experiment["result"]["provenance"],
@@ -365,8 +414,10 @@ def test_assistant_compares_compatible_saved_capacity_experiments(monkeypatch, t
         "dataset_version": "synthetic-v1",
         "dataset_sha256": "d" * 64,
         "dataset_fingerprint_algorithm": "pandas_hash_pandas_object_sha256_v1",
+        "application_version": "0.5.3",
         "models": [
             {
+                "application_version": "0.5.3",
                 "classifier": {"artifact_sha256": "a" * 64, "model_version": "v"},
                 "regressor": {"artifact_sha256": "b" * 64, "model_version": "v"},
             }
@@ -419,3 +470,72 @@ def test_report_rejects_malformed_record() -> None:
 
     with pytest.raises(ValueError, match="configuration or result"):
         build_experiment_report({"configuration": [], "result": {}})
+
+
+def test_legacy_experiment_is_incomplete_and_report_labels_missing_metadata(tmp_path) -> None:
+    store = ExperimentStore(tmp_path / "legacy.sqlite3")
+    record = store.save("legacy", {"datetime": "2025-01-01", "zones": []}, {"zones": []})
+    assert record["integrity"]["status"] == "incomplete"
+    report = build_experiment_report(record)
+    assert report["integrity"]["assessment_status"] == "not_assessable"
+    assert report["dataset_provenance"] == "Not recorded"
+
+
+def test_integrity_invalid_for_bad_fingerprint_and_malformed_zone(tmp_path) -> None:
+    store = ExperimentStore(tmp_path / "invalid.sqlite3")
+    record = store.save(
+        "bad provenance",
+        {"datetime": "2025-01-01", "zones": [{"zone_id": "z", "capacity_connections": 1}]},
+        {
+            "zones": [{"zone_id": "z", "demand": "unknown"}],
+            "provenance": {"dataset_sha256": "bad"},
+        },
+    )
+    assert record["integrity"]["status"] == "invalid"
+    assert "DATASET_FINGERPRINT_INVALID" in record["integrity"]["reason_codes"]
+    with pytest.raises(ValueError, match="integrity"):
+        build_experiment_report(record)
+
+
+def test_experiment_list_skips_corrupt_row_and_returns_warning(tmp_path, monkeypatch) -> None:
+    path = tmp_path / "partial.sqlite3"
+    store = ExperimentStore(path)
+    valid = store.save("valid row", {}, {})
+    corrupt = store.save("corrupt row", {}, {})
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "UPDATE experiments SET result_json = ? WHERE id = ?", ("{bad", corrupt["id"])
+        )
+    monkeypatch.setenv("EXPERIMENT_DB_PATH", str(path))
+    experiment_routes._store.cache_clear()
+    response = TestClient(app).get("/experiments")
+    assert response.status_code == 200
+    assert [item["id"] for item in response.json()["items"]] == [valid["id"]]
+    assert response.json()["integrity_warnings"][0]["reason_code"] == "INVALID_PERSISTED_RECORD"
+    experiment_routes._store.cache_clear()
+
+
+def test_malformed_markdown_report_returns_safe_service_unavailable(tmp_path, monkeypatch) -> None:
+    store = ExperimentStore(tmp_path / "malformed-report.sqlite3")
+    record = store.save(
+        "bad metric",
+        {"datetime": "2025-01-01", "zones": [{"zone_id": "z", "capacity_connections": 1}]},
+        {
+            "zones": [
+                {
+                    "zone_id": "z",
+                    "demand": "bad",
+                    "effective_capacity": 1,
+                    "overload_connections": 0,
+                }
+            ]
+        },
+    )
+    monkeypatch.setenv("EXPERIMENT_DB_PATH", str(store.path))
+    experiment_routes._store.cache_clear()
+    response = TestClient(app, raise_server_exceptions=False).get(
+        f"/experiments/{record['id']}/report?format=markdown"
+    )
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Experiment report data is invalid."
+    experiment_routes._store.cache_clear()

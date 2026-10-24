@@ -262,6 +262,18 @@ class ExperimentComparisonRequest(BaseModel):
         return self
 
 
+class ExperimentIntegrity(BaseModel):
+    status: Literal["verified", "incomplete", "invalid"]
+    assessment_status: Literal["assessable", "not_assessable"]
+    reason_codes: list[str]
+
+
+class ExperimentIntegrityWarning(BaseModel):
+    experiment_id: str
+    reason_code: str
+    message: str
+
+
 class ExperimentRecord(BaseModel):
     id: str
     created_at_utc: datetime
@@ -272,9 +284,11 @@ class ExperimentRecord(BaseModel):
     schema_version: str
     configuration: dict[str, Any]
     result: dict[str, Any]
+    integrity: ExperimentIntegrity
 
 
 class ExperimentPage(BaseModel):
     items: list[ExperimentRecord]
     limit: int
     offset: int
+    integrity_warnings: list[ExperimentIntegrityWarning] = Field(default_factory=list)

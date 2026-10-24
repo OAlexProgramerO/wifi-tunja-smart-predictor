@@ -999,6 +999,11 @@ def _render_page(title: str, kind: str) -> None:
             offset = (page_number - 1) * page_size
             page = main_api_request(f"/experiments?limit={page_size}&offset={offset}")
             experiments = page["items"]
+            warnings = page.get("integrity_warnings", [])
+            for warning in warnings:
+                st.warning(
+                    f"Record {warning.get('experiment_id', 'unknown')} omitted: {warning.get('reason_code', 'INTEGRITY_WARNING')}"
+                )
             if not experiments:
                 if offset:
                     st.info(
@@ -1011,6 +1016,22 @@ def _render_page(title: str, kind: str) -> None:
                     f"Showing records {offset + 1}–{offset + len(experiments)} · "
                     "synthetic scenario history"
                 )
+                integrity_labels = {
+                    "verified": "Verified · assessment possible",
+                    "incomplete": "Incomplete · assessment not possible",
+                    "invalid": "Invalid · assessment not possible",
+                }
+                for item in experiments:
+                    integrity = item.get("integrity", {})
+                    status = integrity.get("status", "incomplete")
+                    if status != "verified":
+                        reasons = ", ".join(integrity.get("reason_codes", []))
+                        st.warning(
+                            f"{item.get('name', item['id'])}: {integrity_labels.get(status, status)}. "
+                            f"Reason codes: {reasons or 'not recorded'}. / "
+                            f"{item.get('name', item['id'])}: Incompleto o inválido; evaluación no posible. "
+                            f"Códigos: {reasons or 'sin registro'}."
+                        )
                 selected_id = st.selectbox(
                     "Experiment",
                     [item["id"] for item in experiments],
@@ -1024,7 +1045,18 @@ def _render_page(title: str, kind: str) -> None:
                 st.json(record["result"]["capacity_plan"])
                 compare_ids = st.multiselect(
                     "Compare compatible experiments",
-                    [item["id"] for item in experiments if item["id"] != selected_id],
+                    [
+                        item["id"]
+                        for item in experiments
+                        if item["id"] != selected_id
+                        and item.get("integrity", {}).get("status") == "verified"
+                        and next(
+                            candidate.get("integrity", {}).get("status")
+                            for candidate in experiments
+                            if candidate["id"] == selected_id
+                        )
+                        == "verified"
+                    ],
                     format_func=lambda value: next(
                         item["name"] for item in experiments if item["id"] == value
                     ),

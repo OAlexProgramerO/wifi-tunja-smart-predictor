@@ -11,6 +11,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from wifi_tunja_smart_predictor.experiments.integrity import inspect_experiment_integrity
+
 EXPERIMENT_SCHEMA_VERSION = "1.2"
 
 
@@ -104,6 +106,7 @@ class ExperimentStore:
             "result": result,
         }
         experiment["updated_at_utc"] = experiment["created_at_utc"]
+        experiment["integrity"] = inspect_experiment_integrity(experiment)
         with self._connect() as connection:
             connection.execute(
                 "INSERT INTO experiments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -128,13 +131,34 @@ class ExperimentStore:
             ).fetchone()
         return self._decode(row) if row else None
 
-    def list(self, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
+    def list_page(
+        self, limit: int = 50, offset: int = 0
+    ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+        """Return readable records and safe warnings for invalid persisted rows."""
         with self._connect() as connection:
             rows = connection.execute(
                 "SELECT * FROM experiments ORDER BY created_at_utc DESC, id LIMIT ? OFFSET ?",
                 (limit, offset),
             ).fetchall()
-        return [self._decode(row) for row in rows]
+        records = []
+        warnings = []
+        for row in rows:
+            try:
+                records.append(self._decode(row))
+            except ValueError:
+                warnings.append(
+                    {
+                        "experiment_id": str(row["id"]),
+                        "reason_code": "INVALID_PERSISTED_RECORD",
+                        "message": "This saved record failed integrity checks and was omitted.",
+                    }
+                )
+        return records, warnings
+
+    def list(self, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
+        """Return readable records, omitting malformed rows without hiding valid history."""
+        records, _warnings = self.list_page(limit, offset)
+        return records
 
     @staticmethod
     def _decode(row: sqlite3.Row) -> dict[str, Any]:
@@ -151,7 +175,15 @@ class ExperimentStore:
             or not isinstance(result, dict)
         ):
             raise ValueError("Experiment record is malformed or uses an unsupported schema.")
-        return {
+        for field in ("created_at_utc", "updated_at_utc"):
+            value = row[field]
+            try:
+                timestamp = datetime.fromisoformat(value.replace("Z", "+00:00"))
+            except (AttributeError, TypeError, ValueError) as exc:
+                raise ValueError("Experiment record has an invalid UTC timestamp.") from exc
+            if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+                raise ValueError("Experiment record has a UTC timestamp without an offset.")
+        record = {
             "id": row["id"],
             "created_at_utc": row["created_at_utc"],
             "updated_at_utc": row["updated_at_utc"],
@@ -162,3 +194,7 @@ class ExperimentStore:
             "configuration": configuration,
             "result": result,
         }
+        if not isinstance(record["id"], str) or not isinstance(record["name"], str):
+            raise ValueError("Experiment record has invalid identifying fields.")
+        record["integrity"] = inspect_experiment_integrity(record)
+        return record

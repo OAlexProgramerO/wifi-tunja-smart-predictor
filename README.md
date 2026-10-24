@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V5.2.0
+# WiFi Tunja Smart Predictor — V5.3.0 release candidate
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,9 +9,9 @@
 
 Read this in [Español](README.es.md)
 
-WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V5.2.0 improves interpretation of compatible experiment comparisons, adds bounded page navigation to Experiment History, and makes results with no shared zones explicitly not assessable. V5.1.0 stabilization fixes remain in place.
+WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V5.3.0 adds experiment-integrity status, reason-coded comparison diagnostics, resilient history listing, and safer reports. It is a release candidate until the verification record documents passing gates and publication.
 
-**Release status:** V5.2.0 is published as annotated Git tag [`v5.2.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v5.2.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v5.2.0). Its Python package and Docker image use version `0.5.2`. See the [V5.2.0 validation record](docs/releases/v5.2.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
+**Release status:** V5.3.0 is not yet published. The Python package and Docker image candidate use version `0.5.3`; project release version, package/image version, Git tag, and GitHub Release are tracked separately. See the [V5.3.0 validation record](docs/releases/v5.3.0.md), [V5.2.0 validation record](docs/releases/v5.2.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 

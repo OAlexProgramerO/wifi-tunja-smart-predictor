@@ -204,4 +204,4 @@ def test_main_api_scenario_endpoint_uses_scenario_service(mini_frame, monkeypatc
     assert payload["regression"]["predicted_connections_next_hour"] == 80
     assert payload["traceability"]["request_id"] == response.headers["x-request-id"]
     UUID(payload["traceability"]["prediction_id"])
-    assert payload["traceability"]["application_version"] == "0.5.2"
+    assert payload["traceability"]["application_version"] == "0.5.3"

@@ -65,7 +65,17 @@ class ScenarioExperimentService:
                 "dataset_fingerprint_algorithm": (
                     estimates[0].get("dataset_fingerprint_algorithm") if estimates else None
                 ),
-                "models": [zone["traceability"] for zone in estimates],
+                "models": [
+                    {
+                        **(zone["traceability"] or {}),
+                        "application_version": (
+                            zone["traceability"].get("application_version")
+                            if zone["traceability"]
+                            else None
+                        ),
+                    }
+                    for zone in estimates
+                ],
             },
             "limitations": [
                 "Simulation only; not an operational recommendation for a real network."

@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 from html import escape
 from typing import Any
 
+from wifi_tunja_smart_predictor.experiments.integrity import inspect_experiment_integrity
+
 SYNTHETIC_DISCLAIMER = (
     "All observations, locations, predictions, and capacity values are synthetic. "
     "This simulation does not represent or recommend configuration for real municipal infrastructure."
@@ -21,6 +23,9 @@ def build_experiment_report(
     configuration = record.get("configuration")
     if not isinstance(result, dict) or not isinstance(configuration, dict):
         raise ValueError("Experiment record is missing its configuration or result object.")
+    integrity = inspect_experiment_integrity(record)
+    if integrity["status"] == "invalid":
+        raise ValueError("Experiment record failed integrity checks.")
     generated = generated_at_utc or datetime.now(UTC)
     if generated.tzinfo is None:
         raise ValueError("generated_at_utc must be timezone-aware")
@@ -32,13 +37,16 @@ def build_experiment_report(
     if not isinstance(models, list) or any(not isinstance(item, dict) for item in models):
         raise ValueError("Experiment model provenance is malformed.")
     return {
-        "report_schema_version": "1.0",
+        "report_schema_version": "1.1",
         "generated_at_utc": generated.astimezone(UTC).isoformat(),
         "experiment": record,
-        "dataset_provenance": provenance.get("dataset_sha256"),
-        "dataset_fingerprint_algorithm": provenance.get("dataset_fingerprint_algorithm"),
+        "integrity": integrity,
+        "dataset_provenance": provenance.get("dataset_sha256") or "Not recorded",
+        "dataset_fingerprint_algorithm": provenance.get("dataset_fingerprint_algorithm")
+        or "Not recorded",
         "model_provenance": models,
-        "application_version": (models[0].get("application_version") if models else None),
+        "application_version": (models[0].get("application_version") if models else None)
+        or "Not recorded",
         "metric_definitions": {
             "demand_connections": "Model-estimated synthetic connections in the next hour.",
             "capacity_connections": "User-supplied simulated connection-count capacity, plus any allocated budget.",
@@ -69,6 +77,8 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
         f"# {safe_text(experiment.get('name', 'Saved experiment'))}",
         "",
         f"Report schema: {report['report_schema_version']}",
+        f"Integrity: {report['integrity']['status']} ({report['integrity']['assessment_status']})",
+        f"Integrity reason codes: {', '.join(report['integrity']['reason_codes']) or 'None'}",
         f"Generated (UTC): {report['generated_at_utc']}",
         f"Experiment ID: `{safe_text(experiment.get('id', 'unknown'))}`",
         f"Created (UTC): {safe_text(experiment.get('created_at_utc', 'unknown'))}",
@@ -81,21 +91,38 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
         "| Zone | Demand (connections) | Capacity (connections) | Utilization | Overload | Status |",
         "|---|---:|---:|---:|---:|---|",
     ]
-    for row in experiment.get("result", {}).get("zones", []):
+    result = experiment.get("result", {})
+    zones = result.get("zones", []) if isinstance(result, dict) else []
+    for row in zones if isinstance(zones, list) else []:
+        if not isinstance(row, dict):
+            continue
         utilization_value = row.get("utilization_pct")
-        utilization = "undefined" if utilization_value is None else f"{utilization_value:.1f}%"
+        utilization = (
+            "undefined"
+            if not isinstance(utilization_value, (int, float))
+            else f"{utilization_value:.1f}%"
+        )
+        demand = row.get("demand", 0)
+        effective_capacity = row.get("effective_capacity", 0)
+        overload = row.get("overload_connections", 0)
+        if not all(
+            isinstance(value, (int, float)) and not isinstance(value, bool)
+            for value in (demand, effective_capacity, overload)
+        ):
+            raise ValueError("Experiment report contains malformed zone metrics.")
         lines.append(
-            f"| {safe_text(row.get('zone_id', 'unknown'))} | {row.get('demand', 0):.1f} | "
-            f"{row.get('effective_capacity', 0):.1f} | {utilization} | "
-            f"{row.get('overload_connections', 0):.1f} | {safe_text(row.get('status', 'unknown'))} |"
+            f"| {safe_text(row.get('zone_id', 'unknown'))} | {demand:.1f} | "
+            f"{effective_capacity:.1f} | {utilization} | "
+            f"{overload:.1f} | {safe_text(row.get('status', 'unknown'))} |"
         )
     lines.extend(["", "## Model artifact provenance", ""])
     for index, trace in enumerate(report.get("model_provenance", []), start=1):
         for role in ("classifier", "regressor"):
             artifact = trace.get(role) or {}
             lines.append(
-                f"- Zone run {index} {role}: version {safe_text(artifact.get('model_version'))}; "
-                f"SHA-256 {safe_text(artifact.get('artifact_sha256'))}."
+                f"- Zone run {index} {role}: version "
+                f"{safe_text(artifact.get('model_version') or 'Not recorded')}; "
+                f"SHA-256 {safe_text(artifact.get('artifact_sha256') or 'Not recorded')}."
             )
     lines.extend(["", "## Scenario configuration", "", "```json"])
     config_json = json.dumps(experiment.get("configuration", {}), indent=2, sort_keys=True)

@@ -105,11 +105,13 @@ def test_experiment_history_dashboard_requests_selected_page_and_labels_no_overl
                         "id": "experiment-a",
                         "name": "Synthetic base",
                         "created_at_utc": "2026-01-01T00:00:00+00:00",
+                        "integrity": {"status": "verified", "reason_codes": []},
                     },
                     {
                         "id": "experiment-b",
                         "name": "Synthetic alternative",
                         "created_at_utc": "2026-01-02T00:00:00+00:00",
+                        "integrity": {"status": "verified", "reason_codes": []},
                     },
                 ],
                 "limit": 25,
@@ -153,3 +155,55 @@ def test_experiment_history_dashboard_requests_selected_page_and_labels_no_overl
     app.number_input[0].set_value(2).run()
     assert any(path == "/experiments?limit=25&offset=25" for path, _ in requests)
     assert "No experiments on this page" in app.info[-1].value
+
+
+def test_experiment_history_warns_for_incomplete_records_and_excludes_comparison(monkeypatch):
+    from app import dashboard
+
+    def fake_request(path, payload=None):
+        if path.startswith("/experiments?"):
+            return {
+                "items": [
+                    {
+                        "id": "legacy",
+                        "name": "Legacy synthetic run",
+                        "created_at_utc": "2026-01-01T00:00:00+00:00",
+                        "integrity": {
+                            "status": "incomplete",
+                            "assessment_status": "not_assessable",
+                            "reason_codes": ["MODEL_PROVENANCE_MISSING"],
+                        },
+                    },
+                    {
+                        "id": "verified",
+                        "name": "Verified synthetic run",
+                        "created_at_utc": "2026-01-02T00:00:00+00:00",
+                        "integrity": {"status": "verified", "reason_codes": []},
+                    },
+                ],
+                "integrity_warnings": [
+                    {"experiment_id": "bad", "reason_code": "INVALID_PERSISTED_RECORD"}
+                ],
+            }
+        if path.endswith("/report?format=json"):
+            return {"report_schema_version": "1.1"}
+        experiment_id = path.rsplit("/", 1)[-1]
+        return {
+            "id": experiment_id,
+            "name": experiment_id,
+            "result": {"capacity_plan": {"zones": []}},
+        }
+
+    monkeypatch.setattr(dashboard, "main_api_request", fake_request)
+    script = (
+        "from app.dashboard import _render_page\n"
+        "_render_page('Experiment History', 'Experiments')\n"
+    )
+    app = AppTest.from_string(script, default_timeout=30).run()
+
+    assert not app.exception
+    assert any("INVALID_PERSISTED_RECORD" in item.value for item in app.warning)
+    assert any("MODEL_PROVENANCE_MISSING" in item.value for item in app.warning)
+    assert any("evaluación no posible" in item.value for item in app.warning)
+    assert app.multiselect[0].options == []
+    assert app.button[0].disabled
