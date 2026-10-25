@@ -1,5 +1,9 @@
 # Changelog
 
+## V6.0.0 — Geospatial intelligence and what-if simulation (in progress)
+
+Planned release scope implemented in the current working tree: reusable filtered analytics of historical synthetic observations; an offline Plotly geospatial view; and a typed deterministic what-if comparison service integrated with the existing scenario predictor, capacity planner, experiment store, API, and JSON/Markdown report schema 1.2. A dashboard workbench lets users save baseline and alternative assumptions. Predicted demand is held constant as capacity assumptions vary. New validation evidence and any remaining release limitations will be recorded in `docs/releases/v6.0.0.md`; V6.0.0 is not released until its gates are verified. All data and model results remain synthetic and do not validate real public WiFi demand or infrastructure in Tunja.
+
 ## V5.3.0 — Experiment observability and auditability
 
 V5.3.0 adds derived experiment-integrity status and stable reason codes; safe history pagination that reports and omits unreadable persisted rows without hiding valid records; structured comparison diagnostics; and JSON/Markdown reports that state integrity, assessability, and missing historical provenance explicitly. The dashboard surfaces integrity warnings and only offers comparison for verified records. Package and Docker version `0.5.3` correspond to product release V5.3.0. See [the V5.3.0 validation record](docs/releases/v5.3.0.md). All experiment values remain synthetic and do not establish real-world demand validity.

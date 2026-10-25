@@ -5,12 +5,15 @@
 | Method and path | Behavior |
 |---|---|
 | `POST /experiments/scenarios` | Validate and run 1–12 synthetic zone estimates, apply deterministic capacity planning, and persist an experiment (201). |
+| `POST /experiments/what-if` | Validate and execute one baseline and 1–5 alternatives over the same 1–12 synthetic zones at one timestamp; save a reproducible comparison (201). |
 | `GET /experiments?limit=50&offset=0` | Return a bounded history page (limit 1–100). |
 | `GET /experiments/{experiment_id}` | Retrieve one saved experiment (404 when absent). |
 | `POST /experiments/compare` | Compare 2–10 records only when time window, dataset identity, and model artifact fingerprints agree (409 otherwise). |
 | `GET /experiments/{experiment_id}/report?format=json` | Export a structured report; `format=markdown` returns a readable report. |
 
 The comparison is relative to the first supplied experiment and reports only shared zone IDs. Its additive `comparison_status`, `scientific_comparability`, `comparability_reasons`, and `interpretation_detail` fields distinguish a technically compatible comparison from one with no shared zones; the latter returns no zone deltas and is marked `not_assessable`. Shared-zone results remain limited synthetic comparisons, not evidence of real-world equivalence. All demand and capacity values are synthetic connection counts, not throughput or real-network advice.
+
+`POST /experiments/what-if` uses the typed contract in OpenAPI: `name`, a common `datetime`, a `baseline`, and one to five `alternatives`. Each scenario declares a unique bounded list of zone IDs, nonnegative assumed connection capacity per zone, and an optional bounded simulated additional-connection budget. The existing predictor runs once per zone, so predicted demand is fixed across scenarios; only capacity/allocation calculations differ. The response is the saved experiment record. Use existing retrieval and report routes. See [scenario workbench formulas and limitations](scenario-workbench.md).
 
 ## Main API (port 8000)
 
