@@ -10,10 +10,12 @@ import pandas as pd
 import plotly.express as px
 import streamlit as st
 
+from wifi_tunja_smart_predictor.analytics.geospatial import analyze_geospatial_demand
 from wifi_tunja_smart_predictor.api_client import (
     ApiClientError,
     assistant_api_request,
     main_api_request,
+    main_api_text_request,
 )
 from wifi_tunja_smart_predictor.assistant.schemas import AssistantContext, ChatRequest
 from wifi_tunja_smart_predictor.config import (
@@ -31,9 +33,9 @@ from wifi_tunja_smart_predictor.config import (
 )
 from wifi_tunja_smart_predictor.data.loader import load_raw_dataset
 from wifi_tunja_smart_predictor.exceptions import DatasetNotFoundError, ModelNotFoundError
-from wifi_tunja_smart_predictor.geospatial.providers import PlotlyOpenStreetMapProvider
 from wifi_tunja_smart_predictor.scenarios.builder import ScenarioRequest
 from wifi_tunja_smart_predictor.scenarios.service import ScenarioPredictionService
+from wifi_tunja_smart_predictor.simulation.metrics import METRIC_REGISTRY
 from wifi_tunja_smart_predictor.visualization.plots import (
     plot_confusion_matrix_plotly,
     plot_demand_by_hour,
@@ -64,34 +66,14 @@ def _load_location_catalog() -> pd.DataFrame:
 
 
 def _geospatial_zone_summary(frame: pd.DataFrame, start_date=None, end_date=None) -> pd.DataFrame:
-    """Aggregate synthetic observation summaries by synthetic zone and date range."""
-    working = frame.copy()
-    working["timestamp"] = pd.to_datetime(working["timestamp"], errors="coerce")
-    if start_date is not None:
-        working = working.loc[working["timestamp"] >= pd.Timestamp(start_date)]
-    if end_date is not None:
-        working = working.loc[working["timestamp"] < pd.Timestamp(end_date) + pd.Timedelta(days=1)]
-    if working.empty:
-        return pd.DataFrame(
-            columns=[
-                "zone_id",
-                "zone_name",
-                "observations",
-                "mean_next_hour_connections",
-                "high_demand_share",
-                "synthetic_access_points",
-            ]
-        )
-    return (
-        working.groupby(["zone_id", "zone_name"], as_index=False)
-        .agg(
-            observations=("connections_next_hour", "count"),
-            mean_next_hour_connections=("connections_next_hour", "mean"),
-            high_demand_share=("demand_level", lambda values: values.eq("HIGH").mean()),
-            synthetic_access_points=("wifi_id", "nunique"),
-        )
-        .sort_values("mean_next_hour_connections", ascending=False)
-    )
+    """Compatibility adapter over reusable historical synthetic analytics."""
+    result = analyze_geospatial_demand(frame, start_date=start_date, end_date=end_date)
+    return result.by_zone.rename(
+        columns={
+            "mean_observed_next_hour_connections": "mean_next_hour_connections",
+            "high_demand_rate": "high_demand_share",
+        }
+    ).sort_values("mean_next_hour_connections", ascending=False)
 
 
 def _json_file(path: Path) -> dict:
@@ -703,58 +685,539 @@ def render_scenario(frame: pd.DataFrame) -> None:
     st.caption(SYNTHETIC_DATA_DISCLAIMER)
 
 
+def _render_what_if_record(record: dict, *, spanish: bool = False) -> None:
+    """Render persisted what-if outputs using the shared metric definitions."""
+    result = record.get("result", {})
+    what_if = result.get("what_if", {}) if isinstance(result, dict) else {}
+    if not isinstance(what_if, dict):
+        st.warning(
+            "El registro no contiene una comparación V6."
+            if spanish
+            else "Saved record does not contain a V6 what-if comparison."
+        )
+        return
+    if what_if.get("assessment_status") != "assessable":
+        st.warning(
+            ("La comparación no es evaluable: " if spanish else "Comparison is not assessable: ")
+            + ", ".join(what_if.get("reason_codes", []))
+        )
+    baseline = what_if.get("baseline", {})
+    baseline_aggregate = baseline.get("aggregate", {})
+    language_key = "label_es" if spanish else "label_en"
+    metric_label = METRIC_REGISTRY["predicted_demand_connections"][language_key]
+    st.subheader(
+        f"Referencia · {baseline.get('name', 'No registrado')}"
+        if spanish
+        else f"Baseline · {baseline.get('name', 'Not recorded')}"
+    )
+    first, second, third = st.columns(3)
+    first.metric(metric_label, f"{baseline_aggregate.get('predicted_demand_connections', 0):.1f}")
+    second.metric(
+        METRIC_REGISTRY["effective_capacity_connections"][language_key],
+        f"{baseline_aggregate.get('effective_capacity_connections', 0):.1f}",
+    )
+    third.metric(
+        METRIC_REGISTRY["unallocated_budget_connections"][language_key],
+        f"{baseline_aggregate.get('unallocated_budget_connections', 0):.1f}",
+    )
+    comparisons = what_if.get("comparisons", [])
+    rows = []
+    for comparison in comparisons:
+        aggregate = comparison.get("aggregate_differences", {})
+        rows.append(
+            {
+                ("Alternativa" if spanish else "Alternative"): comparison.get("alternative_name"),
+                ("Evaluación" if spanish else "Assessment"): comparison.get("assessment_status"),
+                ("Zonas afectadas" if spanish else "Affected zones"): comparison.get(
+                    "affected_zone_count"
+                ),
+                (
+                    "Cambio demanda (conexiones)" if spanish else "Demand Δ (connections)"
+                ): aggregate.get("predicted_demand_difference_connections"),
+                (
+                    "Cambio capacidad (conexiones)" if spanish else "Capacity Δ (connections)"
+                ): aggregate.get("effective_capacity_difference_connections"),
+                (
+                    "Cambio déficit (conexiones)" if spanish else "Deficit Δ (connections)"
+                ): aggregate.get("overload_difference_connections"),
+                (
+                    "Cambio utilización (puntos porcentuales)"
+                    if spanish
+                    else "Utilization Δ (percentage points)"
+                ): aggregate.get("utilization_proxy_difference_pct_points"),
+            }
+        )
+    st.subheader("Escenarios alternativos" if spanish else "Alternative scenarios")
+    st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+    st.caption(
+        (
+            "La demanda predicha permanece fija; solo cambian los supuestos de capacidad y presupuesto. "
+            "La utilización es conexiones predichas sobre capacidad simulada efectiva, no una medición de red."
+            if spanish
+            else "Predicted demand is held constant across alternatives; only capacity and budget assumptions vary. "
+            "Utilization is predicted connections divided by effective simulated capacity, not measured network use."
+        )
+    )
+    for comparison in comparisons:
+        with st.expander(
+            f"{comparison.get('alternative_name')} · detalle por zona"
+            if spanish
+            else f"{comparison.get('alternative_name')} · zone details"
+        ):
+            st.dataframe(
+                pd.DataFrame(comparison.get("zones", [])), hide_index=True, width="stretch"
+            )
+            st.json(comparison.get("alternative", {}).get("aggregate", {}))
+    if record.get("id"):
+        experiment_id = record["id"]
+        try:
+            json_report = main_api_request(f"/experiments/{experiment_id}/report?format=json")
+            markdown_report = main_api_text_request(
+                f"/experiments/{experiment_id}/report?format=markdown"
+            )
+        except ApiClientError as exc:
+            st.error(str(exc))
+        else:
+            st.download_button(
+                "Descargar informe JSON" if spanish else "Download JSON report",
+                json.dumps(json_report, indent=2, ensure_ascii=False),
+                file_name=f"what-if-{experiment_id}.json",
+                mime="application/json",
+                key="what_if_json_download",
+            )
+            st.download_button(
+                "Descargar informe Markdown" if spanish else "Download Markdown report",
+                markdown_report,
+                file_name=f"what-if-{experiment_id}.md",
+                mime="text/markdown",
+                key="what_if_markdown_download",
+            )
+
+
+def render_scenario_workbench(frame: pd.DataFrame) -> None:
+    """Collect explicit capacity assumptions, execute, persist, compare, and export."""
+    language = st.radio(
+        "Language / Idioma", ["English", "Español"], horizontal=True, key="what_if_language"
+    )
+    es = language == "Español"
+    _section_header(
+        "Banco de escenarios" if es else "Scenario Workbench",
+        (
+            "Compara predicciones fijas del modelo con supuestos sintéticos de capacidad y presupuesto."
+            if es
+            else "Compare fixed model predictions under alternative synthetic capacity and budget assumptions."
+        ),
+    )
+    st.caption(SYNTHETIC_DATA_DISCLAIMER)
+    all_zones = sorted(frame["zone_id"].dropna().astype(str).unique().tolist())
+    if not all_zones:
+        st.info(
+            "No hay zonas sintéticas disponibles."
+            if es
+            else "No synthetic zones are available for planning."
+        )
+        return
+    selected_zones = st.multiselect(
+        "Zonas sintéticas (1–12)" if es else "Synthetic zones (1–12)",
+        all_zones,
+        default=all_zones[: min(2, len(all_zones))],
+        max_selections=12,
+        key="what_if_zones",
+    )
+    alternative_count = st.selectbox(
+        "Escenarios alternativos" if es else "Alternative scenarios",
+        [1, 2, 3, 4, 5],
+        index=0,
+        key="what_if_alternative_count",
+    )
+    dates = pd.to_datetime(frame["timestamp"], errors="coerce").dropna()
+    if dates.empty:
+        st.info(
+            "No hay observaciones históricas con fecha."
+            if es
+            else "No timestamped historical observations are available."
+        )
+        return
+    start, end = dates.min().date(), dates.max().date()
+    zone_capacity = (
+        frame.groupby("zone_id")["access_point_capacity"].median().to_dict()
+        if "access_point_capacity" in frame
+        else {}
+    )
+    with st.form("what_if_simulation_form"):
+        name = st.text_input(
+            "Nombre del experimento" if es else "Experiment name",
+            value="Comparación hipotética de capacidad" if es else "Capacity what-if comparison",
+            max_chars=120,
+        )
+        description = st.text_input("Descripción" if es else "Description", max_chars=500)
+        when_date = st.date_input(
+            "Fecha del escenario" if es else "Scenario date",
+            value=end,
+            min_value=start,
+            max_value=end,
+        )
+        when_time = st.time_input(
+            "Hora del escenario" if es else "Scenario hour",
+            value=pd.Timestamp("2025-01-01 12:00").time(),
+        )
+        st.markdown("#### Supuestos de referencia" if es else "#### Baseline assumptions")
+        baseline_name = st.text_input(
+            "Etiqueta de referencia" if es else "Baseline label",
+            value="Referencia" if es else "Baseline",
+            max_chars=80,
+        )
+        baseline_budget = st.number_input(
+            (
+                "Presupuesto adicional de referencia (conexiones)"
+                if es
+                else "Baseline additional budget (connections)"
+            ),
+            min_value=0.0,
+            max_value=100_000.0,
+            value=0.0,
+        )
+        baseline_capacities = {}
+        if selected_zones:
+            columns = st.columns(2)
+            for index, zone_id in enumerate(selected_zones):
+                baseline_capacities[zone_id] = columns[index % 2].number_input(
+                    (
+                        f"Capacidad de referencia · {zone_id}"
+                        if es
+                        else f"Baseline capacity · {zone_id}"
+                    ),
+                    min_value=0.0,
+                    max_value=100_000.0,
+                    value=min(100_000.0, max(0.0, float(zone_capacity.get(zone_id, 100.0)))),
+                    key=f"what_if_baseline_capacity_{zone_id}",
+                )
+        alternatives = []
+        for alt_index in range(alternative_count):
+            with st.expander(
+                f"Alternativa {alt_index + 1}" if es else f"Alternative {alt_index + 1}",
+                expanded=alt_index == 0,
+            ):
+                alt_name = st.text_input(
+                    (
+                        f"Etiqueta de alternativa {alt_index + 1}"
+                        if es
+                        else f"Alternative {alt_index + 1} label"
+                    ),
+                    value=f"Alternativa {alt_index + 1}" if es else f"Alternative {alt_index + 1}",
+                    max_chars=80,
+                    key=f"what_if_alt_name_{alt_index}",
+                )
+                alt_description = st.text_input(
+                    (
+                        f"Descripción de alternativa {alt_index + 1}"
+                        if es
+                        else f"Alternative {alt_index + 1} description"
+                    ),
+                    max_chars=500,
+                    key=f"what_if_alt_description_{alt_index}",
+                )
+                alt_budget = st.number_input(
+                    (
+                        f"Presupuesto adicional alternativa {alt_index + 1} (conexiones)"
+                        if es
+                        else f"Alternative {alt_index + 1} additional budget (connections)"
+                    ),
+                    min_value=0.0,
+                    max_value=100_000.0,
+                    value=0.0,
+                    key=f"what_if_alt_budget_{alt_index}",
+                )
+                capacities = {}
+                if selected_zones:
+                    columns = st.columns(2)
+                    for zone_index, zone_id in enumerate(selected_zones):
+                        capacities[zone_id] = columns[zone_index % 2].number_input(
+                            (
+                                f"Capacidad alternativa {alt_index + 1} · {zone_id}"
+                                if es
+                                else f"Alternative {alt_index + 1} capacity · {zone_id}"
+                            ),
+                            min_value=0.0,
+                            max_value=100_000.0,
+                            value=min(
+                                100_000.0, max(0.0, float(zone_capacity.get(zone_id, 100.0)))
+                            ),
+                            key=f"what_if_alt_capacity_{alt_index}_{zone_id}",
+                        )
+                alternatives.append((alt_name, alt_description, alt_budget, capacities))
+        submitted = st.form_submit_button(
+            "Ejecutar y guardar comparación" if es else "Run and save comparison",
+            type="primary",
+            disabled=not selected_zones,
+        )
+    if submitted:
+        payload = {
+            "name": name,
+            "description": description,
+            "datetime": pd.Timestamp.combine(when_date, when_time).isoformat(),
+            "baseline": {
+                "name": baseline_name,
+                "description": "User-defined baseline assumptions.",
+                "zones": [
+                    {"zone_id": zone_id, "capacity_connections": capacity}
+                    for zone_id, capacity in baseline_capacities.items()
+                ],
+                "resource_budget_connections": baseline_budget,
+            },
+            "alternatives": [
+                {
+                    "name": alt_name,
+                    "description": alt_description,
+                    "zones": [
+                        {"zone_id": zone_id, "capacity_connections": capacity}
+                        for zone_id, capacity in capacities.items()
+                    ],
+                    "resource_budget_connections": budget,
+                }
+                for alt_name, alt_description, budget, capacities in alternatives
+            ],
+        }
+        try:
+            saved = main_api_request("/experiments/what-if", payload)
+            st.session_state["what_if_experiment_id"] = saved["id"]
+            st.session_state["what_if_experiment_record"] = saved
+            st.success(
+                f"Experimento reproducible guardado: {saved['id']}."
+                if es
+                else f"Saved reproducible experiment {saved['id']}."
+            )
+        except ApiClientError as exc:
+            st.error(str(exc))
+    saved_record = st.session_state.get("what_if_experiment_record")
+    experiment_id = st.session_state.get("what_if_experiment_id")
+    if experiment_id:
+        try:
+            saved_record = main_api_request(f"/experiments/{experiment_id}")
+            st.session_state["what_if_experiment_record"] = saved_record
+        except ApiClientError as exc:
+            st.error(str(exc))
+    if saved_record:
+        _render_what_if_record(saved_record, spanish=es)
+
+
 def render_geography(frame: pd.DataFrame) -> None:
     _section_header(
-        "Geographic analysis", "Select a simulated access point marker for the scenario builder."
+        "Geospatial intelligence",
+        "Historical synthetic observations by place and time; these are not model predictions.",
+    )
+    language = st.radio(
+        "Language / Idioma", ["English", "Español"], horizontal=True, key="geo_language"
+    )
+    spanish = language == "Español"
+    dates = pd.to_datetime(frame["timestamp"], errors="coerce").dropna()
+    if dates.empty:
+        st.info(
+            "No timestamped synthetic observations are available."
+            if not spanish
+            else "No hay observaciones sintéticas con fecha."
+        )
+        return
+    start_default, end_default = dates.min().date(), dates.max().date()
+    first, second = st.columns(2)
+    date_range = first.date_input(
+        "Observation dates" if not spanish else "Fechas de observación",
+        value=(start_default, end_default),
+        min_value=start_default,
+        max_value=end_default,
+        key="geo_date_range",
+    )
+    zone_ids = ["All", *sorted(frame["zone_id"].dropna().astype(str).unique())]
+    zone_choice = second.selectbox(
+        "Synthetic zone" if not spanish else "Zona sintética",
+        zone_ids,
+        format_func=lambda value: (
+            ("All zones" if not spanish else "Todas las zonas") if value == "All" else value
+        ),
+        key="geo_zone_filter",
+    )
+    c1, c2, c3 = st.columns(3)
+    hour_choice = c1.selectbox(
+        "Hour" if not spanish else "Hora", ["All", *range(24)], key="geo_hour_filter"
+    )
+    weekdays_en = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
+    weekdays_es = ["Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo"]
+    weekday_labels = weekdays_es if spanish else weekdays_en
+    weekday_choice = c2.selectbox(
+        "Weekday" if not spanish else "Día de la semana",
+        ["All", *weekday_labels],
+        key="geo_weekday_filter",
+    )
+    demand_choice = c3.selectbox(
+        "Demand category" if not spanish else "Categoría de demanda",
+        ["All", "LOW", "HIGH"],
+        key="geo_demand_filter",
+    )
+    selected_dates = (
+        date_range
+        if isinstance(date_range, (tuple, list)) and len(date_range) == 2
+        else (start_default, end_default)
     )
     try:
-        catalog = _load_location_catalog()
-    except ApiClientError as exc:
+        analysis = analyze_geospatial_demand(
+            frame,
+            start_date=selected_dates[0],
+            end_date=selected_dates[1],
+            zone_ids=None if zone_choice == "All" else [zone_choice],
+            hour=None if hour_choice == "All" else int(hour_choice),
+            weekday=None if weekday_choice == "All" else weekday_labels.index(weekday_choice),
+            demand_level=None if demand_choice == "All" else demand_choice,
+        )
+    except ValueError as exc:
         st.error(str(exc))
         return
-    fig = PlotlyOpenStreetMapProvider().build_map(catalog)
-    timestamps = pd.to_datetime(frame["timestamp"], errors="coerce").dropna()
-    if not timestamps.empty:
-        first_date, last_date = timestamps.min().date(), timestamps.max().date()
-        left, right = st.columns(2)
-        start_date = left.date_input(
-            "Synthetic observation start",
-            value=first_date,
-            min_value=first_date,
-            max_value=last_date,
-        )
-        end_date = right.date_input(
-            "Synthetic observation end", value=last_date, min_value=first_date, max_value=last_date
-        )
-        if start_date <= end_date:
-            summary = _geospatial_zone_summary(frame, start_date, end_date)
-            st.subheader("Historical synthetic demand by zone")
-            st.caption(
-                "Observed synthetic records in the selected date window; descriptive, not a forecast."
-            )
-            if summary.empty:
-                st.info("No synthetic observations in this date range.")
-            else:
-                st.dataframe(summary, hide_index=True, width="stretch")
-                st.bar_chart(summary.set_index("zone_name")["mean_next_hour_connections"])
-        else:
-            st.warning("Start date must be on or before end date.")
-    selection = st.plotly_chart(
-        fig, width="stretch", on_select="rerun", selection_mode="points", key="geography_map"
-    )
-    points = selection.get("selection", {}).get("points", []) if selection else []
-    if points:
-        custom_data = points[0].get("customdata") or []
-        ap_id = custom_data[0] if custom_data else None
-        if ap_id in set(catalog["wifi_id"]):
-            st.session_state["scenario_selected_ap_id"] = str(ap_id)
-    ap_id = st.session_state.get("scenario_selected_ap_id")
-    if ap_id:
-        st.write(catalog.loc[catalog["wifi_id"] == ap_id])
-        st.info(f"Selected {ap_id}. Use it in Scenario Prediction.")
     st.caption(
-        "All coordinates are simulated. The map uses OpenStreetMap tiles without a paid key."
+        f"{len(analysis.observations):,} {('historical synthetic observations' if not spanish else 'observaciones históricas sintéticas')} · "
+        f"{selected_dates[0]}–{selected_dates[1]} · "
+        f"{('all hours' if hour_choice == 'All' else f'hour {hour_choice}')} · "
+        f"{('all weekdays' if weekday_choice == 'All' else weekday_choice)}"
     )
+    if analysis.observations.empty:
+        st.info(
+            "No observations match these filters. Adjust the selections."
+            if not spanish
+            else "Ninguna observación coincide con los filtros. Cambia las selecciones."
+        )
+        return
+    mean_connections = analysis.observations["connections_next_hour"].mean()
+    high_rate = analysis.observations["demand_level"].dropna().eq("HIGH").mean()
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Observations" if not spanish else "Observaciones", f"{len(analysis.observations):,}")
+    m2.metric(
+        (
+            "Mean observed next-hour connections"
+            if not spanish
+            else "Media observada de conexiones próxima hora"
+        ),
+        f"{mean_connections:.1f}",
+    )
+    m3.metric(
+        "HIGH observation rate" if not spanish else "Proporción de observaciones HIGH",
+        f"{high_rate:.1%}",
+    )
+    st.caption(
+        "The connection value is an observed synthetic target, not a prediction."
+        if not spanish
+        else "Las conexiones son un objetivo sintético observado, no una predicción."
+    )
+
+    if analysis.access_points.empty:
+        st.warning(
+            "No valid synthetic coordinates remain after filtering."
+            if not spanish
+            else "No quedan coordenadas sintéticas válidas tras filtrar."
+        )
+    else:
+        points = analysis.access_points
+        global_max = pd.to_numeric(frame["connections_next_hour"], errors="coerce").max()
+        fig = px.scatter_geo(
+            points,
+            lat="latitude",
+            lon="longitude",
+            color="mean_observed_next_hour_connections",
+            size="observations",
+            hover_name="wifi_id",
+            hover_data={
+                "zone_id": True,
+                "observations": True,
+                "mean_observed_next_hour_connections": ":.1f",
+                "high_demand_rate": ":.1%",
+                "latitude": False,
+                "longitude": False,
+            },
+            color_continuous_scale="Viridis",
+            range_color=(0, max(1.0, float(global_max) if pd.notna(global_max) else 1.0)),
+            labels={
+                "mean_observed_next_hour_connections": "Mean observed connections",
+                "observations": "Observation count",
+                "high_demand_rate": "HIGH observation rate",
+                "wifi_id": "Synthetic AP",
+            },
+            title=(
+                "Synthetic access-point observed demand"
+                if not spanish
+                else "Demanda observada en puntos sintéticos"
+            ),
+        )
+        fig.update_geos(scope="south america", fitbounds="locations", showcountries=True)
+        fig.update_layout(
+            margin={"l": 0, "r": 0, "t": 45, "b": 0}, coloraxis_colorbar_title="Avg connections"
+        )
+        st.plotly_chart(fig, width="stretch", key="geospatial_demand_map")
+        selected_ap = st.selectbox(
+            "Access-point detail" if not spanish else "Detalle del punto de acceso",
+            points["wifi_id"].tolist(),
+            key="geo_selected_ap",
+        )
+        detail = points.loc[points["wifi_id"] == selected_ap].iloc[0]
+        st.write(
+            f"**{selected_ap} · {detail.get('zone_id', 'unknown')}** — "
+            f"{detail['mean_observed_next_hour_connections']:.1f} mean observed connections, "
+            f"{int(detail['observations'])} observations, "
+            f"{detail['high_demand_rate']:.1%} HIGH rate."
+        )
+
+    left, right = st.columns(2)
+    hourly = px.line(
+        analysis.by_hour,
+        x="hour",
+        y="mean_observed_next_hour_connections",
+        markers=True,
+        title="Mean observed connections by hour" if not spanish else "Media observada por hora",
+        labels={"hour": "Hour of day", "mean_observed_next_hour_connections": "Mean connections"},
+    )
+    hourly.update_layout(xaxis={"dtick": 1}, yaxis_title="Connections / hour")
+    left.plotly_chart(hourly, width="stretch")
+    weekdays = analysis.by_weekday.copy()
+    weekdays["weekday_name"] = weekdays["weekday"].map(dict(enumerate(weekday_labels)))
+    weekday_fig = px.bar(
+        weekdays,
+        x="weekday_name",
+        y="mean_observed_next_hour_connections",
+        title=(
+            "Mean observed connections by weekday"
+            if not spanish
+            else "Media observada por día de semana"
+        ),
+        labels={
+            "weekday_name": "Weekday" if not spanish else "Día",
+            "mean_observed_next_hour_connections": "Mean connections",
+        },
+    )
+    right.plotly_chart(weekday_fig, width="stretch")
+    if not analysis.zone_by_hour.empty:
+        heatmap_rows = analysis.zone_by_hour.reset_index()
+        zone_display = "zone_name" if "zone_name" in heatmap_rows.columns else "zone_id"
+        hours = sorted(column for column in heatmap_rows.columns if isinstance(column, int))
+        heatmap = px.imshow(
+            heatmap_rows.set_index(zone_display)[hours],
+            aspect="auto",
+            color_continuous_scale="Blues",
+            title=(
+                "Mean observed connections by zone and hour"
+                if not spanish
+                else "Media observada por zona y hora"
+            ),
+            labels={"x": "Hour of day", "y": "Synthetic zone", "color": "Connections"},
+        )
+        st.plotly_chart(heatmap, width="stretch")
+    st.subheader("Zone demand and HIGH rates" if not spanish else "Demanda y tasas HIGH por zona")
+    st.dataframe(analysis.by_zone, hide_index=True, width="stretch")
+    if analysis.peak_hour is not None:
+        peak_day = (
+            weekday_labels[analysis.peak_weekday] if analysis.peak_weekday is not None else "—"
+        )
+        st.info(
+            f"Peak mean observed hour: {analysis.peak_hour}:00 · peak weekday: {peak_day}."
+            if not spanish
+            else f"Hora pico de media observada: {analysis.peak_hour}:00 · día pico: {peak_day}."
+        )
+    st.caption(SYNTHETIC_DATA_DISCLAIMER)
 
 
 def render_assistant() -> None:
@@ -921,6 +1384,7 @@ def _render_page(title: str, kind: str) -> None:
     section_names = {
         "Overview": "Overview",
         "Scenario": "Live Scenario",
+        "WhatIf": "Scenario Workbench",
         "Demand": "Demand Explorer",
         "Geography": "Geographic Analysis",
         "Network": "Network Analysis",
@@ -973,6 +1437,8 @@ def _render_page(title: str, kind: str) -> None:
         )
     elif kind == "Scenario":
         render_scenario(_load_frame())
+    elif kind == "WhatIf":
+        render_scenario_workbench(_load_frame())
     elif kind == "Demand":
         render_demand(_load_frame())
     elif kind == "Geography":
@@ -1114,10 +1580,16 @@ def main() -> None:
             url_path="demand",
         ),
         st.Page(
-            lambda: _render_page("Geographic Analysis", "Geography"),
-            title="Geographic Analysis",
+            lambda: _render_page("Geospatial Intelligence", "Geography"),
+            title="Geospatial Intelligence",
             icon="🗺️",
             url_path="geography",
+        ),
+        st.Page(
+            lambda: _render_page("Scenario Workbench", "WhatIf"),
+            title="Scenario Workbench",
+            icon="🧪",
+            url_path="workbench",
         ),
         st.Page(
             lambda: _render_page("Network Analysis", "Network"),

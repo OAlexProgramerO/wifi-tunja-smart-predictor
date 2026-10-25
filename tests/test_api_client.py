@@ -69,3 +69,33 @@ def test_api_request_sanitizes_http_and_connection_failures(monkeypatch):
     with pytest.raises(api_client.ApiClientError, match="HTTP 503") as error:
         api_client.main_api_request("/ready")
     assert "private-host" not in str(error.value)
+
+
+def test_main_api_text_request_reads_markdown_and_enforces_response_limit(monkeypatch):
+    received = {}
+
+    class FakeResponse(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            self.close()
+
+    def fake_urlopen(request, timeout):
+        received["request"] = request
+        return FakeResponse(b"# Report\n")
+
+    monkeypatch.setattr(api_client, "urlopen", fake_urlopen)
+    monkeypatch.setenv("MAIN_API_URL", "http://main-api:8000")
+    assert (
+        api_client.main_api_text_request("/experiments/id/report?format=markdown") == "# Report\n"
+    )
+    assert received["request"].get_header("Accept") == "text/markdown"
+
+    monkeypatch.setattr(
+        api_client,
+        "urlopen",
+        lambda *_args, **_kwargs: FakeResponse(b"x" * (api_client.MAX_TEXT_REPORT_BYTES + 1)),
+    )
+    with pytest.raises(api_client.ApiClientError, match="exceeds the configured size limit"):
+        api_client.main_api_text_request("/report")

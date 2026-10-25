@@ -32,6 +32,8 @@ from wifi_tunja_smart_predictor.reporting.service import (
     render_experiment_markdown,
     serialize_experiment_json,
 )
+from wifi_tunja_smart_predictor.simulation.schemas import WhatIfSimulationRequest
+from wifi_tunja_smart_predictor.simulation.service import WhatIfSimulationService
 
 router = APIRouter(prefix="/experiments", tags=["experiments"])
 
@@ -109,6 +111,80 @@ def create_scenario(payload: PlanningScenarioRequest) -> dict:
                 resource_budget_connections=payload.resource_budget_connections,
             )
         )
+    except LocationResolutionError as exc:
+        raise HTTPException(status_code=422, detail="Unknown synthetic zone_id.") from exc
+    except ScenarioBuildError as exc:
+        raise HTTPException(
+            status_code=422, detail="Scenario could not be built from synthetic data."
+        ) from exc
+    except ModelNotFoundError as exc:
+        raise HTTPException(
+            status_code=503, detail="Required model artifacts are unavailable."
+        ) from exc
+    except (ModelArtifactError, ModelMetadataError, PredictionError) as exc:
+        raise HTTPException(
+            status_code=503, detail="Scenario model inference is unavailable."
+        ) from exc
+
+
+@router.post("/what-if", status_code=201, response_model=ExperimentRecord)
+def create_what_if_comparison(payload: WhatIfSimulationRequest) -> dict:
+    """Execute and persist a baseline plus alternative synthetic scenarios."""
+    try:
+        execution = WhatIfSimulationService(_scenario_service()).run(payload)
+        what_if_result = execution.model_dump(mode="json")
+        provenance = what_if_result.pop("provenance")
+        baseline = execution.baseline
+        baseline_zones = [
+            {
+                "zone_id": zone.zone_id,
+                "demand": zone.predicted_demand_connections,
+                "effective_capacity": zone.effective_capacity_connections,
+                "overload_connections": zone.capacity_deficit_connections,
+                "utilization_pct": zone.utilization_proxy_pct,
+                "status": (
+                    "SIMULATED_OVER_CAPACITY"
+                    if zone.constraint_violation
+                    else "WITHIN_SIMULATED_CAPACITY"
+                ),
+            }
+            for zone in baseline.zones
+        ]
+        baseline_capacity_plan = {
+            "schema_version": "1.0",
+            "units": "estimated connections",
+            "allocation_method": "greedy_descending_demand_then_zone_id",
+            "resource_budget_connections": payload.baseline.resource_budget_connections,
+            "allocated_connections": baseline.aggregate.allocated_budget_connections,
+            "remaining_budget_connections": baseline.aggregate.unallocated_budget_connections,
+            "aggregate": {
+                "estimated_demand_connections": baseline.aggregate.predicted_demand_connections,
+                "effective_capacity_connections": baseline.aggregate.effective_capacity_connections,
+                "utilization_pct": baseline.aggregate.utilization_proxy_pct,
+                "overload_connections": baseline.aggregate.overload_connections,
+            },
+            "zones": baseline_zones,
+            "assumptions": execution.limitations,
+        }
+        configuration = {
+            "datetime": payload.datetime.isoformat(),
+            "zones": [zone.model_dump(mode="json") for zone in payload.baseline.zones],
+            "resource_budget_connections": payload.baseline.resource_budget_connections,
+            "configuration_version": "2.0",
+            "scenario_kind": "what_if_comparison",
+            "description": payload.description,
+            "baseline": payload.baseline.model_dump(mode="json"),
+            "alternatives": [scenario.model_dump(mode="json") for scenario in payload.alternatives],
+        }
+        result = {
+            "time_window": payload.datetime.isoformat(),
+            "zones": baseline_zones,
+            "capacity_plan": baseline_capacity_plan,
+            "what_if": what_if_result,
+            "provenance": provenance,
+            "limitations": execution.limitations,
+        }
+        return _read_store(lambda: _store().save(payload.name, configuration, result))
     except LocationResolutionError as exc:
         raise HTTPException(status_code=422, detail="Unknown synthetic zone_id.") from exc
     except ScenarioBuildError as exc:

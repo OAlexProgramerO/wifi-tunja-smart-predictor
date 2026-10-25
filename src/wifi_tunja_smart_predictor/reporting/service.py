@@ -8,6 +8,7 @@ from html import escape
 from typing import Any
 
 from wifi_tunja_smart_predictor.experiments.integrity import inspect_experiment_integrity
+from wifi_tunja_smart_predictor.simulation.metrics import metric_definitions
 
 SYNTHETIC_DISCLAIMER = (
     "All observations, locations, predictions, and capacity values are synthetic. "
@@ -36,8 +37,11 @@ def build_experiment_report(
     models = provenance.get("models", [])
     if not isinstance(models, list) or any(not isinstance(item, dict) for item in models):
         raise ValueError("Experiment model provenance is malformed.")
+    what_if = result.get("what_if")
+    if what_if is not None and not isinstance(what_if, dict):
+        raise ValueError("Experiment what-if results are malformed.")
     return {
-        "report_schema_version": "1.1",
+        "report_schema_version": "1.2",
         "generated_at_utc": generated.astimezone(UTC).isoformat(),
         "experiment": record,
         "integrity": integrity,
@@ -45,6 +49,10 @@ def build_experiment_report(
         "dataset_fingerprint_algorithm": provenance.get("dataset_fingerprint_algorithm")
         or "Not recorded",
         "model_provenance": models,
+        "scenario_analysis": what_if,
+        "scenario_metric_registry": (
+            what_if.get("metric_definitions", metric_definitions()) if what_if else None
+        ),
         "application_version": (models[0].get("application_version") if models else None)
         or "Not recorded",
         "metric_definitions": {
@@ -124,6 +132,48 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
                 f"{safe_text(artifact.get('model_version') or 'Not recorded')}; "
                 f"SHA-256 {safe_text(artifact.get('artifact_sha256') or 'Not recorded')}."
             )
+    scenario_analysis = report.get("scenario_analysis")
+    if isinstance(scenario_analysis, dict):
+        baseline = scenario_analysis.get("baseline", {})
+        comparisons = scenario_analysis.get("comparisons", [])
+        if not isinstance(baseline, dict) or not isinstance(comparisons, list):
+            raise ValueError("Experiment what-if report has invalid comparison data.")
+        lines.extend(
+            [
+                "",
+                "## What-if scenario comparison",
+                "",
+                f"Assessment: {safe_text(scenario_analysis.get('assessment_status', 'unavailable'))}",
+                f"Baseline: {safe_text(baseline.get('name', 'Not recorded'))}",
+                "",
+                "| Alternative | Status | Affected zones | Demand delta (connections) | Overload delta (connections) |",
+                "|---|---|---:|---:|---:|",
+            ]
+        )
+        for comparison in comparisons:
+            if not isinstance(comparison, dict):
+                raise ValueError("Experiment what-if report contains an invalid comparison.")
+            deltas = comparison.get("aggregate_differences", {})
+            if not isinstance(deltas, dict):
+                raise ValueError(
+                    "Experiment what-if report contains invalid aggregate differences."
+                )
+            demand_delta = deltas.get("predicted_demand_difference_connections")
+            overload_delta = deltas.get("overload_difference_connections")
+            demand_text = "Not assessable" if demand_delta is None else f"{demand_delta:.1f}"
+            overload_text = "Not assessable" if overload_delta is None else f"{overload_delta:.1f}"
+            lines.append(
+                f"| {safe_text(comparison.get('alternative_name', 'Not recorded'))} | "
+                f"{safe_text(comparison.get('assessment_status', 'unavailable'))} | "
+                f"{comparison.get('affected_zone_count', 0)} | {demand_text} | {overload_text} |"
+            )
+        lines.extend(
+            [
+                "",
+                "Capacity allocation and overload are deterministic scenario calculations. "
+                "Changing capacity assumptions does not change predicted demand.",
+            ]
+        )
     lines.extend(["", "## Scenario configuration", "", "```json"])
     config_json = json.dumps(experiment.get("configuration", {}), indent=2, sort_keys=True)
     lines.append(config_json.replace("```", r"\u0060\u0060\u0060"))

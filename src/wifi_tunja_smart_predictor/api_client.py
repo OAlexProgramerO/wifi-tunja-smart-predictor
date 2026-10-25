@@ -14,6 +14,7 @@ DEFAULT_API_URLS = {
     "assistant": ("ASSISTANT_API_URL", "http://127.0.0.1:8001"),
 }
 REQUEST_TIMEOUT_SECONDS = 5
+MAX_TEXT_REPORT_BYTES = 1_000_000
 
 
 class ApiClientError(RuntimeError):
@@ -92,6 +93,31 @@ def request_json(
 def main_api_request(path: str, payload: dict | None = None) -> dict:
     """Call the main prediction API."""
     return request_json("main", path, payload)
+
+
+def main_api_text_request(path: str, *, timeout: float = REQUEST_TIMEOUT_SECONDS) -> str:
+    """Fetch a bounded plain-text report without attempting JSON decoding."""
+    if not path.startswith("/") or path.startswith("//") or ".." in path.split("/"):
+        raise ValueError("path must be an application route beginning with one slash")
+    try:
+        url = api_base_url("main") + path
+    except ValueError as exc:
+        raise ApiClientError(str(exc)) from None
+    request = Request(url, headers={"Accept": "text/markdown"}, method="GET")
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            body = response.read(MAX_TEXT_REPORT_BYTES + 1)
+            if len(body) > MAX_TEXT_REPORT_BYTES:
+                raise ApiClientError("Main API text report exceeds the configured size limit.")
+            return body.decode("utf-8")
+    except HTTPError as exc:
+        raise ApiClientError(f"Main API returned HTTP {exc.code}.") from None
+    except (URLError, TimeoutError, OSError):
+        raise ApiClientError(
+            "Main API is unavailable at the configured MAIN_API_URL endpoint."
+        ) from None
+    except UnicodeDecodeError:
+        raise ApiClientError("Main API returned an invalid text response.") from None
 
 
 def assistant_api_request(path: str, payload: dict | None = None) -> dict:
