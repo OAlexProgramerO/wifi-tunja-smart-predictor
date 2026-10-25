@@ -1,8 +1,8 @@
 # Release history and V4.0 readiness
 
-# V6.0.0 — Geospatial intelligence and what-if simulation — candidate, not released
+# V6.0.0 — Geospatial intelligence and what-if simulation — released 2026-10-25
 
-The working candidate adds historical synthetic geospatial analysis, a deterministic multi-zone what-if workflow, persisted comparison records, and scenario-aware reports. Product version `6.0.0` maps to Python package and Docker image `0.6.0`. No V6.0.0 tag or GitHub Release is asserted; release gates and evidence are tracked in [the V6.0.0 validation record](releases/v6.0.0.md). Synthetic observations and outputs do not validate real public WiFi demand or service in Tunja.
+Adds historical synthetic geospatial analysis, a deterministic multi-zone what-if workflow, persisted comparison records, and scenario-aware reports. Product version `6.0.0` maps to Python package and Docker image `0.6.0`. Annotated tag [`v6.0.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.0.0) points to release commit `39c10c450d205a3cd9b70f9119d99db291c51cd1`; the [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.0.0) is published. Local tests and quality checks passed, and both jobs passed in [workflow 40240295823](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40240295823). The Docker daemon was unavailable locally; remote CI performed container validation. Synthetic observations and outputs do not validate real public WiFi demand or service in Tunja. See [the V6.0.0 validation record](releases/v6.0.0.md).
 
 ## V5.3.0 — Experiment observability and auditability — released 2026-10-24
 

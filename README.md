@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V6.0.0 (in progress)
+# WiFi Tunja Smart Predictor — V6.0.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,9 +9,9 @@
 
 Read this in [Español](README.es.md)
 
-WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. The V6.0.0 working version adds geospatial synthetic-demand exploration and a reproducible what-if workbench built on the existing predictor, capacity planner, and experiment store.
+WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.0.0 adds geospatial synthetic-demand exploration and a reproducible what-if workbench built on the existing predictor, capacity planner, and experiment store.
 
-**Release status:** V6.0.0 is under development and has not been published. The currently published product release is V5.3.0 (tag [`v5.3.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v5.3.0), [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v5.3.0)). V6.0.0 uses Python package and Docker image version `0.6.0` in this candidate tree; no V6 tag or GitHub Release is claimed. See the [V6.0.0 validation record](docs/releases/v6.0.0.md), [V5.3.0 validation record](docs/releases/v5.3.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
+**Release status:** V6.0.0 is published as annotated Git tag [`v6.0.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.0.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.0.0). The Python package and Docker image use version `0.6.0`. See the [V6.0.0 validation record](docs/releases/v6.0.0.md), [V5.3.0 validation record](docs/releases/v5.3.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 

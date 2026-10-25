@@ -1,8 +1,8 @@
 # Changelog
 
-## V6.0.0 — Geospatial intelligence and what-if simulation (in progress)
+## V6.0.0 — Geospatial intelligence and what-if simulation — 2026-10-25
 
-Planned release scope implemented in the current working tree: reusable filtered analytics of historical synthetic observations; an offline Plotly geospatial view; and a typed deterministic what-if comparison service integrated with the existing scenario predictor, capacity planner, experiment store, API, and JSON/Markdown report schema 1.2. A dashboard workbench lets users save baseline and alternative assumptions. Predicted demand is held constant as capacity assumptions vary. New validation evidence and any remaining release limitations will be recorded in `docs/releases/v6.0.0.md`; V6.0.0 is not released until its gates are verified. All data and model results remain synthetic and do not validate real public WiFi demand or infrastructure in Tunja.
+Adds reusable filtered analytics of historical synthetic observations, an offline Plotly geospatial view, and a typed deterministic what-if comparison service integrated with the existing scenario predictor, capacity planner, experiment store, API, and JSON/Markdown report schema 1.2. A bilingual dashboard workbench saves baseline and alternative assumptions. Predicted demand remains fixed while capacity assumptions vary. Product release V6.0.0 uses package and Docker image `0.6.0`. The release candidate passed 265 local tests, Ruff, Black, Compose configuration, and both remote CI jobs (including Docker startup, API smoke and persistent-volume restart) in [workflow 40240295823](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40240295823). The local Docker daemon was unavailable. All data and model results remain synthetic and do not validate real public WiFi demand or infrastructure in Tunja. See the [V6.0.0 validation record](docs/releases/v6.0.0.md).
 
 ## V5.3.0 — Experiment observability and auditability
 
