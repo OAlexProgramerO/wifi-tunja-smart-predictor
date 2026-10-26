@@ -1,8 +1,8 @@
 # Changelog
 
-## V6.1.0 — Intelligent scenario optimization — implementation in progress
+## V6.1.0 — Intelligent scenario optimization — 2026-10-26
 
-Adds deterministic bounded integer allocation optimization to the existing synthetic scenario workbench. It minimizes total or explicitly priority-weighted predicted connection deficits subject to per-zone bounds and a shared budget, saves through the existing SQLite experiment store, and exports through existing report routes. Product target V6.1.0 maps to package and Docker image `0.6.1`; release status is pending verification. All estimates remain conditional on synthetic model outputs and do not validate real public WiFi demand in Tunja.
+Adds deterministic bounded integer allocation optimization to the existing synthetic scenario workbench. It minimizes total or explicitly priority-weighted predicted connection deficits subject to per-zone bounds and a shared budget, saves through the existing SQLite experiment store, and exports through existing report routes. Product release V6.1.0 maps to Python package and Docker image `0.6.1`; annotated Git tag `v6.1.0` and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.1.0) target verified commit `29b0814`. Local pytest (278), Ruff, Black, and Compose configuration passed; both jobs, including Docker and locked dependency audit, passed in [workflow 40418511852](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40418511852). All estimates remain conditional on synthetic model outputs and do not validate real public WiFi demand in Tunja. See the [V6.1.0 validation record](docs/releases/v6.1.0.md).
 
 ## V6.0.0 — Geospatial intelligence and what-if simulation — 2026-10-25
 

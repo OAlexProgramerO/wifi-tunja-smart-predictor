@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V6.1.0 candidate
+# WiFi Tunja Smart Predictor — V6.1.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,9 +9,9 @@
 
 Read this in [Español](README.es.md)
 
-WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.1.0 adds deterministic scenario allocation optimization to the existing workbench; it remains a candidate until release checks complete.
+WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.1.0 adds deterministic scenario allocation optimization to the existing workbench.
 
-**Release status:** V6.0.0 is published as annotated Git tag [`v6.0.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.0.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.0.0). V6.1.0 is an implementation candidate and is not yet claimed as a Git tag or GitHub Release. The Python package and Docker image candidate use version `0.6.1`. See the [V6.1 optimization guide](docs/optimization.md), [V6.0.0 validation record](docs/releases/v6.0.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
+**Release status:** V6.1.0 is published as annotated Git tag [`v6.1.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.1.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.1.0). The release commit is `29b0814`; Python package and Docker image version are `0.6.1`. See the [V6.1 validation record](docs/releases/v6.1.0.md), [optimization guide](docs/optimization.md), [V6.0.0 validation record](docs/releases/v6.0.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 

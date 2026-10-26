@@ -1,12 +1,12 @@
-# WiFi Tunja Smart Predictor — candidato V6.1.0
+# WiFi Tunja Smart Predictor — V6.1.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.1.0 agrega optimización determinista de asignaciones al banco existente y sigue como candidato hasta completar las verificaciones de publicación.
+WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.1.0 agrega optimización determinista de asignaciones al banco existente.
 
-**Estado de publicación:** V6.0.0 está publicada como etiqueta Git anotada [`v6.0.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.0.0) y [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.0.0). V6.1.0 es un candidato de implementación; aún no se afirma como etiqueta Git ni GitHub Release. Las versiones candidatas del paquete Python y la imagen Docker son `0.6.1`. Consulte la [guía de optimización V6.1](docs/optimizacion.md), el [registro V6.0.0](docs/releases/v6.0.0.md), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V6.1.0 está publicada como etiqueta Git anotada [`v6.1.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.1.0) y [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.1.0). El commit de lanzamiento es `29b0814`; el paquete Python y la imagen Docker usan `0.6.1`. Consulte el [registro de validación V6.1](docs/releases/v6.1.0.md), la [guía de optimización](docs/optimizacion.md), el [registro V6.0.0](docs/releases/v6.0.0.md), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
 
 Se conservan las verificaciones de huellas de artefactos de V4.3.0 y la trazabilidad de predicciones y validaciones de V4.2.0. Consulte el [diseño de diagnósticos V4.4.0](docs/model-diagnostics.md) para ver el esquema, las métricas, las ventanas temporales y la comprobación de procedencia.
 
