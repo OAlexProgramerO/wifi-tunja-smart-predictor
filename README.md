@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V6.0.0
+# WiFi Tunja Smart Predictor — V6.1.0 candidate
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,9 +9,9 @@
 
 Read this in [Español](README.es.md)
 
-WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.0.0 adds geospatial synthetic-demand exploration and a reproducible what-if workbench built on the existing predictor, capacity planner, and experiment store.
+WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.1.0 adds deterministic scenario allocation optimization to the existing workbench; it remains a candidate until release checks complete.
 
-**Release status:** V6.0.0 is published as annotated Git tag [`v6.0.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.0.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.0.0). The Python package and Docker image use version `0.6.0`. See the [V6.0.0 validation record](docs/releases/v6.0.0.md), [V5.3.0 validation record](docs/releases/v5.3.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
+**Release status:** V6.0.0 is published as annotated Git tag [`v6.0.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.0.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.0.0). V6.1.0 is an implementation candidate and is not yet claimed as a Git tag or GitHub Release. The Python package and Docker image candidate use version `0.6.1`. See the [V6.1 optimization guide](docs/optimization.md), [V6.0.0 validation record](docs/releases/v6.0.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 
@@ -59,6 +59,7 @@ The project explores how an hourly WiFi demand classification system can be stru
 - Reproducible capacity-planning experiments with SQLite persistence, deterministic budget allocation, paginated API history, and JSON/Markdown exports.
 - Geospatial Intelligence filters and summarizes generated historical observations by inclusive date range, zone, hour, weekday, and demand class, with an offline synthetic access-point map.
 - Scenario Workbench compares fixed model demand predictions against baseline and alternative capacity/budget assumptions, persists reproducible records, and exports scenario-aware reports.
+- Scenario Workbench also offers V6.1 deterministic integer allocation optimization for total or explicitly weighted synthetic deficits; see the [optimization method and constraints](docs/optimization.md).
 - Experiment History dashboard page connected to saved scenario runs; simulated demand and capacity are connection counts, not throughput.
 - pytest, Ruff, Black, and GitHub Actions configuration.
 
@@ -66,7 +67,7 @@ The project explores how an hourly WiFi demand classification system can be stru
 
 For local development, install with `python -m pip install -e ".[dev]"`, train both models using `python scripts/train_model.py`, and run evaluation with `python scripts/evaluate_model.py`. Start the dashboard with `streamlit run app/dashboard.py`, the main API with `uvicorn api.main:app --reload --port 8000`, and the assistant API with `uvicorn assistant_api.main:app --reload --port 8001`. `pyproject.toml` is the dependency source of truth; the two requirements files are compatibility wrappers. Local development supports Python 3.11+, while CI and the container use Python 3.12. Docker's hash-locked runtime dependencies target Linux x86-64; Compose selects `linux/amd64` so Docker Desktop on ARM hosts can use emulation.
 
-The scenario endpoint is `POST /scenario/predict`; experiment routes include `POST /experiments/scenarios`, V6 `POST /experiments/what-if`, paginated `GET /experiments`, `GET /experiments/{id}`, and JSON/Markdown `GET /experiments/{id}/report`. These routes use port 8000. OpenAPI docs are available at each service's `/docs` path. See [capacity planning](docs/capacity-planning.md), [experiments and reporting](docs/experiments.md), and the [scenario workbench](docs/scenario-workbench.md).
+The scenario endpoint is `POST /scenario/predict`; experiment routes include `POST /experiments/scenarios`, V6 `POST /experiments/what-if`, V6.1 `POST /experiments/optimize`, paginated `GET /experiments`, `GET /experiments/{id}`, and JSON/Markdown `GET /experiments/{id}/report`. These routes use port 8000. OpenAPI docs are available at each service's `/docs` path. See [capacity planning](docs/capacity-planning.md), [experiments and reporting](docs/experiments.md), [the scenario workbench](docs/scenario-workbench.md), and [optimization](docs/optimization.md).
 
 To create an experiment, open **Live Scenario**, choose a synthetic zone and time, run the prediction, set simulated capacity and an optional connection-count allocation budget, then choose **Run and save experiment**. **Experiment History** lists saved runs and downloads a versioned JSON report. For comparison, take two experiment IDs from `GET /experiments` and send them in `POST /experiments/compare`; comparisons require the same time, dataset fingerprint, and model artifact fingerprints. The API never labels these simulations as operational network recommendations.
 

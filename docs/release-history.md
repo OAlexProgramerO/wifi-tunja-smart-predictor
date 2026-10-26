@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V6.1.0 — implementation candidate; release pending
+
+Adds deterministic bounded integer allocation optimization to the existing synthetic scenario workbench and API, persisting through the existing SQLite experiment records and adding optimization details to report schema 1.3. Product target V6.1.0 maps to package/Docker image `0.6.1`. No V6.1.0 tag or GitHub Release is claimed until checks are complete. All demand and allocations are synthetic and do not validate real WiFi demand in Tunja. See [optimization guide](optimization.md) and [Spanish guide](optimizacion.md).
+
 # V6.0.0 — Geospatial intelligence and what-if simulation — released 2026-10-25
 
 Adds historical synthetic geospatial analysis, a deterministic multi-zone what-if workflow, persisted comparison records, and scenario-aware reports. Product version `6.0.0` maps to Python package and Docker image `0.6.0`. Annotated tag [`v6.0.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.0.0) points to release commit `39c10c450d205a3cd9b70f9119d99db291c51cd1`; the [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.0.0) is published. Local tests and quality checks passed, and both jobs passed in [workflow 40240295823](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40240295823). The Docker daemon was unavailable locally; remote CI performed container validation. Synthetic observations and outputs do not validate real public WiFi demand or service in Tunja. See [the V6.0.0 validation record](releases/v6.0.0.md).

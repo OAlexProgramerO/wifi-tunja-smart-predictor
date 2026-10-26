@@ -2,6 +2,26 @@
 
 ## V5 experiment routes
 
+V6.1 adds `POST /experiments/optimize`. The typed request supports up to 12 zones, integer per-zone minimum/maximum and baseline allocation, an integer total connection budget (0–100,000), total or explicitly weighted deficit objectives, and a bounded maximum of 100,000 allocation steps. A successful request returns HTTP 201 with the persisted optimization in the existing experiment record. An unknown synthetic zone returns 422; unavailable model artifacts return 503. Use the existing bounded list, retrieval, and JSON/Markdown report routes. The JSON report schema is 1.3 and includes `optimization_analysis`; older records remain readable with that field set to `null`.
+
+Example request (illustrative synthetic inputs only):
+
+```json
+{
+  "name": "Illustrative allocation",
+  "datetime": "2025-01-01T12:00:00",
+  "objective": "MINIMIZE_WEIGHTED_DEFICIT",
+  "total_budget_connections": 3,
+  "max_allocation_steps": 100,
+  "zones": [
+    {"zone_id": "synthetic_zone_a", "capacity_connections": 3, "priority_weight": 2},
+    {"zone_id": "synthetic_zone_b", "capacity_connections": 4, "priority_weight": 1}
+  ]
+}
+```
+
+The optimizer obtains fixed next-hour synthetic connection estimates from the current regressor, then allocates integer units against the declared objective. It does not retrain or alter the prediction. A proven optimum applies only to the separable deficit objective and declared independent zone bounds plus shared budget. See the [optimization method](optimization.md).
+
 | Method and path | Behavior |
 |---|---|
 | `POST /experiments/scenarios` | Validate and run 1–12 synthetic zone estimates, apply deterministic capacity planning, and persist an experiment (201). |

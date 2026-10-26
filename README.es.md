@@ -1,12 +1,12 @@
-# WiFi Tunja Smart Predictor — V6.0.0
+# WiFi Tunja Smart Predictor — candidato V6.1.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.0.0 agrega análisis geoespacial de observaciones sintéticas y un banco reproducible de escenarios hipotéticos basado en el predictor, planificador de capacidad y almacén de experimentos existentes.
+WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.1.0 agrega optimización determinista de asignaciones al banco existente y sigue como candidato hasta completar las verificaciones de publicación.
 
-**Estado de publicación:** V6.0.0 está publicada como etiqueta Git anotada [`v6.0.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.0.0) y [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.0.0). El paquete Python y la imagen Docker usan `0.6.0`. Consulte el [registro de validación V6.0.0](docs/releases/v6.0.0.md), el [registro V5.3.0](docs/releases/v5.3.0.md), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V6.0.0 está publicada como etiqueta Git anotada [`v6.0.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.0.0) y [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.0.0). V6.1.0 es un candidato de implementación; aún no se afirma como etiqueta Git ni GitHub Release. Las versiones candidatas del paquete Python y la imagen Docker son `0.6.1`. Consulte la [guía de optimización V6.1](docs/optimizacion.md), el [registro V6.0.0](docs/releases/v6.0.0.md), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
 
 Se conservan las verificaciones de huellas de artefactos de V4.3.0 y la trazabilidad de predicciones y validaciones de V4.2.0. Consulte el [diseño de diagnósticos V4.4.0](docs/model-diagnostics.md) para ver el esquema, las métricas, las ventanas temporales y la comprobación de procedencia.
 
@@ -53,6 +53,7 @@ El proyecto demuestra un flujo mantenible de clasificación y regresión con con
 - Experimentos reproducibles de planificación de capacidad, persistidos en SQLite, con asignación determinista, historial paginado e informes JSON/Markdown. La página «Historial de experimentos» está conectada a los escenarios guardados; las métricas son conexiones simuladas, no rendimiento real.
 - Inteligencia geoespacial con filtros por fechas inclusivas, zona, hora, día y clase de demanda sobre observaciones históricas generadas, y mapa sintético sin mosaicos externos.
 - Banco de escenarios que compara predicciones fijas del modelo con supuestos alternativos de capacidad y presupuesto, guarda experimentos reproducibles y exporta informes con el análisis.
+- El banco también permite optimizar asignaciones enteras deterministas para minimizar déficits sintéticos totales o ponderados explícitamente; consulte [método y restricciones](docs/optimizacion.md).
 
 ## Inicio rápido de desarrollo local
 
@@ -60,7 +61,7 @@ Para desarrollo local, instale con `python -m pip install -e ".[dev]"`, entrene 
 
 Consulte [Predicción de escenarios](docs/scenario_prediction.md), [Asistente](docs/assistant.md), [Rendimiento](docs/performance.md), [Geoespacial](docs/geospatial.md), [Seguridad](docs/security.md) y [Limitaciones, privacidad y seguridad](docs/limitations.md).
 
-La API incluye `POST /experiments/scenarios`, `POST /experiments/what-if`, `GET /experiments` con paginación, `GET /experiments/{id}` y `GET /experiments/{id}/report` en JSON o Markdown (puerto 8000). Consulte [planificación de capacidad](docs/capacity-planning.md), [experimentos e informes](docs/experiments.md) y el [banco de escenarios](docs/scenario-workbench.md).
+La API incluye `POST /experiments/scenarios`, `POST /experiments/what-if`, V6.1 `POST /experiments/optimize`, `GET /experiments` con paginación, `GET /experiments/{id}` y `GET /experiments/{id}/report` en JSON o Markdown (puerto 8000). Consulte [referencia API en español](docs/api.es.md), [planificación de capacidad](docs/capacity-planning.md), [experimentos e informes](docs/experiments.md), el [banco de escenarios](docs/scenario-workbench.md) y [optimización](docs/optimizacion.md).
 
 Para guardar un experimento, abra **Live Scenario**, elija una zona y hora sintéticas, ejecute la predicción, indique la capacidad simulada y un presupuesto opcional de conexiones y pulse **Run and save experiment**. **Experiment History** muestra los escenarios guardados y permite descargar el informe JSON versionado. Para comparar, obtenga dos IDs mediante `GET /experiments` y envíelos en `POST /experiments/compare`; se exige igualdad de periodo, huella del dataset y huellas de artefactos de modelo. Estas simulaciones no son recomendaciones de configuración para redes reales.
 

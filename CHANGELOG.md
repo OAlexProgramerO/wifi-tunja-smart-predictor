@@ -1,5 +1,9 @@
 # Changelog
 
+## V6.1.0 — Intelligent scenario optimization — implementation in progress
+
+Adds deterministic bounded integer allocation optimization to the existing synthetic scenario workbench. It minimizes total or explicitly priority-weighted predicted connection deficits subject to per-zone bounds and a shared budget, saves through the existing SQLite experiment store, and exports through existing report routes. Product target V6.1.0 maps to package and Docker image `0.6.1`; release status is pending verification. All estimates remain conditional on synthetic model outputs and do not validate real public WiFi demand in Tunja.
+
 ## V6.0.0 — Geospatial intelligence and what-if simulation — 2026-10-25
 
 Adds reusable filtered analytics of historical synthetic observations, an offline Plotly geospatial view, and a typed deterministic what-if comparison service integrated with the existing scenario predictor, capacity planner, experiment store, API, and JSON/Markdown report schema 1.2. A bilingual dashboard workbench saves baseline and alternative assumptions. Predicted demand remains fixed while capacity assumptions vary. Product release V6.0.0 uses package and Docker image `0.6.0`. The release candidate passed 265 local tests, Ruff, Black, Compose configuration, and both remote CI jobs (including Docker startup, API smoke and persistent-volume restart) in [workflow 40240295823](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40240295823). The local Docker daemon was unavailable. All data and model results remain synthetic and do not validate real public WiFi demand or infrastructure in Tunja. See the [V6.0.0 validation record](docs/releases/v6.0.0.md).

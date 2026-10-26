@@ -13,3 +13,7 @@
 The request is typed and bounded; unknown fields are rejected. A persisted experiment can be retrieved and exported in JSON or Markdown. Model predictions remain separate from user-supplied capacity assumptions and rules-derived metrics.
 
 All data, locations, estimates, and scenarios are synthetic. No result establishes forecast validity for real WiFi demand in Tunja.
+
+## V6.1 bounded integer optimization
+
+The existing scenario workbench also offers an optimizer for fixed next-hour synthetic demand. It minimizes either total deficit or an explicitly weighted total, under an integer shared budget and independent per-zone minimum/maximum allocations. It uses deterministic diminishing marginal benefit with lexical `zone_id` ties. Under these constraints, a completed search proves a global optimum for the selected deficit function; a configured step limit returns only a feasible best-so-far candidate and explicitly marks optimality unproven. Minimum allocations exceeding the budget yield an infeasible result with no recommendation. This is a mathematical result for hypothetical synthetic connection counts, not an operational or economic network plan. See [optimization methodology](optimization.md).
