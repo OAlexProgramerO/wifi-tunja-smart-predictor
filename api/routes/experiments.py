@@ -27,6 +27,8 @@ from wifi_tunja_smart_predictor.exceptions import (
 )
 from wifi_tunja_smart_predictor.experiments.service import ScenarioExperimentService
 from wifi_tunja_smart_predictor.experiments.store import ExperimentStore
+from wifi_tunja_smart_predictor.optimization.scenario_service import ScenarioOptimizationService
+from wifi_tunja_smart_predictor.optimization.schemas import AllocationOptimizationRequest
 from wifi_tunja_smart_predictor.reporting.service import (
     build_experiment_report,
     render_experiment_markdown,
@@ -183,6 +185,87 @@ def create_what_if_comparison(payload: WhatIfSimulationRequest) -> dict:
             "what_if": what_if_result,
             "provenance": provenance,
             "limitations": execution.limitations,
+        }
+        return _read_store(lambda: _store().save(payload.name, configuration, result))
+    except LocationResolutionError as exc:
+        raise HTTPException(status_code=422, detail="Unknown synthetic zone_id.") from exc
+    except ScenarioBuildError as exc:
+        raise HTTPException(
+            status_code=422, detail="Scenario could not be built from synthetic data."
+        ) from exc
+    except ModelNotFoundError as exc:
+        raise HTTPException(
+            status_code=503, detail="Required model artifacts are unavailable."
+        ) from exc
+    except (ModelArtifactError, ModelMetadataError, PredictionError) as exc:
+        raise HTTPException(
+            status_code=503, detail="Scenario model inference is unavailable."
+        ) from exc
+
+
+@router.post("/optimize", status_code=201, response_model=ExperimentRecord)
+def optimize_allocation(payload: AllocationOptimizationRequest) -> dict:
+    """Optimize bounded synthetic connection allocations using model demand estimates."""
+    try:
+        optimization = ScenarioOptimizationService(_scenario_service()).run(payload)
+        data = optimization.model_dump(mode="json")
+        selected = optimization.selected_candidate or optimization.baseline
+        zone_rows = [
+            {
+                "zone_id": row.zone_id,
+                "demand": row.predicted_demand_connections,
+                "effective_capacity": row.effective_capacity_connections,
+                "overload_connections": row.deficit_connections,
+                "utilization_pct": (
+                    row.predicted_demand_connections / row.effective_capacity_connections * 100
+                    if row.effective_capacity_connections > 0
+                    else None
+                ),
+                "status": (
+                    "SIMULATED_OVER_CAPACITY"
+                    if row.deficit_connections > 0
+                    else "WITHIN_SIMULATED_CAPACITY"
+                ),
+            }
+            for row in selected.zones
+        ]
+        configuration = {
+            "datetime": payload.datetime.isoformat(),
+            "zones": [
+                {"zone_id": zone.zone_id, "capacity_connections": zone.capacity_connections}
+                for zone in payload.zones
+            ],
+            "resource_budget_connections": payload.total_budget_connections,
+            "configuration_version": "3.0",
+            "scenario_kind": "allocation_optimization",
+            "optimization": payload.model_dump(mode="json"),
+        }
+        capacity_plan = {
+            "schema_version": "1.0",
+            "units": "estimated connections",
+            "allocation_method": optimization.algorithm_id,
+            "resource_budget_connections": payload.total_budget_connections,
+            "allocated_connections": selected.allocated_connections,
+            "remaining_budget_connections": selected.unallocated_budget_connections,
+            "aggregate": {
+                "estimated_demand_connections": sum(
+                    z.predicted_demand_connections for z in selected.zones
+                ),
+                "effective_capacity_connections": sum(
+                    z.effective_capacity_connections for z in selected.zones
+                ),
+                "overload_connections": selected.total_deficit_connections,
+            },
+            "zones": zone_rows,
+            "assumptions": optimization.limitations,
+        }
+        result = {
+            "time_window": payload.datetime.isoformat(),
+            "zones": zone_rows,
+            "capacity_plan": capacity_plan,
+            "optimization": data,
+            "provenance": optimization.provenance,
+            "limitations": optimization.limitations,
         }
         return _read_store(lambda: _store().save(payload.name, configuration, result))
     except LocationResolutionError as exc:

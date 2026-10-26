@@ -40,8 +40,11 @@ def build_experiment_report(
     what_if = result.get("what_if")
     if what_if is not None and not isinstance(what_if, dict):
         raise ValueError("Experiment what-if results are malformed.")
+    optimization = result.get("optimization")
+    if optimization is not None and not isinstance(optimization, dict):
+        raise ValueError("Experiment optimization results are malformed.")
     return {
-        "report_schema_version": "1.2",
+        "report_schema_version": "1.3",
         "generated_at_utc": generated.astimezone(UTC).isoformat(),
         "experiment": record,
         "integrity": integrity,
@@ -50,6 +53,7 @@ def build_experiment_report(
         or "Not recorded",
         "model_provenance": models,
         "scenario_analysis": what_if,
+        "optimization_analysis": optimization,
         "scenario_metric_registry": (
             what_if.get("metric_definitions", metric_definitions()) if what_if else None
         ),
@@ -174,6 +178,77 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
                 "Changing capacity assumptions does not change predicted demand.",
             ]
         )
+    optimization = report.get("optimization_analysis")
+    if isinstance(optimization, dict):
+        baseline = optimization.get("baseline", {})
+        candidate = optimization.get("selected_candidate")
+        configuration = experiment.get("configuration", {})
+        problem = configuration.get("optimization", {}) if isinstance(configuration, dict) else {}
+        if not isinstance(problem, dict):
+            problem = {}
+        lines.extend(
+            [
+                "",
+                "## Allocation optimization",
+                "",
+                f"Status: {safe_text(optimization.get('optimization_status', 'unavailable'))}",
+                f"Objective: {safe_text(optimization.get('objective', 'unavailable'))}",
+                f"Algorithm: {safe_text(optimization.get('algorithm_id', 'unavailable'))} v{safe_text(optimization.get('algorithm_version', 'unavailable'))}",
+                f"Search strategy: {safe_text(optimization.get('search_strategy', 'unavailable'))}",
+                f"Total budget: {safe_text(problem.get('total_budget_connections', 'unavailable'))} connections",
+                f"Stopping limit: {safe_text(optimization.get('max_allocation_steps', 'unavailable'))} allocation steps",
+                f"Allocation steps evaluated: {safe_text(optimization.get('allocation_steps_evaluated', 'unknown'))}",
+                f"Optimality proven: {safe_text(optimization.get('optimality_proven', False))}",
+                f"Selection: {safe_text(optimization.get('selection_explanation', 'Not recorded'))}",
+                f"Candidates evaluated: {safe_text(optimization.get('candidates_evaluated', 'unknown'))}",
+                f"Feasible/infeasible candidates: {safe_text(optimization.get('feasible_candidates', 'unknown'))}/{safe_text(optimization.get('infeasible_candidates', 'unknown'))}",
+                f"Reason codes: {safe_text(', '.join(optimization.get('reason_codes', [])) or 'None')}",
+            ]
+        )
+        if problem.get("zones"):
+            lines.append(
+                "Constraints: "
+                + safe_text(
+                    "; ".join(
+                        f"{zone.get('zone_id')}: {zone.get('minimum_allocation_connections', 0)}–{zone.get('maximum_allocation_connections', 'unbounded')}"
+                        for zone in problem["zones"]
+                        if isinstance(zone, dict)
+                    )
+                )
+            )
+        if optimization.get("missing_metrics"):
+            lines.append(
+                "Unassessed metrics: " + safe_text(", ".join(optimization["missing_metrics"]))
+            )
+        if isinstance(baseline, dict):
+            lines.append(
+                f"Baseline deficit: {safe_text(baseline.get('total_deficit_connections', 'unavailable'))} connections"
+            )
+        if isinstance(candidate, dict):
+            lines.extend(
+                [
+                    f"Selected deficit: {safe_text(candidate.get('total_deficit_connections', 'unavailable'))} connections",
+                    "",
+                    "| Zone | Predicted demand | Allocation | Effective capacity | Deficit |",
+                    "|---|---:|---:|---:|---:|",
+                ]
+            )
+            for row in candidate.get("zones", []):
+                if isinstance(row, dict):
+                    values = (
+                        "zone_id",
+                        "predicted_demand_connections",
+                        "allocation_connections",
+                        "effective_capacity_connections",
+                        "deficit_connections",
+                    )
+                    lines.append(
+                        "| "
+                        + " | ".join(safe_text(row.get(key, "unavailable")) for key in values)
+                        + " |"
+                    )
+        else:
+            lines.append("No feasible candidate was selected.")
     lines.extend(["", "## Scenario configuration", "", "```json"])
     config_json = json.dumps(experiment.get("configuration", {}), indent=2, sort_keys=True)
     lines.append(config_json.replace("```", r"\u0060\u0060\u0060"))

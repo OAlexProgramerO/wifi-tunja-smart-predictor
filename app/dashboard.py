@@ -794,6 +794,303 @@ def _render_what_if_record(record: dict, *, spanish: bool = False) -> None:
             )
 
 
+def _render_optimization_record(record: dict, *, spanish: bool = False) -> None:
+    result = record.get("result", {})
+    optimization = result.get("optimization", {}) if isinstance(result, dict) else {}
+    if not isinstance(optimization, dict):
+        st.warning(
+            "No hay resultado de optimización."
+            if spanish
+            else "No optimization result is available."
+        )
+        return
+    st.subheader("Asignación seleccionada" if spanish else "Selected allocation")
+    objective_definition = optimization.get("objective_definition", {})
+    objective_label = objective_definition.get("label_es" if spanish else "label_en")
+    if objective_label:
+        st.markdown(f"**{('Objetivo' if spanish else 'Objective')}:** {objective_label}")
+    st.caption(
+        optimization.get("selection_explanation_es" if spanish else "selection_explanation", "")
+    )
+    st.caption(
+        (
+            f"Estados evaluados: {optimization.get('candidates_evaluated', 0)} · "
+            f"factibles/no factibles: {optimization.get('feasible_candidates', 0)}/"
+            f"{optimization.get('infeasible_candidates', 0)} · "
+            f"pasos: {optimization.get('allocation_steps_evaluated', 0)}/"
+            f"{optimization.get('max_allocation_steps', 0)}"
+            if spanish
+            else f"States evaluated: {optimization.get('candidates_evaluated', 0)} · "
+            f"feasible/infeasible: {optimization.get('feasible_candidates', 0)}/"
+            f"{optimization.get('infeasible_candidates', 0)} · "
+            f"steps: {optimization.get('allocation_steps_evaluated', 0)}/"
+            f"{optimization.get('max_allocation_steps', 0)}"
+        )
+    )
+    configuration = record.get("configuration", {})
+    optimization_input = (
+        configuration.get("optimization", {}) if isinstance(configuration, dict) else {}
+    )
+    if isinstance(optimization_input, dict):
+        budget = optimization_input.get("total_budget_connections", "?")
+        limits = "; ".join(
+            f"{zone.get('zone_id')}: {zone.get('minimum_allocation_connections', 0)}–"
+            f"{zone.get('maximum_allocation_connections', '?')}"
+            for zone in optimization_input.get("zones", [])
+            if isinstance(zone, dict)
+        )
+        st.caption(
+            (
+                f"Presupuesto: {budget} · límites mín–máx: {limits}"
+                if spanish
+                else f"Budget: {budget} · min–max bounds: {limits}"
+            )
+        )
+    reason_codes = optimization.get("reason_codes", [])
+    if reason_codes:
+        st.caption(
+            ("Códigos de estado: " if spanish else "Status codes: ") + ", ".join(reason_codes)
+        )
+    missing_metrics = optimization.get("missing_metrics", [])
+    if missing_metrics:
+        st.caption(
+            ("Métricas no evaluadas: " if spanish else "Metrics not assessed: ")
+            + ", ".join(missing_metrics)
+        )
+    if not optimization.get("optimality_proven"):
+        st.warning("La optimalidad no está demostrada." if spanish else "Optimality is not proven.")
+    baseline = optimization.get("baseline", {})
+    candidate = optimization.get("selected_candidate")
+    if candidate:
+        first, second, third = st.columns(3)
+        first.metric(
+            "Déficit referencia" if spanish else "Baseline deficit",
+            f"{baseline.get('total_deficit_connections', 0):.1f}",
+        )
+        second.metric(
+            "Déficit seleccionado" if spanish else "Selected deficit",
+            f"{candidate.get('total_deficit_connections', 0):.1f}",
+        )
+        third.metric(
+            "Mejora del objetivo" if spanish else "Objective improvement",
+            f"{optimization.get('objective_improvement') or 0:.2f}",
+        )
+        baseline_allocations = {
+            row.get("zone_id"): row.get("allocation_connections", 0)
+            for row in baseline.get("zones", [])
+        }
+        candidate_rows = candidate.get("zones", [])
+        chart_data = pd.DataFrame(
+            [
+                {
+                    "Zone": row["zone_id"],
+                    "Baseline allocation": baseline_allocations.get(row["zone_id"], 0),
+                    "Selected allocation": row["allocation_connections"],
+                }
+                for row in candidate_rows
+            ]
+        ).set_index("Zone")
+        st.bar_chart(
+            chart_data,
+            horizontal=True,
+            x_label="Connections allocated" if not spanish else "Conexiones asignadas",
+            y_label="Synthetic zone" if not spanish else "Zona sintética",
+        )
+        zone_frame = pd.DataFrame(candidate_rows).rename(
+            columns=(
+                {
+                    "zone_id": "Zona sintética",
+                    "predicted_demand_connections": "Demanda predicha (conexiones)",
+                    "capacity_connections": "Capacidad base (conexiones)",
+                    "allocation_connections": "Asignación (conexiones)",
+                    "effective_capacity_connections": "Capacidad efectiva (conexiones)",
+                    "deficit_connections": "Déficit (conexiones)",
+                }
+                if spanish
+                else {
+                    "zone_id": "Synthetic zone",
+                    "predicted_demand_connections": "Predicted demand (connections)",
+                    "capacity_connections": "Base capacity (connections)",
+                    "allocation_connections": "Allocation (connections)",
+                    "effective_capacity_connections": "Effective capacity (connections)",
+                    "deficit_connections": "Deficit (connections)",
+                }
+            )
+        )
+        st.dataframe(zone_frame, hide_index=True, width="stretch")
+    else:
+        st.error(
+            "Problema inviable; no se recomienda asignación."
+            if spanish
+            else "Infeasible problem; no allocation is recommended."
+        )
+    st.caption(
+        "Los resultados son sintéticos e hipotéticos; no validan demanda WiFi real en Tunja."
+        if spanish
+        else "Results are synthetic and hypothetical; they do not validate real WiFi demand in Tunja."
+    )
+    experiment_id = record.get("id")
+    if experiment_id:
+        try:
+            json_report = main_api_request(f"/experiments/{experiment_id}/report?format=json")
+            markdown_report = main_api_text_request(
+                f"/experiments/{experiment_id}/report?format=markdown"
+            )
+        except ApiClientError as exc:
+            st.error(str(exc))
+        else:
+            st.download_button(
+                "Descargar informe JSON" if spanish else "Download JSON report",
+                json.dumps(json_report, indent=2, ensure_ascii=False),
+                file_name=f"optimization-{experiment_id}.json",
+                mime="application/json",
+                key="optimization_json_download",
+            )
+            st.download_button(
+                "Descargar informe Markdown" if spanish else "Download Markdown report",
+                markdown_report,
+                file_name=f"optimization-{experiment_id}.md",
+                mime="text/markdown",
+                key="optimization_markdown_download",
+            )
+
+
+def _render_optimization_workflow(
+    selected_zones: list[str], zone_capacity: dict, end, start, *, spanish: bool
+) -> None:
+    with st.form("allocation_optimization_form"):
+        name = st.text_input(
+            "Nombre" if spanish else "Name",
+            value="Optimización de capacidad" if spanish else "Capacity optimization",
+            max_chars=120,
+        )
+        date_value = st.date_input(
+            "Fecha" if spanish else "Date", value=end, min_value=start, max_value=end
+        )
+        hour_value = st.time_input(
+            "Hora" if spanish else "Hour", value=pd.Timestamp("2025-01-01 12:00").time()
+        )
+        objective_label = st.selectbox(
+            "Objetivo" if spanish else "Objective",
+            [
+                "Minimizar déficit total" if spanish else "Minimize total deficit",
+                "Minimizar déficit ponderado" if spanish else "Minimize weighted deficit",
+            ],
+        )
+        budget = st.number_input(
+            "Presupuesto total (unidades enteras)" if spanish else "Total budget (integer units)",
+            min_value=0,
+            max_value=100_000,
+            value=100,
+            step=1,
+        )
+        max_steps = st.number_input(
+            "Máximo de pasos de búsqueda" if spanish else "Maximum search steps",
+            min_value=1,
+            max_value=100_000,
+            value=10_000,
+            step=1,
+        )
+        zone_inputs = []
+        columns = st.columns(2)
+        for index, zone_id in enumerate(selected_zones):
+            with columns[index % 2]:
+                capacity = st.number_input(
+                    f"Capacidad base · {zone_id}" if spanish else f"Base capacity · {zone_id}",
+                    min_value=0.0,
+                    max_value=100_000.0,
+                    value=min(100_000.0, max(0.0, float(zone_capacity.get(zone_id, 100.0)))),
+                    key=f"opt_capacity_{zone_id}",
+                )
+                baseline = st.number_input(
+                    (
+                        f"Asignación referencia · {zone_id}"
+                        if spanish
+                        else f"Baseline allocation · {zone_id}"
+                    ),
+                    min_value=0,
+                    max_value=100_000,
+                    value=0,
+                    step=1,
+                    key=f"opt_baseline_{zone_id}",
+                )
+                minimum = st.number_input(
+                    f"Mínimo · {zone_id}" if spanish else f"Minimum · {zone_id}",
+                    min_value=0,
+                    max_value=100_000,
+                    value=0,
+                    step=1,
+                    key=f"opt_min_{zone_id}",
+                )
+                maximum = st.number_input(
+                    f"Máximo · {zone_id}" if spanish else f"Maximum · {zone_id}",
+                    min_value=0,
+                    max_value=100_000,
+                    value=100_000,
+                    step=1,
+                    key=f"opt_max_{zone_id}",
+                )
+                weight = st.number_input(
+                    (
+                        f"Prioridad positiva · {zone_id}"
+                        if spanish
+                        else f"Positive priority · {zone_id}"
+                    ),
+                    min_value=0.01,
+                    max_value=10_000.0,
+                    value=1.0,
+                    key=f"opt_weight_{zone_id}",
+                )
+                zone_inputs.append(
+                    {
+                        "zone_id": zone_id,
+                        "capacity_connections": capacity,
+                        "baseline_allocation_connections": baseline,
+                        "minimum_allocation_connections": minimum,
+                        "maximum_allocation_connections": maximum,
+                        "priority_weight": weight,
+                    }
+                )
+        submitted = st.form_submit_button(
+            "Optimizar y guardar" if spanish else "Optimize and save",
+            type="primary",
+            disabled=not selected_zones,
+        )
+    if submitted:
+        payload = {
+            "name": name,
+            "description": "Deterministic bounded integer allocation optimization",
+            "datetime": pd.Timestamp.combine(date_value, hour_value).isoformat(),
+            "objective": (
+                "MINIMIZE_WEIGHTED_DEFICIT"
+                if "weighted" in objective_label.lower() or "ponderado" in objective_label.lower()
+                else "MINIMIZE_TOTAL_DEFICIT"
+            ),
+            "total_budget_connections": budget,
+            "max_allocation_steps": max_steps,
+            "zones": zone_inputs,
+        }
+        if payload["objective"] == "MINIMIZE_TOTAL_DEFICIT":
+            for zone in payload["zones"]:
+                zone.pop("priority_weight")
+        try:
+            saved = main_api_request("/experiments/optimize", payload)
+            st.session_state["optimization_experiment_record"] = saved
+            st.session_state["optimization_experiment_id"] = saved["id"]
+        except ApiClientError as exc:
+            st.error(str(exc))
+    record = st.session_state.get("optimization_experiment_record")
+    experiment_id = st.session_state.get("optimization_experiment_id")
+    if experiment_id:
+        try:
+            record = main_api_request(f"/experiments/{experiment_id}")
+            st.session_state["optimization_experiment_record"] = record
+        except ApiClientError as exc:
+            st.error(str(exc))
+    if record:
+        _render_optimization_record(record, spanish=spanish)
+
+
 def render_scenario_workbench(frame: pd.DataFrame) -> None:
     """Collect explicit capacity assumptions, execute, persist, compare, and export."""
     language = st.radio(
@@ -824,6 +1121,36 @@ def render_scenario_workbench(frame: pd.DataFrame) -> None:
         max_selections=12,
         key="what_if_zones",
     )
+    workflow = st.radio(
+        "Flujo" if es else "Workflow",
+        [
+            "Comparar escenarios" if es else "Compare scenarios",
+            "Optimizar asignación" if es else "Optimize allocation",
+        ],
+        horizontal=True,
+        key="scenario_workflow",
+    )
+    if workflow in {"Optimizar asignación", "Optimize allocation"}:
+        dates = pd.to_datetime(frame["timestamp"], errors="coerce").dropna()
+        if dates.empty:
+            st.info(
+                "No hay observaciones con fecha."
+                if es
+                else "No timestamped observations are available."
+            )
+            return
+        capacities = (
+            frame.groupby("zone_id")["access_point_capacity"].median().to_dict()
+            if "access_point_capacity" in frame
+            else {}
+        )
+        if not selected_zones:
+            st.info("Selecciona al menos una zona." if es else "Select at least one zone.")
+            return
+        _render_optimization_workflow(
+            selected_zones, capacities, dates.max().date(), dates.min().date(), spanish=es
+        )
+        return
     alternative_count = st.selectbox(
         "Escenarios alternativos" if es else "Alternative scenarios",
         [1, 2, 3, 4, 5],
