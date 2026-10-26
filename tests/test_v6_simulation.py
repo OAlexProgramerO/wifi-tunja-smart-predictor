@@ -198,7 +198,7 @@ def test_what_if_api_persists_retrieves_and_exports_report(monkeypatch, tmp_path
     assert client.get(f"/experiments/{record['id']}").json()["id"] == record["id"]
     json_report = client.get(f"/experiments/{record['id']}/report?format=json")
     assert json_report.status_code == 200
-    assert json_report.json()["report_schema_version"] == "1.2"
+    assert json_report.json()["report_schema_version"] == "1.3"
     assert (
         json_report.json()["scenario_analysis"]["comparisons"][0]["alternative_name"]
         == "more capacity"
@@ -250,3 +250,17 @@ def test_scenario_workbench_renders_without_api_call():
     assert not app.exception
     assert any(widget.label == "Language / Idioma" for widget in app.radio)
     assert any(widget.label == "Synthetic zones (1–12)" for widget in app.multiselect)
+
+
+def test_scenario_workbench_renders_optimizer_controls():
+    app = AppTest.from_string(
+        "from app.dashboard import render_scenario_workbench\n"
+        "from tests.conftest import make_mini_frame\n"
+        "render_scenario_workbench(make_mini_frame(8))\n",
+        default_timeout=30,
+    ).run()
+    workflow = next(widget for widget in app.radio if widget.label == "Workflow")
+    workflow.set_value("Optimize allocation").run()
+    assert not app.exception
+    assert any(widget.label == "Total budget (integer units)" for widget in app.number_input)
+    assert any(widget.label == "Objective" for widget in app.selectbox)
