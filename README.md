@@ -9,9 +9,9 @@
 
 Read this in [Español](README.es.md)
 
-**Development status:** V6.2.0 implementation is in progress. It is not yet released; no V6.2 Git tag or GitHub Release exists. The current published release remains V6.1.0 (`0.6.1`).
+**Development status:** V6.2.0 implementation is complete and validated as a release candidate, but its tag and GitHub Release are pending. The current published release remains V6.1.0 (`0.6.1`). See the [V6.2.0 validation record](docs/releases/v6.2.0.md).
 
-WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.1.0 adds deterministic scenario allocation optimization to the existing workbench. V6.2.0 development adds bounded sensitivity and robustness analysis to saved optimization runs; see the [V6.2.0 guide](docs/robustness.md). This is not a released version.
+WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.1.0 adds deterministic scenario allocation optimization to the existing workbench. The V6.2.0 release candidate adds bounded sensitivity and robustness analysis to saved optimization runs; see the [V6.2.0 guide](docs/robustness.md). V6.2.0 is not published yet.
 
 **Release status:** V6.1.0 is published as annotated Git tag [`v6.1.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.1.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.1.0). The release commit is `29b0814`; Python package and Docker image version are `0.6.1`. See the [V6.1 validation record](docs/releases/v6.1.0.md), [optimization guide](docs/optimization.md), [V6.0.0 validation record](docs/releases/v6.0.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
 

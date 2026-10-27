@@ -1,8 +1,8 @@
 # Release history and V4.0 readiness
 
-## V6.2.0 — Sensitivity and robustness — in progress
+## V6.2.0 — Sensitivity and robustness — validated candidate
 
-Development target only; this is not a published release. Planned package and Docker image version is `0.6.2`. No V6.2 Git tag or GitHub Release has been created. The feature evaluates bounded synthetic demand stresses and budgets for saved optimization runs. Release checks are pending in the [V6.2.0 validation record](releases/v6.2.0.md). Selected scenarios do not represent real WiFi demand or real-world operational reliability in Tunja.
+The implementation is validated on candidate commit `c55862c`. Python package and Docker image version are `0.6.2`; product release, tag, and GitHub Release publication remain pending. GitHub Actions workflow 40597104043 passed both quality/security tests and Docker runtime smoke/persistence checks. See the [V6.2.0 validation record](releases/v6.2.0.md). Selected scenarios do not represent real WiFi demand or real-world operational reliability in Tunja.
 
 ## V6.1.0 — Intelligent scenario optimization — released 2026-10-26
 

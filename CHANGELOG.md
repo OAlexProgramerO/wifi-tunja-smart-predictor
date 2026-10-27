@@ -1,8 +1,8 @@
 # Changelog
 
-## Unreleased — V6.2.0
+## V6.2.0 release candidate — publication pending
 
-Planned work: bounded one-factor synthetic demand sensitivity and budget sweeps for saved V6.1 allocation runs; per-zone allocation stability, explicit hard-minimum budget shortfall, and incomplete-search reporting; additive persistence and report schema 1.4; Scenario Workbench and API integration; bilingual documentation and verification. This is planned work, not a published release or verified outcome. All analyses remain limited to synthetic assumptions and do not establish real-world WiFi demand or reliability in Tunja. See the [V6.2 guide](docs/robustness.md).
+Implemented bounded one-factor synthetic demand sensitivity and budget sweeps for saved V6.1 allocation runs; per-zone allocation stability, explicit hard-minimum budget shortfall, and incomplete-search reporting; additive persistence and report schema 1.4; Scenario Workbench and API integration; and bilingual documentation. Local quality/security checks and GitHub Actions workflow 40597104043 passed on candidate commit `c55862c`. Product release publication, tag, and GitHub Release are pending. Analyses use synthetic assumptions and do not establish real-world WiFi demand or reliability in Tunja. See the [V6.2 guide](docs/robustness.md) and [validation record](docs/releases/v6.2.0.md).
 
 ## V6.1.0 — Intelligent scenario optimization — 2026-10-26
 

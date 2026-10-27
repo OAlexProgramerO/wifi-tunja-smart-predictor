@@ -4,9 +4,9 @@
 
 Leer en [English](README.md)
 
-**Estado de desarrollo:** La implementación V6.2.0 está en progreso. Aún no se ha publicado; no existe etiqueta Git ni GitHub Release V6.2. La versión publicada actual sigue siendo V6.1.0 (`0.6.1`).
+**Estado de desarrollo:** La implementación V6.2.0 está completa y validada como candidata, pero la etiqueta y GitHub Release están pendientes. La versión publicada actual sigue siendo V6.1.0 (`0.6.1`). Consulte el [registro de validación V6.2.0](docs/releases/v6.2.0.md).
 
-WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.1.0 agrega optimización determinista de asignaciones al banco existente. El desarrollo de V6.2.0 añade análisis acotado de sensibilidad y robustez para optimizaciones guardadas; consulte la [guía V6.2.0](docs/robustness.es.md). Esta versión aún no está publicada.
+WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.1.0 agrega optimización determinista de asignaciones al banco existente. La candidata V6.2.0 agrega análisis acotado de sensibilidad y robustez para optimizaciones guardadas; consulte la [guía V6.2.0](docs/robustness.es.md). V6.2.0 aún no está publicada.
 
 **Estado de publicación:** V6.1.0 está publicada como etiqueta Git anotada [`v6.1.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.1.0) y [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.1.0). El commit de lanzamiento es `29b0814`; el paquete Python y la imagen Docker usan `0.6.1`. Consulte el [registro de validación V6.1](docs/releases/v6.1.0.md), la [guía de optimización](docs/optimizacion.md), el [registro V6.0.0](docs/releases/v6.0.0.md), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
 
