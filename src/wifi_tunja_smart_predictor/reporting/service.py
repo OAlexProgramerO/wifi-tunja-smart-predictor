@@ -43,8 +43,11 @@ def build_experiment_report(
     optimization = result.get("optimization")
     if optimization is not None and not isinstance(optimization, dict):
         raise ValueError("Experiment optimization results are malformed.")
+    robustness = result.get("robustness_analysis")
+    if robustness is not None and not isinstance(robustness, dict):
+        raise ValueError("Experiment robustness results are malformed.")
     return {
-        "report_schema_version": "1.3",
+        "report_schema_version": "1.4",
         "generated_at_utc": generated.astimezone(UTC).isoformat(),
         "experiment": record,
         "integrity": integrity,
@@ -54,6 +57,7 @@ def build_experiment_report(
         "model_provenance": models,
         "scenario_analysis": what_if,
         "optimization_analysis": optimization,
+        "robustness_analysis": robustness,
         "scenario_metric_registry": (
             what_if.get("metric_definitions", metric_definitions()) if what_if else None
         ),
@@ -249,6 +253,113 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
                     )
         else:
             lines.append("No feasible candidate was selected.")
+    robustness = report.get("robustness_analysis")
+    if isinstance(robustness, dict):
+        rate = robustness.get("feasibility_rate_under_tested_scenarios")
+        rate_text = "Not assessable" if rate is None else f"{rate:.1%}"
+        lines.extend(
+            [
+                "",
+                "## Sensitivity and robustness analysis",
+                "",
+                f"Analysis status: {safe_text(robustness.get('analysis_status', 'unavailable'))}",
+                f"Assessment: {safe_text(robustness.get('assessment_status', 'unavailable'))}",
+                f"Parent optimization: `{safe_text(robustness.get('parent_experiment_id', 'unavailable'))}`",
+                f"Objective: {safe_text(robustness.get('objective', 'unavailable'))}",
+                f"Feasibility in tested scenarios: {rate_text} ({robustness.get('feasible_scenario_count', 0)}/{robustness.get('feasibility_rate_denominator_count', 0)} evaluated; not a probability)",
+                f"Defined/evaluated: {robustness.get('scenarios_defined', 0)}/{robustness.get('scenarios_evaluated', 0)}",
+                f"Feasible/infeasible/not assessable: {robustness.get('feasible_scenario_count', 0)}/{robustness.get('infeasible_scenario_count', 0)}/{robustness.get('not_assessable_scenario_count', 0)}",
+                f"Optimizer searches with step limit: {robustness.get('optimizer_incomplete_scenario_count', 0)}",
+                f"Reason codes: {safe_text(', '.join(robustness.get('reason_codes', [])) or 'None')}",
+                "",
+                "### Evaluated scenarios",
+                "",
+                "| Type | Varied parameter | Value | Budget | Feasibility | Original objective under variation | Reoptimized objective | Change | Search |",
+                "|---|---|---:|---:|---|---:|---:|---:|---|",
+            ]
+        )
+        for row in robustness.get("scenario_results", []):
+            if not isinstance(row, dict):
+                raise ValueError("Experiment robustness report contains an invalid scenario.")
+            lines.append(
+                "| "
+                + " | ".join(
+                    safe_text(row.get(key, "Not assessable"))
+                    for key in (
+                        "scenario_type",
+                        "varied_parameter",
+                        "varied_value",
+                        "budget_connections",
+                        "feasibility_status",
+                        "original_allocation_objective_value",
+                        "reoptimized_objective_value",
+                        "objective_degradation",
+                        "optimizer_status",
+                    )
+                )
+                + " |"
+            )
+        lines.extend(
+            [
+                "",
+                "### Budget frontier",
+                "",
+                "| Budget | Feasibility | Objective | Allocated | Unallocated | Zones with deficit | Extra budget to meet minimums |",
+                "|---:|---|---:|---:|---:|---:|---:|",
+            ]
+        )
+        for point in robustness.get("budget_frontier", []):
+            if isinstance(point, dict):
+                lines.append(
+                    "| "
+                    + " | ".join(
+                        safe_text(point.get(key, "Not assessable"))
+                        for key in (
+                            "budget_connections",
+                            "feasibility_status",
+                            "objective_value",
+                            "total_allocated_connections",
+                            "unallocated_budget_connections",
+                            "zones_with_deficit",
+                            "minimum_additional_budget_connections",
+                        )
+                    )
+                    + " |"
+                )
+        lines.extend(
+            [
+                "",
+                "### Zone allocation stability",
+                "",
+                "| Zone | Tested | Unchanged | Stability rate | Mean absolute change | Maximum absolute change | Own-demand stress changes |",
+                "|---|---:|---:|---:|---:|---:|---:|",
+            ]
+        )
+        for zone in robustness.get("zone_stability", []):
+            if isinstance(zone, dict):
+                stability = zone.get("allocation_stability_rate")
+                stability_text = "Not assessable" if stability is None else f"{stability:.1%}"
+                lines.append(
+                    "| "
+                    + " | ".join(
+                        [
+                            safe_text(zone.get("zone_id", "unknown")),
+                            safe_text(zone.get("assessable_scenario_count", "unknown")),
+                            safe_text(zone.get("unchanged_allocation_count", "unknown")),
+                            stability_text,
+                            safe_text(
+                                zone.get("mean_absolute_allocation_change", "Not assessable")
+                            ),
+                            safe_text(
+                                zone.get("maximum_absolute_allocation_change", "Not assessable")
+                            ),
+                            safe_text(
+                                zone.get("own_demand_stress_allocation_change_count", "unknown")
+                            ),
+                        ]
+                    )
+                    + " |"
+                )
     lines.extend(["", "## Scenario configuration", "", "```json"])
     config_json = json.dumps(experiment.get("configuration", {}), indent=2, sort_keys=True)
     lines.append(config_json.replace("```", r"\u0060\u0060\u0060"))

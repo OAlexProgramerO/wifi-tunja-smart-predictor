@@ -9,7 +9,9 @@
 
 Read this in [Español](README.es.md)
 
-WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.1.0 adds deterministic scenario allocation optimization to the existing workbench.
+**Development status:** V6.2.0 implementation is in progress. It is not yet released; no V6.2 Git tag or GitHub Release exists. The current published release remains V6.1.0 (`0.6.1`).
+
+WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.1.0 adds deterministic scenario allocation optimization to the existing workbench. V6.2.0 development adds bounded sensitivity and robustness analysis to saved optimization runs; see the [V6.2.0 guide](docs/robustness.md). This is not a released version.
 
 **Release status:** V6.1.0 is published as annotated Git tag [`v6.1.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.1.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.1.0). The release commit is `29b0814`; Python package and Docker image version are `0.6.1`. See the [V6.1 validation record](docs/releases/v6.1.0.md), [optimization guide](docs/optimization.md), [V6.0.0 validation record](docs/releases/v6.0.0.md), [deployment guide](docs/deployment.md), and [release history](docs/release-history.md).
 
@@ -60,6 +62,7 @@ The project explores how an hourly WiFi demand classification system can be stru
 - Geospatial Intelligence filters and summarizes generated historical observations by inclusive date range, zone, hour, weekday, and demand class, with an offline synthetic access-point map.
 - Scenario Workbench compares fixed model demand predictions against baseline and alternative capacity/budget assumptions, persists reproducible records, and exports scenario-aware reports.
 - Scenario Workbench also offers V6.1 deterministic integer allocation optimization for total or explicitly weighted synthetic deficits; see the [optimization method and constraints](docs/optimization.md).
+- V6.2.0 development adds bounded one-factor synthetic demand sensitivity and budget sweeps to saved optimization runs; see the [sensitivity and robustness guide](docs/robustness.md). These selected tests do not estimate probabilities or real-world reliability.
 - Experiment History dashboard page connected to saved scenario runs; simulated demand and capacity are connection counts, not throughput.
 - pytest, Ruff, Black, and GitHub Actions configuration.
 
@@ -67,7 +70,7 @@ The project explores how an hourly WiFi demand classification system can be stru
 
 For local development, install with `python -m pip install -e ".[dev]"`, train both models using `python scripts/train_model.py`, and run evaluation with `python scripts/evaluate_model.py`. Start the dashboard with `streamlit run app/dashboard.py`, the main API with `uvicorn api.main:app --reload --port 8000`, and the assistant API with `uvicorn assistant_api.main:app --reload --port 8001`. `pyproject.toml` is the dependency source of truth; the two requirements files are compatibility wrappers. Local development supports Python 3.11+, while CI and the container use Python 3.12. Docker's hash-locked runtime dependencies target Linux x86-64; Compose selects `linux/amd64` so Docker Desktop on ARM hosts can use emulation.
 
-The scenario endpoint is `POST /scenario/predict`; experiment routes include `POST /experiments/scenarios`, V6 `POST /experiments/what-if`, V6.1 `POST /experiments/optimize`, paginated `GET /experiments`, `GET /experiments/{id}`, and JSON/Markdown `GET /experiments/{id}/report`. These routes use port 8000. OpenAPI docs are available at each service's `/docs` path. See [capacity planning](docs/capacity-planning.md), [experiments and reporting](docs/experiments.md), [the scenario workbench](docs/scenario-workbench.md), and [optimization](docs/optimization.md).
+The scenario endpoint is `POST /scenario/predict`; experiment routes include `POST /experiments/scenarios`, V6 `POST /experiments/what-if`, V6.1 `POST /experiments/optimize`, V6.2.0 development `POST /experiments/robustness`, paginated `GET /experiments`, `GET /experiments/{id}`, and JSON/Markdown `GET /experiments/{id}/report`. These routes use port 8000. OpenAPI docs are available at each service's `/docs` path. See [capacity planning](docs/capacity-planning.md), [experiments and reporting](docs/experiments.md), [the scenario workbench](docs/scenario-workbench.md), [optimization](docs/optimization.md), and [sensitivity and robustness](docs/robustness.md).
 
 To create an experiment, open **Live Scenario**, choose a synthetic zone and time, run the prediction, set simulated capacity and an optional connection-count allocation budget, then choose **Run and save experiment**. **Experiment History** lists saved runs and downloads a versioned JSON report. For comparison, take two experiment IDs from `GET /experiments` and send them in `POST /experiments/compare`; comparisons require the same time, dataset fingerprint, and model artifact fingerprints. The API never labels these simulations as operational network recommendations.
 

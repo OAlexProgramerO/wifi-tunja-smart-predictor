@@ -4,7 +4,9 @@
 
 Leer en [English](README.md)
 
-WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.1.0 agrega optimización determinista de asignaciones al banco existente.
+**Estado de desarrollo:** La implementación V6.2.0 está en progreso. Aún no se ha publicado; no existe etiqueta Git ni GitHub Release V6.2. La versión publicada actual sigue siendo V6.1.0 (`0.6.1`).
+
+WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.1.0 agrega optimización determinista de asignaciones al banco existente. El desarrollo de V6.2.0 añade análisis acotado de sensibilidad y robustez para optimizaciones guardadas; consulte la [guía V6.2.0](docs/robustness.es.md). Esta versión aún no está publicada.
 
 **Estado de publicación:** V6.1.0 está publicada como etiqueta Git anotada [`v6.1.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.1.0) y [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.1.0). El commit de lanzamiento es `29b0814`; el paquete Python y la imagen Docker usan `0.6.1`. Consulte el [registro de validación V6.1](docs/releases/v6.1.0.md), la [guía de optimización](docs/optimizacion.md), el [registro V6.0.0](docs/releases/v6.0.0.md), la [guía de despliegue](docs/deployment.md) y el [historial de versiones](docs/release-history.md).
 
@@ -54,6 +56,7 @@ El proyecto demuestra un flujo mantenible de clasificación y regresión con con
 - Inteligencia geoespacial con filtros por fechas inclusivas, zona, hora, día y clase de demanda sobre observaciones históricas generadas, y mapa sintético sin mosaicos externos.
 - Banco de escenarios que compara predicciones fijas del modelo con supuestos alternativos de capacidad y presupuesto, guarda experimentos reproducibles y exporta informes con el análisis.
 - El banco también permite optimizar asignaciones enteras deterministas para minimizar déficits sintéticos totales o ponderados explícitamente; consulte [método y restricciones](docs/optimizacion.md).
+- El desarrollo V6.2.0 agrega análisis acotado de sensibilidad sintética de demanda por zona y barridos de presupuesto sobre optimizaciones guardadas; consulte la [guía de sensibilidad y robustez](docs/robustness.es.md). Estos casos seleccionados no estiman probabilidades ni confiabilidad real.
 
 ## Inicio rápido de desarrollo local
 
@@ -61,7 +64,7 @@ Para desarrollo local, instale con `python -m pip install -e ".[dev]"`, entrene 
 
 Consulte [Predicción de escenarios](docs/scenario_prediction.md), [Asistente](docs/assistant.md), [Rendimiento](docs/performance.md), [Geoespacial](docs/geospatial.md), [Seguridad](docs/security.md) y [Limitaciones, privacidad y seguridad](docs/limitations.md).
 
-La API incluye `POST /experiments/scenarios`, `POST /experiments/what-if`, V6.1 `POST /experiments/optimize`, `GET /experiments` con paginación, `GET /experiments/{id}` y `GET /experiments/{id}/report` en JSON o Markdown (puerto 8000). Consulte [referencia API en español](docs/api.es.md), [planificación de capacidad](docs/capacity-planning.md), [experimentos e informes](docs/experiments.md), el [banco de escenarios](docs/scenario-workbench.md) y [optimización](docs/optimizacion.md).
+La API incluye `POST /experiments/scenarios`, `POST /experiments/what-if`, V6.1 `POST /experiments/optimize`, desarrollo V6.2.0 `POST /experiments/robustness`, `GET /experiments` con paginación, `GET /experiments/{id}` y `GET /experiments/{id}/report` en JSON o Markdown (puerto 8000). Consulte [referencia API en español](docs/api.es.md), [planificación de capacidad](docs/capacity-planning.md), [experimentos e informes](docs/experiments.md), el [banco de escenarios](docs/scenario-workbench.md), [optimización](docs/optimizacion.md) y [sensibilidad y robustez](docs/robustness.es.md).
 
 Para guardar un experimento, abra **Live Scenario**, elija una zona y hora sintéticas, ejecute la predicción, indique la capacidad simulada y un presupuesto opcional de conexiones y pulse **Run and save experiment**. **Experiment History** muestra los escenarios guardados y permite descargar el informe JSON versionado. Para comparar, obtenga dos IDs mediante `GET /experiments` y envíelos en `POST /experiments/compare`; se exige igualdad de periodo, huella del dataset y huellas de artefactos de modelo. Estas simulaciones no son recomendaciones de configuración para redes reales.
 

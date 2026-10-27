@@ -227,7 +227,7 @@ def test_scenario_experiment_api_saves_model_trace_and_exports(monkeypatch, tmp_
     )
     assert "Model artifact provenance" in report.text
     json_report = client.get(f"/experiments/{experiment['id']}/report?format=json").json()
-    assert json_report["report_schema_version"] == "1.3"
+    assert json_report["report_schema_version"] == "1.4"
     assert json_report["integrity"]["status"] == "verified"
     assert json_report["dataset_provenance"] == "d" * 64
     fixed_time = datetime(2026, 1, 1, tzinfo=UTC)

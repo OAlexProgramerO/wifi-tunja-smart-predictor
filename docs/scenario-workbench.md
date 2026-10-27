@@ -33,6 +33,8 @@ On success the API returns HTTP 201 with the saved experiment record and stable 
 
 V6.1 adds a second workflow within this workbench: deterministic integer allocation optimization. It shares selected zones, timestamp, prediction service, store, history, and report routes. It supports an unweighted or explicitly weighted synthetic deficit objective, a total budget, per-zone baseline/minimum/maximum values, and a search-step cap. Successful optimal search is globally optimal only for these additive deficit objectives and independent bounds; a step-limited solution is clearly marked unproven. The dashboard shows the baseline and selected per-zone allocations and offers persisted JSON/Markdown downloads. See the [optimization guide](optimization.md) for the formula and an illustrative request.
 
+V6.2.0 development adds sensitivity analysis for saved optimization runs: one-zone-at-a-time synthetic demand multipliers and a separate bounded budget sweep using the unchanged optimizer. The dashboard displays evaluated cases, original and reoptimized objectives, a budget frontier, per-zone stability, partial status, and persisted JSON/Markdown exports. The selected cases do not estimate probabilities or real-world reliability. See [sensitivity and robustness](robustness.md). This work is not released.
+
 ## Limitations
 
 - The model predicts one fixed next-hour demand for each selected synthetic zone and timestamp; the workbench does not model interventions, demand elasticity, throughput, latency, cost, or service quality.

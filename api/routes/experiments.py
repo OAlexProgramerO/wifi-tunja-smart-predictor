@@ -27,6 +27,10 @@ from wifi_tunja_smart_predictor.exceptions import (
 )
 from wifi_tunja_smart_predictor.experiments.service import ScenarioExperimentService
 from wifi_tunja_smart_predictor.experiments.store import ExperimentStore
+from wifi_tunja_smart_predictor.optimization.robustness import (
+    RobustnessAnalysisRequest,
+    RobustnessAnalysisService,
+)
 from wifi_tunja_smart_predictor.optimization.scenario_service import ScenarioOptimizationService
 from wifi_tunja_smart_predictor.optimization.schemas import AllocationOptimizationRequest
 from wifi_tunja_smart_predictor.reporting.service import (
@@ -238,6 +242,7 @@ def optimize_allocation(payload: AllocationOptimizationRequest) -> dict:
             "resource_budget_connections": payload.total_budget_connections,
             "configuration_version": "3.0",
             "scenario_kind": "allocation_optimization",
+            "parent_provenance": optimization.provenance,
             "optimization": payload.model_dump(mode="json"),
         }
         capacity_plan = {
@@ -282,6 +287,94 @@ def optimize_allocation(payload: AllocationOptimizationRequest) -> dict:
         raise HTTPException(
             status_code=503, detail="Scenario model inference is unavailable."
         ) from exc
+
+
+@router.post("/robustness", status_code=201, response_model=ExperimentRecord)
+def create_robustness_analysis(payload: RobustnessAnalysisRequest) -> dict:
+    """Persist bounded one-factor stresses and a budget frontier for a saved optimization."""
+    parent = _read_store(lambda: _store().get(payload.parent_experiment_id))
+    if parent is None:
+        raise HTTPException(status_code=404, detail="Parent optimization run was not found.")
+    if (parent.get("integrity") or {}).get("status") == "invalid":
+        raise HTTPException(
+            status_code=409, detail="Parent optimization run failed integrity checks."
+        )
+    try:
+        analysis = RobustnessAnalysisService().analyze(parent, payload)
+    except ValueError as exc:
+        message = str(exc)
+        if "plus reference" in message or "plus parent budget" in message:
+            raise HTTPException(
+                status_code=422, detail="Configured robustness range exceeds its evaluation bound."
+            ) from exc
+        raise HTTPException(
+            status_code=409, detail="Parent optimization run cannot be analyzed."
+        ) from exc
+    parent_config = parent.get("configuration", {})
+    parent_optimization = parent.get("result", {}).get("optimization", {})
+    reference = parent_optimization.get("selected_candidate") or parent_optimization.get(
+        "baseline", {}
+    )
+    zones = reference.get("zones", [])
+    zone_rows = [
+        {
+            "zone_id": row["zone_id"],
+            "demand": row["predicted_demand_connections"],
+            "effective_capacity": row["effective_capacity_connections"],
+            "overload_connections": row["deficit_connections"],
+            "utilization_pct": (
+                row["predicted_demand_connections"] / row["effective_capacity_connections"] * 100
+                if row["effective_capacity_connections"] > 0
+                else None
+            ),
+            "status": (
+                "SIMULATED_OVER_CAPACITY"
+                if row["deficit_connections"] > 0
+                else "WITHIN_SIMULATED_CAPACITY"
+            ),
+        }
+        for row in zones
+    ]
+    parent_request = parent_config.get("optimization", {})
+    total_budget = parent_request.get("total_budget_connections", 0)
+    configuration = {
+        "datetime": parent_config.get("datetime"),
+        "zones": parent_config.get("zones", []),
+        "resource_budget_connections": total_budget,
+        "configuration_version": "4.0",
+        "scenario_kind": "robustness_analysis",
+        "parent_experiment_id": payload.parent_experiment_id,
+        "parent_provenance": parent.get("result", {}).get("provenance", {}),
+        "robustness_analysis": payload.model_dump(mode="json"),
+    }
+    result = {
+        "time_window": parent_config.get("datetime"),
+        "zones": zone_rows,
+        "capacity_plan": {
+            "schema_version": "1.0",
+            "units": "estimated connections",
+            "allocation_method": "saved_reference_for_robustness_analysis",
+            "resource_budget_connections": total_budget,
+            "allocated_connections": sum(row.get("allocation_connections", 0) for row in zones),
+            "remaining_budget_connections": max(
+                0,
+                total_budget - sum(row.get("allocation_connections", 0) for row in zones),
+            ),
+            "aggregate": {
+                "estimated_demand_connections": sum(row["demand"] for row in zone_rows),
+                "effective_capacity_connections": sum(
+                    row["effective_capacity"] for row in zone_rows
+                ),
+                "overload_connections": sum(row["overload_connections"] for row in zone_rows),
+            },
+            "zones": zone_rows,
+            "assumptions": analysis.limitations,
+        },
+        "robustness_analysis": analysis.model_dump(mode="json"),
+        "provenance": analysis.provenance,
+        "limitations": analysis.limitations,
+    }
+    return _read_store(lambda: _store().save(payload.name, configuration, result))
 
 
 @router.get("", response_model=ExperimentPage)

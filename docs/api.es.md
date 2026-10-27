@@ -1,4 +1,4 @@
-# Referencia de API — optimización de escenarios V6.1
+# Referencia de API — optimización y sensibilidad de escenarios V6.2.0
 
 La API principal corre en el puerto 8000; Swagger está disponible en `/docs`.
 
@@ -25,6 +25,8 @@ Una solicitud válida devuelve HTTP 201 y el registro guardado en el mismo almac
 
 ## Recuperar y exportar
 
-Use `GET /experiments?limit=50&offset=0` (límite 1–100), `GET /experiments/{id}` y `GET /experiments/{id}/report?format=json|markdown`. La exportación JSON usa esquema 1.3 e incluye `optimization_analysis`. Las ejecuciones antiguas mantienen el mismo contenido y reportan ese campo como `null`. La recuperación no vuelve a ejecutar el predictor ni la optimización.
+El desarrollo V6.2.0 agrega `POST /experiments/robustness` para una optimización guardada. Acepta rangos inclusivos acotados de multiplicador sintético (0,25–2; hasta 6 valores), presupuesto (0–100 000; hasta 20 valores), máximo 100 evaluaciones y máximo 10 000 pasos del optimizador por caso. Modifica una zona a la vez y barre presupuesto por separado; incluye las referencias originales si faltan en los rangos. Separa el puntaje de la asignación original bajo cada supuesto del resultado reoptimizado. La integridad incompleta del padre no se marca como verificada. Es una función en desarrollo, no una versión publicada. Consulte [sensibilidad y robustez](robustness.es.md).
+
+Use `GET /experiments?limit=50&offset=0` (límite 1–100), `GET /experiments/{id}` y `GET /experiments/{id}/report?format=json|markdown`. El informe JSON incluye `optimization_analysis` desde el esquema 1.3 y agrega `robustness_analysis` en esquema 1.4; ejecuciones anteriores siguen legibles con campos aditivos nulos. La recuperación no vuelve a ejecutar el predictor ni el análisis.
 
 La demanda usada es una estimación fija del regresor para conexiones sintéticas de la próxima hora. El optimizador no modifica ni vuelve a entrenar modelos. La optimalidad solo se demuestra para los objetivos aditivos de déficit y las restricciones declaradas; si se alcanza el límite de pasos, se indica que la optimalidad no está probada. Consulte la [metodología de optimización](optimizacion.md) y [experimentos](experiments.md).

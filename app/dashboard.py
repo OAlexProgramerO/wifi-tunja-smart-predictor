@@ -1091,6 +1091,210 @@ def _render_optimization_workflow(
         _render_optimization_record(record, spanish=spanish)
 
 
+def _render_robustness_record(record: dict, *, spanish: bool) -> None:
+    analysis = record.get("result", {}).get("robustness_analysis", {})
+    if not analysis:
+        st.info("No hay análisis guardado." if spanish else "No saved robustness analysis.")
+        return
+    status = analysis.get("analysis_status", "partial")
+    st.subheader("Sensibilidad y robustez" if spanish else "Sensitivity and robustness")
+    if status == "partial":
+        st.warning(
+            (
+                "Análisis parcial: se alcanzó un límite de evaluación o de pasos del optimizador."
+                if spanish
+                else "Partial analysis: an evaluation or optimizer-step limit was reached."
+            )
+        )
+    if analysis.get("assessment_status") != "assessable":
+        st.warning(
+            "La integridad/procedencia del experimento base no está verificada."
+            if spanish
+            else "The parent experiment integrity/provenance is not verified."
+        )
+    st.metric(
+        "Casos factibles / evaluados" if spanish else "Feasible / evaluated cases",
+        f"{analysis.get('feasible_scenario_count', 0)} / {analysis.get('feasibility_rate_denominator_count', 0)}",
+    )
+    st.caption(
+        "Es una tasa descriptiva del conjunto de escenarios sintéticos seleccionados, no una probabilidad ni una medida de confiabilidad real."
+        if spanish
+        else "This is descriptive for the selected synthetic scenarios, not a probability or measure of real-world reliability."
+    )
+    scenarios = analysis.get("scenario_results", [])
+    if scenarios:
+        st.dataframe(
+            [
+                {
+                    "Tipo" if spanish else "Type": row.get("scenario_type"),
+                    "Parámetro" if spanish else "Parameter": row.get("varied_parameter"),
+                    "Zona" if spanish else "Zone": row.get("varied_zone_id"),
+                    "Demanda ×" if spanish else "Demand ×": row.get("demand_multiplier"),
+                    "Presupuesto" if spanish else "Budget": row.get("budget_connections"),
+                    "Factibilidad" if spanish else "Feasibility": row.get("feasibility_status"),
+                    "Objetivo original" if spanish else "Original objective": row.get(
+                        "original_allocation_objective_value"
+                    ),
+                    "Objetivo reoptimizado" if spanish else "Reoptimized objective": row.get(
+                        "reoptimized_objective_value"
+                    ),
+                    (
+                        "Presupuesto adicional mínimo" if spanish else "Minimum additional budget"
+                    ): row.get("minimum_additional_budget_connections"),
+                }
+                for row in scenarios
+            ],
+            use_container_width=True,
+            hide_index=True,
+        )
+    frontier = analysis.get("budget_frontier", [])
+    plotted = [
+        {
+            "budget_connections": row["budget_connections"],
+            "objective_value": row["objective_value"],
+        }
+        for row in frontier
+        if row.get("objective_value") is not None
+    ]
+    if plotted:
+        st.line_chart(plotted, x="budget_connections", y="objective_value")
+    if analysis.get("zone_stability"):
+        st.dataframe(analysis["zone_stability"], use_container_width=True, hide_index=True)
+    st.caption(analysis.get("synthetic_data_disclaimer", SYNTHETIC_DATA_DISCLAIMER))
+    experiment_id = record.get("id")
+    if experiment_id:
+        try:
+            json_report = main_api_request(f"/experiments/{experiment_id}/report?format=json")
+            markdown_report = main_api_text_request(
+                f"/experiments/{experiment_id}/report?format=markdown"
+            )
+        except ApiClientError as exc:
+            st.error(str(exc))
+        else:
+            st.download_button(
+                "Descargar informe JSON" if spanish else "Download JSON report",
+                json.dumps(json_report, indent=2, ensure_ascii=False),
+                file_name=f"robustness-{experiment_id}.json",
+                mime="application/json",
+                key="robustness_json_download",
+            )
+            st.download_button(
+                "Descargar informe Markdown" if spanish else "Download Markdown report",
+                markdown_report,
+                file_name=f"robustness-{experiment_id}.md",
+                mime="text/markdown",
+                key="robustness_markdown_download",
+            )
+
+
+def _render_robustness_workflow(*, spanish: bool) -> None:
+    with st.form("robustness_analysis_form"):
+        parent_id = st.text_input(
+            "ID de optimización guardada" if spanish else "Saved optimization ID",
+            value=st.session_state.get("optimization_experiment_id", ""),
+        )
+        name = st.text_input(
+            "Nombre del análisis" if spanish else "Analysis name",
+            value="Análisis de robustez" if spanish else "Robustness analysis",
+        )
+        columns = st.columns(3)
+        low_demand = columns[0].number_input(
+            "Multiplicador demanda mínimo" if spanish else "Minimum demand multiplier",
+            min_value=0.25,
+            max_value=2.0,
+            value=0.8,
+            step=0.05,
+        )
+        high_demand = columns[1].number_input(
+            "Multiplicador demanda máximo" if spanish else "Maximum demand multiplier",
+            min_value=0.25,
+            max_value=2.0,
+            value=1.2,
+            step=0.05,
+        )
+        demand_step = columns[2].number_input(
+            "Paso demanda" if spanish else "Demand step",
+            min_value=0.01,
+            max_value=1.0,
+            value=0.2,
+            step=0.05,
+        )
+        columns = st.columns(3)
+        low_budget = columns[0].number_input(
+            "Presupuesto mínimo" if spanish else "Minimum budget",
+            min_value=0,
+            max_value=100_000,
+            value=0,
+            step=50,
+        )
+        high_budget = columns[1].number_input(
+            "Presupuesto máximo" if spanish else "Maximum budget",
+            min_value=0,
+            max_value=100_000,
+            value=1_000,
+            step=50,
+        )
+        budget_step = columns[2].number_input(
+            "Paso de presupuesto" if spanish else "Budget step",
+            min_value=1,
+            max_value=100_000,
+            value=100,
+            step=50,
+        )
+        max_evaluations = st.number_input(
+            "Máximo de escenarios evaluados" if spanish else "Maximum evaluated scenarios",
+            min_value=1,
+            max_value=100,
+            value=100,
+            step=1,
+        )
+        max_steps = st.number_input(
+            (
+                "Máximo de pasos del optimizador por escenario"
+                if spanish
+                else "Optimizer steps per scenario"
+            ),
+            min_value=1,
+            max_value=10_000,
+            value=10_000,
+            step=100,
+        )
+        submitted = st.form_submit_button(
+            "Ejecutar y guardar análisis" if spanish else "Run and save analysis",
+            type="primary",
+            disabled=not parent_id.strip(),
+        )
+    if submitted:
+        payload = {
+            "name": name,
+            "parent_experiment_id": parent_id.strip(),
+            "demand_multiplier_min": low_demand,
+            "demand_multiplier_max": high_demand,
+            "demand_multiplier_step": demand_step,
+            "budget_min_connections": low_budget,
+            "budget_max_connections": high_budget,
+            "budget_step_connections": budget_step,
+            "max_evaluations": max_evaluations,
+            "max_allocation_steps_per_evaluation": max_steps,
+        }
+        try:
+            saved = main_api_request("/experiments/robustness", payload)
+            st.session_state["robustness_experiment_record"] = saved
+            st.session_state["robustness_experiment_id"] = saved["id"]
+        except ApiClientError as exc:
+            st.error(str(exc))
+    experiment_id = st.session_state.get("robustness_experiment_id")
+    record = st.session_state.get("robustness_experiment_record")
+    if experiment_id:
+        try:
+            record = main_api_request(f"/experiments/{experiment_id}")
+            st.session_state["robustness_experiment_record"] = record
+        except ApiClientError as exc:
+            st.error(str(exc))
+    if record:
+        _render_robustness_record(record, spanish=spanish)
+
+
 def render_scenario_workbench(frame: pd.DataFrame) -> None:
     """Collect explicit capacity assumptions, execute, persist, compare, and export."""
     language = st.radio(
@@ -1126,10 +1330,14 @@ def render_scenario_workbench(frame: pd.DataFrame) -> None:
         [
             "Comparar escenarios" if es else "Compare scenarios",
             "Optimizar asignación" if es else "Optimize allocation",
+            "Analizar robustez" if es else "Analyze robustness",
         ],
         horizontal=True,
         key="scenario_workflow",
     )
+    if workflow in {"Analizar robustez", "Analyze robustness"}:
+        _render_robustness_workflow(spanish=es)
+        return
     if workflow in {"Optimizar asignación", "Optimize allocation"}:
         dates = pd.to_datetime(frame["timestamp"], errors="coerce").dropna()
         if dates.empty:

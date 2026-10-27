@@ -55,7 +55,14 @@ def inspect_experiment_integrity(record: dict[str, Any]) -> dict[str, Any]:
     if _contains_non_finite(configuration) or _contains_non_finite(result):
         invalid.add("NON_FINITE_VALUE")
 
-    is_scenario_record = record.get("experiment_type") == "capacity_scenario"
+    scenario_kind = configuration.get("scenario_kind") if isinstance(configuration, dict) else None
+    is_derived_optimization = scenario_kind in {
+        "allocation_optimization",
+        "robustness_analysis",
+    }
+    is_scenario_record = (
+        record.get("experiment_type") == "capacity_scenario" and not is_derived_optimization
+    )
     if is_scenario_record and not configuration:
         incomplete.add("SCENARIO_PARAMETERS_MISSING")
         incomplete.add("SCENARIO_ZONES_MISSING")
@@ -101,6 +108,8 @@ def inspect_experiment_integrity(record: dict[str, Any]) -> dict[str, Any]:
                     break
 
     provenance = result.get("provenance")
+    if is_derived_optimization and provenance is None:
+        provenance = configuration.get("parent_provenance")
     if provenance is None:
         incomplete.update({"DATASET_PROVENANCE_MISSING", "MODEL_PROVENANCE_MISSING"})
         provenance = {}

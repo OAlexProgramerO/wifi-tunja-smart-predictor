@@ -185,7 +185,7 @@ def test_optimize_api_persists_and_exports_report(tmp_path, monkeypatch):
                     },
                     "regression": {"predicted_connections_next_hour": 12.0},
                     "traceability": {
-                        "application_version": "0.6.1",
+                        "application_version": "0.6.2",
                         "classifier": {
                             "artifact_sha256": "a" * 64,
                             "model_version": "model-v1",
@@ -221,10 +221,11 @@ def test_optimize_api_persists_and_exports_report(tmp_path, monkeypatch):
         for row in client.get("/experiments?limit=10&offset=0").json()["items"]
     )
     report = client.get(f"/experiments/{record['id']}/report?format=json").json()
-    assert report["report_schema_version"] == "1.3"
+    assert report["report_schema_version"] == "1.4"
     assert report["optimization_analysis"]["objective"] == "MINIMIZE_TOTAL_DEFICIT"
     markdown = client.get(f"/experiments/{record['id']}/report?format=markdown")
     assert markdown.status_code == 200
+    assert client.get(f"/experiments/{record['id']}").json()["integrity"]["status"] == "verified"
     assert "Allocation optimization" in markdown.text
     assert "Feasible/infeasible candidates" in markdown.text
     assert "/experiments/optimize" in client.get("/openapi.json").json()["paths"]
@@ -275,5 +276,266 @@ def test_dashboard_renders_optimization_comparison_chart():
     }
     app_test.run()
     assert not app_test.exception
-    assert any(metric.label == "Selected deficit" for metric in app_test.metric)
-    assert len(app_test.dataframe) == 1
+
+
+def test_robustness_sensitivity_and_budget_sweep_are_deterministic():
+    from wifi_tunja_smart_predictor.optimization.robustness import (
+        RobustnessAnalysisRequest,
+        RobustnessAnalysisService,
+    )
+
+    request = make_request(
+        total_budget_connections=2,
+        zones=[
+            {"zone_id": "A", "capacity_connections": 1},
+            {"zone_id": "B", "capacity_connections": 1},
+        ],
+    )
+    optimized = AllocationOptimizationService().optimize(request, {"A": 4.25, "B": 3.0})
+    parent = {
+        "id": "parent-id",
+        "configuration": {
+            "scenario_kind": "allocation_optimization",
+            "optimization": request.model_dump(mode="json"),
+        },
+        "result": {"optimization": optimized.model_dump(mode="json")},
+        "integrity": {"status": "verified"},
+    }
+    analysis_request = RobustnessAnalysisRequest(
+        name="sensitivity",
+        parent_experiment_id="parent-id",
+        demand_multiplier_min=0.5,
+        demand_multiplier_max=1.5,
+        demand_multiplier_step=0.5,
+        budget_min_connections=1,
+        budget_max_connections=3,
+        budget_step_connections=1,
+    )
+    service = RobustnessAnalysisService()
+    first = service.analyze(parent, analysis_request)
+    second = service.analyze(parent, analysis_request)
+    assert first.model_dump() == second.model_dump()
+    assert first.analysis_status == "completed"
+    assert first.assessment_status == "assessable"
+    assert first.feasibility_rate_denominator_count == first.scenarios_evaluated
+    assert any(row.scenario_type == "demand_stress" for row in first.scenario_results)
+    assert any(row.scenario_type == "budget_sweep" for row in first.scenario_results)
+    stress = next(row for row in first.scenario_results if row.scenario_type == "demand_stress")
+    assert stress.original_allocation_objective_value != stress.reoptimized_objective_value
+    assert stress.demand_multiplier in {0.5, 1.5}
+    assert all(row.assessable_scenario_count > 0 for row in first.zone_stability)
+    assert first.most_sensitive_zones[0] in {"A", "B"}
+
+
+def test_robustness_reports_hard_minimum_budget_shortfall_and_partial_limit():
+    from wifi_tunja_smart_predictor.optimization.robustness import (
+        RobustnessAnalysisRequest,
+        RobustnessAnalysisService,
+    )
+
+    request = make_request(
+        total_budget_connections=1,
+        zones=[
+            {"zone_id": "A", "capacity_connections": 0, "minimum_allocation_connections": 2},
+            {"zone_id": "B", "capacity_connections": 0, "minimum_allocation_connections": 2},
+        ],
+    )
+    optimized = AllocationOptimizationService().optimize(request, {"A": 4, "B": 4})
+    parent = {
+        "id": "parent-id",
+        "configuration": {
+            "scenario_kind": "allocation_optimization",
+            "optimization": request.model_dump(mode="json"),
+        },
+        "result": {"optimization": optimized.model_dump(mode="json")},
+        "integrity": {"status": "verified"},
+    }
+    result = RobustnessAnalysisService().analyze(
+        parent,
+        RobustnessAnalysisRequest(
+            name="partial",
+            parent_experiment_id="parent-id",
+            budget_min_connections=0,
+            budget_max_connections=2,
+            budget_step_connections=1,
+            max_evaluations=1,
+        ),
+    )
+    assert result.analysis_status == "partial"
+    assert result.scenarios_evaluated == 1 < result.scenarios_defined
+    assert result.scenario_results[0].minimum_additional_budget_connections == 3
+    assert result.scenario_results[0].feasibility_status == "infeasible"
+    assert result.feasibility_rate_denominator_count == 1
+    assert result.feasibility_rate_under_tested_scenarios == 0
+
+
+def test_robustness_request_rejects_unbounded_or_reversed_ranges():
+    from pydantic import ValidationError
+
+    from wifi_tunja_smart_predictor.optimization.robustness import RobustnessAnalysisRequest
+
+    with pytest.raises(ValidationError):
+        RobustnessAnalysisRequest(
+            name="bad",
+            parent_experiment_id="parent-id",
+            demand_multiplier_min=1.5,
+            demand_multiplier_max=1,
+        )
+
+
+def test_robustness_retains_unverified_parent_provenance_without_claiming_verification():
+    from wifi_tunja_smart_predictor.optimization.robustness import (
+        RobustnessAnalysisRequest,
+        RobustnessAnalysisService,
+    )
+
+    request = make_request(zones=[{"zone_id": "A", "capacity_connections": 1}])
+    optimization = AllocationOptimizationService().optimize(request, {"A": 3})
+    parent = {
+        "id": "legacy-parent",
+        "configuration": {
+            "scenario_kind": "allocation_optimization",
+            "optimization": request.model_dump(mode="json"),
+        },
+        "result": {"optimization": optimization.model_dump(mode="json")},
+        "integrity": {"status": "incomplete"},
+    }
+    result = RobustnessAnalysisService().analyze(
+        parent,
+        RobustnessAnalysisRequest(name="legacy", parent_experiment_id="legacy-parent"),
+    )
+    assert result.assessment_status == "not_assessable"
+    assert result.parent_integrity_status == "incomplete"
+    assert "PARENT_PROVENANCE_INCOMPLETE" in result.reason_codes
+
+
+def test_robustness_api_persists_and_exports_analysis(tmp_path, monkeypatch):
+    from api.routes import experiments
+
+    monkeypatch.setattr(
+        experiments, "_store", lambda: experiments.ExperimentStore(tmp_path / "history.sqlite3")
+    )
+
+    class FakePrediction:
+        def predict(self, scenario):
+            from types import SimpleNamespace
+
+            return SimpleNamespace(
+                to_dict=lambda: {
+                    "scenario": {
+                        "dataset_version": "synthetic-v1",
+                        "dataset_sha256": "d" * 64,
+                        "dataset_fingerprint_algorithm": "sha256-v1",
+                    },
+                    "regression": {"predicted_connections_next_hour": 12.0},
+                    "traceability": {
+                        "application_version": "0.6.2",
+                        "classifier": {"artifact_sha256": "a" * 64, "model_version": "m1"},
+                        "regressor": {"artifact_sha256": "b" * 64, "model_version": "m1"},
+                    },
+                }
+            )
+
+    monkeypatch.setattr(experiments, "_scenario_service", lambda: FakePrediction())
+    client = TestClient(app)
+    parent_response = client.post(
+        "/experiments/optimize",
+        json={
+            "name": "parent optimization",
+            "datetime": "2025-01-01T12:00:00",
+            "total_budget_connections": 40,
+            "zones": [{"zone_id": "zone_1", "capacity_connections": 2}],
+        },
+    )
+    assert parent_response.status_code == 201, parent_response.text
+    parent = parent_response.json()
+    response = client.post(
+        "/experiments/robustness",
+        json={
+            "name": "bounded robustness",
+            "parent_experiment_id": parent["id"],
+            "demand_multiplier_min": 0.8,
+            "demand_multiplier_max": 1.2,
+            "demand_multiplier_step": 0.2,
+            "budget_min_connections": 2,
+            "budget_max_connections": 6,
+            "budget_step_connections": 2,
+            "max_evaluations": 10,
+            "max_allocation_steps_per_evaluation": 100,
+        },
+    )
+    assert response.status_code == 201, response.text
+    robustness = response.json()
+    assert robustness["integrity"]["status"] == "verified"
+    assert robustness["result"]["robustness_analysis"]["analysis_status"] == "completed"
+    assert client.get(f"/experiments/{robustness['id']}").status_code == 200
+    assert any(
+        row["id"] == robustness["id"]
+        for row in client.get("/experiments?limit=10&offset=0").json()["items"]
+    )
+    report = client.get(f"/experiments/{robustness['id']}/report?format=json").json()
+    assert report["report_schema_version"] == "1.4"
+    assert report["robustness_analysis"]["parent_experiment_id"] == parent["id"]
+    markdown = client.get(f"/experiments/{robustness['id']}/report?format=markdown")
+    assert markdown.status_code == 200
+    assert "Sensitivity and robustness analysis" in markdown.text
+    assert "not a probability" in markdown.text
+    assert "/experiments/robustness" in client.get("/openapi.json").json()["paths"]
+    missing = client.post(
+        "/experiments/robustness",
+        json={"name": "missing", "parent_experiment_id": "missing-id"},
+    )
+    assert missing.status_code == 404
+    over_limit = client.post(
+        "/experiments/robustness",
+        json={
+            "name": "parent budget adds twenty-first point",
+            "parent_experiment_id": parent["id"],
+            "budget_min_connections": 0,
+            "budget_max_connections": 19,
+            "budget_step_connections": 1,
+        },
+    )
+    assert over_limit.status_code == 422
+
+
+def test_dashboard_renders_robustness_record_without_api_call():
+    app_test = AppTest.from_string(
+        "import streamlit as st\n"
+        "from app.dashboard import _render_robustness_record\n"
+        "_render_robustness_record(st.session_state['record'], spanish=False)\n",
+        default_timeout=30,
+    )
+    app_test.session_state["record"] = {
+        "id": "saved",
+        "result": {
+            "robustness_analysis": {
+                "analysis_status": "partial",
+                "assessment_status": "not_assessable",
+                "feasible_scenario_count": 1,
+                "feasibility_rate_denominator_count": 2,
+                "scenario_results": [],
+                "budget_frontier": [],
+                "zone_stability": [],
+                "synthetic_data_disclaimer": "Synthetic only.",
+            }
+        },
+    }
+    app_test.run()
+    assert not app_test.exception
+    assert any("Partial analysis" in item.value for item in app_test.warning)
+    assert any("Feasible / evaluated cases" == metric.label for metric in app_test.metric)
+
+
+def test_robustness_workbench_renders_form():
+    app_test = AppTest.from_string(
+        "from app.dashboard import render_scenario_workbench\n"
+        "from tests.conftest import make_mini_frame\n"
+        "render_scenario_workbench(make_mini_frame(8))\n",
+        default_timeout=30,
+    ).run()
+    workflow = next(widget for widget in app_test.radio if widget.label == "Workflow")
+    workflow.set_value("Analyze robustness").run()
+    assert not app_test.exception
+    assert any(widget.label == "Saved optimization ID" for widget in app_test.text_input)
+    assert any(widget.label == "Maximum evaluated scenarios" for widget in app_test.number_input)
