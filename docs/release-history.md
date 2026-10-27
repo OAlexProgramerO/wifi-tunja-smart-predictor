@@ -1,8 +1,8 @@
 # Release history and V4.0 readiness
 
-## V6.2.0 — Sensitivity and robustness — validated candidate
+## V6.2.0 — Sensitivity and robustness — released 2026-10-27
 
-The implementation is validated on candidate commit `c55862c`. Python package and Docker image version are `0.6.2`; product release, tag, and GitHub Release publication remain pending. GitHub Actions workflow 40597104043 passed both quality/security tests and Docker runtime smoke/persistence checks. See the [V6.2.0 validation record](releases/v6.2.0.md). Selected scenarios do not represent real WiFi demand or real-world operational reliability in Tunja.
+Adds bounded synthetic demand sensitivity and budget sweeps for saved optimization runs. Product V6.2.0 uses Python package and Docker image `0.6.2`. Annotated Git tag [`v6.2.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.2.0) and the [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.2.0) target verified commit `4e218cba38e80ef22e6678d6b90d43ae10c313a9`; both jobs passed in [workflow 40597676230](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40597676230). Selected scenarios do not represent real WiFi demand or real-world operational reliability in Tunja. See the [V6.2.0 validation record](releases/v6.2.0.md).
 
 ## V6.1.0 — Intelligent scenario optimization — released 2026-10-26
 
