@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V6.3.0 — Temporal evaluation and synthetic drift lab — candidate
+
+Adds bounded expanding chronological evaluation, synthetic feature-distribution diagnostics, report provenance, a typed API endpoint, and Model Performance dashboard workflow. Package and Docker image candidate versions are `0.6.3`. Publication and validation evidence are pending; all results are synthetic and do not validate real Tunja WiFi demand. See [temporal evaluation](temporal-evaluation.md).
+
 ## V6.2.0 — Sensitivity and robustness — released 2026-10-27
 
 Adds bounded synthetic demand sensitivity and budget sweeps for saved optimization runs. Product V6.2.0 uses Python package and Docker image `0.6.2`. Annotated Git tag [`v6.2.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.2.0) and the [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.2.0) target verified commit `4e218cba38e80ef22e6678d6b90d43ae10c313a9`; both jobs passed in [workflow 40597676230](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40597676230). Selected scenarios do not represent real WiFi demand or real-world operational reliability in Tunja. See the [V6.2.0 validation record](releases/v6.2.0.md).

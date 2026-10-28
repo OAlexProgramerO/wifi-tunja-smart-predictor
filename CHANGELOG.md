@@ -1,5 +1,9 @@
 # Changelog
 
+## V6.3.0 — Temporal evaluation and synthetic drift lab — candidate
+
+Adds bounded expanding chronological evaluation of cloned classifier and regressor pipelines, selected numeric/categorical feature-distribution diagnostics, dataset and model fingerprints, versioned JSON/Markdown reporting, a typed API route, and Model Performance dashboard controls. All results remain limited to synthetic data; distribution differences do not establish model degradation or real-world drift. Candidate Python package and Docker image version: `0.6.3`. See [temporal evaluation](docs/temporal-evaluation.md). Release publication is pending verification.
+
 ## V6.2.0 — Sensitivity and robustness analysis — 2026-10-27
 
 Adds bounded one-factor synthetic demand sensitivity and budget sweeps for saved V6.1 allocation runs; per-zone allocation stability, explicit hard-minimum budget shortfall, and incomplete-search reporting; additive persistence and report schema 1.4; Scenario Workbench and API integration; and bilingual documentation. Product V6.2.0 uses Python package and Docker image `0.6.2`; annotated tag [`v6.2.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.2.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.2.0) point to verified commit `4e218cba38e80ef22e6678d6b90d43ae10c313a9`. Local quality/security checks passed, and both jobs passed in [workflow 40597676230](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40597676230). All analyses are limited to synthetic assumptions and do not establish real-world WiFi demand or reliability in Tunja. See the [V6.2 guide](docs/robustness.md) and [validation record](docs/releases/v6.2.0.md).
