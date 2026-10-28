@@ -185,7 +185,7 @@ def test_optimize_api_persists_and_exports_report(tmp_path, monkeypatch):
                     },
                     "regression": {"predicted_connections_next_hour": 12.0},
                     "traceability": {
-                        "application_version": "0.6.2",
+                        "application_version": "0.6.3",
                         "classifier": {
                             "artifact_sha256": "a" * 64,
                             "model_version": "model-v1",
@@ -429,7 +429,7 @@ def test_robustness_api_persists_and_exports_analysis(tmp_path, monkeypatch):
                     },
                     "regression": {"predicted_connections_next_hour": 12.0},
                     "traceability": {
-                        "application_version": "0.6.2",
+                        "application_version": "0.6.3",
                         "classifier": {"artifact_sha256": "a" * 64, "model_version": "m1"},
                         "regressor": {"artifact_sha256": "b" * 64, "model_version": "m1"},
                     },

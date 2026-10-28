@@ -20,6 +20,19 @@ def test_dashboard_overview_renders_with_v3_navigation(mini_frame, tmp_path, mon
     assert any(metric.label == "Synthetic access points" for metric in app.metric)
 
 
+def test_temporal_evaluation_controls_render_without_running_evaluation():
+    app = AppTest.from_string(
+        "from app.dashboard import _render_temporal_evaluation_lab\n"
+        "_render_temporal_evaluation_lab()\n",
+        default_timeout=30,
+    ).run()
+
+    assert not app.exception
+    assert any("Temporal evaluation and synthetic drift lab" in item.value for item in app.markdown)
+    assert any(item.label == "Chronological windows" for item in app.slider)
+    assert any(item.label == "Features for distribution comparison" for item in app.multiselect)
+
+
 def test_scenario_result_separates_classification_and_regression_outputs():
 
     result = {

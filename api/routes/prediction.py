@@ -7,7 +7,7 @@ from functools import lru_cache
 from time import perf_counter
 
 from fastapi import APIRouter, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, PlainTextResponse
 
 from api.schemas import (
     HealthResponse,
@@ -18,14 +18,19 @@ from api.schemas import (
     PredictResponse,
     ScenarioPredictionResponse,
     ScenarioPredictRequest,
+    TemporalEvaluationRequest,
+    TemporalEvaluationResponse,
 )
 from wifi_tunja_smart_predictor import deployment
 from wifi_tunja_smart_predictor.config import (
     CLASSIFICATION_METADATA_PATH,
     MODEL_INPUT_COLUMNS,
     MODEL_METADATA_PATH,
+    PROCESSED_DATASET_PATH,
     PROJECT_NAME,
     PROJECT_VERSION,
+    RAW_DATASET_PATH,
+    REGRESSION_MODEL_PATH,
     SYNTHETIC_DATA_DISCLAIMER,
 )
 from wifi_tunja_smart_predictor.data.loader import load_raw_dataset
@@ -44,12 +49,16 @@ from wifi_tunja_smart_predictor.models.artifacts import (
     load_regression_metadata,
     model_bundle_metadata_matches,
 )
-from wifi_tunja_smart_predictor.models.diagnostics import load_valid_diagnostics
+from wifi_tunja_smart_predictor.models.diagnostics import load_valid_diagnostics, sha256_file
 from wifi_tunja_smart_predictor.models.predict import (
     classifier_supports_demand_labels,
     load_model_artifact,
     predict_demand,
     predict_probability,
+)
+from wifi_tunja_smart_predictor.models.temporal_evaluation import (
+    evaluate_temporal_windows,
+    render_temporal_markdown,
 )
 from wifi_tunja_smart_predictor.models.traceability import build_prediction_traceability
 from wifi_tunja_smart_predictor.observability import (
@@ -149,6 +158,54 @@ def model_diagnostics() -> ModelDiagnosticsResponse:
             status_code=503,
             detail="Model diagnostics are unavailable; regenerate evaluation artifacts.",
         ) from exc
+
+
+@router.post("/evaluation/temporal", response_model=TemporalEvaluationResponse)
+def temporal_evaluation(
+    request: TemporalEvaluationRequest,
+    report_format: str = "json",
+) -> TemporalEvaluationResponse | JSONResponse:
+    """Run a bounded synthetic temporal evaluation using the stored model pipelines."""
+    if report_format not in {"json", "markdown"}:
+        raise HTTPException(status_code=422, detail="report_format must be json or markdown")
+    dataset_path = next(
+        (path for path in (PROCESSED_DATASET_PATH, RAW_DATASET_PATH) if path.is_file()), None
+    )
+    if dataset_path is None:
+        raise HTTPException(status_code=503, detail="Synthetic evaluation dataset is unavailable.")
+    try:
+        classifier = load_model_artifact()
+        regressor = load_regression_artifact(REGRESSION_MODEL_PATH)
+        classifier_metadata = _metadata()
+        regressor_metadata = load_regression_metadata()
+        if not (
+            artifact_matches_metadata(classifier_metadata, classifier)
+            and artifact_matches_metadata(regressor_metadata, regressor)
+            and model_bundle_metadata_matches(classifier_metadata, regressor_metadata)
+        ):
+            raise ModelArtifactError("Temporal evaluation artifacts are stale or inconsistent.")
+        frame = load_raw_dataset(dataset_path)
+        report = evaluate_temporal_windows(
+            frame,
+            classifier.estimator,
+            regressor.estimator,
+            window_count=request.window_count,
+            min_train_rows=request.min_train_rows,
+            min_test_rows=request.min_test_rows,
+            feature_names=request.features,
+            dataset_fingerprint=sha256_file(dataset_path),
+            classifier_fingerprint=classifier.sha256,
+            regressor_fingerprint=regressor.sha256,
+            feature_version=classifier_metadata.get("preprocessing_version"),
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Temporal synthetic evaluation failed")
+        raise HTTPException(status_code=503, detail="Temporal evaluation is unavailable.") from exc
+    if report_format == "markdown":
+        return PlainTextResponse(render_temporal_markdown(report), media_type="text/markdown")
+    return TemporalEvaluationResponse.model_validate(report)
 
 
 @router.get("/model-info", response_model=ModelInfoResponse)

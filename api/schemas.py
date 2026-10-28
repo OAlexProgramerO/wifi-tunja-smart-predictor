@@ -77,6 +77,39 @@ class ModelDiagnosticsResponse(BaseModel):
     warnings: list[str]
 
 
+class TemporalEvaluationRequest(BaseModel):
+    """Bounded settings for additional synthetic chronological evaluation."""
+
+    model_config = ConfigDict(extra="forbid")
+    window_count: int = Field(default=3, ge=2, le=5)
+    min_train_rows: int = Field(default=100, ge=2, le=50_000)
+    min_test_rows: int = Field(default=20, ge=2, le=10_000)
+    features: list[str] | None = None
+
+    @field_validator("features")
+    @classmethod
+    def validate_features(cls, value: list[str] | None) -> list[str] | None:
+        if value is not None and (not 1 <= len(value) <= 12 or len(set(value)) != len(value)):
+            raise ValueError("features must contain 1 to 12 unique values")
+        return value
+
+
+class TemporalEvaluationResponse(BaseModel):
+    """Versioned synthetic temporal evaluation report."""
+
+    schema_version: str
+    project_version: str
+    feature_version: str | None
+    generated_at_utc: datetime
+    evaluation_type: str
+    parameters: dict[str, Any]
+    dataset: dict[str, Any]
+    artifacts: dict[str, Any]
+    windows: list[dict[str, Any]]
+    feature_diagnostics: list[dict[str, Any]]
+    summary: dict[str, Any]
+
+
 class ModelArtifactTrace(BaseModel):
     model_version: str | None = None
     selected_model: str | None = None

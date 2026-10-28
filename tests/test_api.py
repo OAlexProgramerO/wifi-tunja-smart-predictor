@@ -6,6 +6,7 @@ import hashlib
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+from types import SimpleNamespace
 
 import joblib
 import pytest
@@ -118,6 +119,75 @@ def test_model_diagnostics_endpoint_fails_closed_when_unavailable(
     response = client.get("/model-diagnostics")
     assert response.status_code == 503
     assert "stale" not in response.text
+
+
+def test_temporal_evaluation_api_returns_versioned_report(
+    client: TestClient, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from sklearn.linear_model import LinearRegression
+
+    import api.routes.prediction as prediction_routes
+    from tests.conftest import make_mini_frame
+    from wifi_tunja_smart_predictor.config import REGRESSION_TARGET_COLUMN
+
+    frame = make_mini_frame(400)
+    classifier = build_classifier_pipeline(
+        LogisticRegression(max_iter=200, random_state=42), scale_numeric=True
+    )
+    regressor = build_classifier_pipeline(LinearRegression(), scale_numeric=False)
+    classifier.fit(frame[MODEL_INPUT_COLUMNS], frame[TARGET_COLUMN])
+    regressor.fit(frame[MODEL_INPUT_COLUMNS], frame[REGRESSION_TARGET_COLUMN])
+    dataset = tmp_path / "synthetic.csv"
+    dataset.write_text("synthetic test input", encoding="utf-8")
+    monkeypatch.setattr(prediction_routes, "PROCESSED_DATASET_PATH", dataset)
+    monkeypatch.setattr(prediction_routes, "load_raw_dataset", lambda _path: frame)
+    monkeypatch.setattr(
+        prediction_routes, "_metadata", lambda: {"preprocessing_version": "scenario-features-v1"}
+    )
+    monkeypatch.setattr(
+        prediction_routes,
+        "load_regression_metadata",
+        lambda: {"preprocessing_version": "scenario-features-v1"},
+    )
+    monkeypatch.setattr(prediction_routes, "artifact_matches_metadata", lambda *_: True)
+    monkeypatch.setattr(prediction_routes, "model_bundle_metadata_matches", lambda *_: True)
+    monkeypatch.setattr(
+        prediction_routes,
+        "load_model_artifact",
+        lambda: SimpleNamespace(estimator=classifier, sha256="a" * 64),
+    )
+    monkeypatch.setattr(
+        prediction_routes,
+        "load_regression_artifact",
+        lambda _path: SimpleNamespace(estimator=regressor, sha256="b" * 64),
+    )
+
+    response = client.post(
+        "/evaluation/temporal",
+        json={"window_count": 2, "features": ["hour", "zone_type"]},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["schema_version"] == "1.0"
+    assert body["project_version"] == "0.6.3"
+    assert body["feature_version"] == "scenario-features-v1"
+    assert body["dataset"]["sha256"] == hashlib.sha256(b"synthetic test input").hexdigest()
+    assert len(body["windows"]) == 2
+    assert body["artifacts"]["classifier_sha256"] == "a" * 64
+    markdown = client.post(
+        "/evaluation/temporal?report_format=markdown",
+        json={"window_count": 2, "features": ["hour"]},
+    )
+    assert markdown.status_code == 200
+    assert markdown.headers["content-type"].startswith("text/markdown")
+    assert "Feature distribution diagnostics" in markdown.text
+
+
+def test_temporal_evaluation_api_rejects_excessive_window_count(client: TestClient) -> None:
+    response = client.post("/evaluation/temporal", json={"window_count": 6})
+    assert response.status_code == 422
+    assert "internal" not in response.text
 
 
 def test_model_info_rejects_classifier_with_incompatible_prediction_labels(

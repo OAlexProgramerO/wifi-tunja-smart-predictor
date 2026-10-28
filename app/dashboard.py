@@ -1831,7 +1831,88 @@ def render_assistant() -> None:
         st.rerun()
 
 
+def _render_temporal_evaluation_lab() -> None:
+    _section_header("Temporal evaluation and synthetic drift lab")
+    st.caption(
+        "Runs bounded expanding-window fits on synthetic observations. Distribution differences are descriptive; they do not establish model degradation or real-world drift."
+    )
+    with st.form("temporal_evaluation_form"):
+        window_count = st.slider("Chronological windows", 2, 5, 3)
+        features = st.multiselect(
+            "Features for distribution comparison",
+            MODEL_INPUT_COLUMNS,
+            default=[
+                column
+                for column in ("hour", "zone_type", "temperature_c")
+                if column in MODEL_INPUT_COLUMNS
+            ],
+            max_selections=12,
+        )
+        run_evaluation = st.form_submit_button("Run temporal evaluation")
+    if run_evaluation:
+        if not features:
+            st.warning("Select at least one feature for distribution comparison.")
+        else:
+            try:
+                temporal = main_api_request(
+                    "/evaluation/temporal",
+                    {"window_count": window_count, "features": features},
+                )
+                st.session_state["temporal_evaluation_report"] = temporal
+            except ApiClientError as exc:
+                st.error(str(exc))
+    temporal = st.session_state.get("temporal_evaluation_report")
+    if temporal:
+        from wifi_tunja_smart_predictor.models.temporal_evaluation import render_temporal_markdown
+
+        st.caption(
+            f"Report schema {temporal['schema_version']} · dataset SHA-256 {temporal['dataset']['sha256']} · synthetic dataset only."
+        )
+        rows = []
+        for window in temporal["windows"]:
+            metrics = window.get("metrics", {})
+            rows.append(
+                {
+                    "window": window["window"],
+                    "test_start": window["test_start"],
+                    "test_end": window["test_end"],
+                    "train_rows": window["train_rows"],
+                    "test_rows": window["test_rows"],
+                    "status": window["status"],
+                    "accuracy": metrics.get("classification", {}).get("accuracy"),
+                    "mae": metrics.get("regression", {}).get("mae"),
+                }
+            )
+        st.dataframe(
+            pd.DataFrame(rows),
+            width="stretch",
+            hide_index=True,
+            alt="Chronological evaluation metrics by test window",
+        )
+        st.markdown("**Feature distribution comparisons**")
+        st.dataframe(
+            pd.DataFrame(temporal["feature_diagnostics"]),
+            width="stretch",
+            hide_index=True,
+            alt="Synthetic feature distribution changes by evaluation window",
+        )
+        st.info("\n".join(temporal["summary"]["limitations"]), title="Interpretation limits")
+        st.download_button(
+            "Download versioned JSON report",
+            data=json.dumps(temporal, indent=2, ensure_ascii=False, allow_nan=False),
+            file_name="temporal-evaluation-v1.json",
+            mime="application/json",
+        )
+        st.download_button(
+            "Download Markdown summary",
+            data=render_temporal_markdown(temporal),
+            file_name="temporal-evaluation-v1.md",
+            mime="text/markdown",
+        )
+
+
 def render_performance_v3() -> None:
+    _render_temporal_evaluation_lab()
     render_performance()
     regression_comparison_path = (
         Path(__file__).resolve().parents[1]
