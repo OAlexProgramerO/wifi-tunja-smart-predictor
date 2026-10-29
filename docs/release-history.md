@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V6.4.0 — Clearer model evaluation summary — candidate
+
+Improves the existing Model Performance presentation of model version and headline classification metrics. Evaluation methodology, report contract, model artifacts, and predictions are unchanged. Candidate package and Docker image versions: `0.6.4`; release validation is pending. See [model diagnostics](model-diagnostics.md).
+
 ## V6.3.0 — Temporal evaluation and synthetic drift lab — released 2026-10-28
 
 Adds bounded expanding chronological evaluation, synthetic feature-distribution diagnostics, report provenance, a typed API endpoint, and Model Performance dashboard workflow. Product V6.3.0 uses Python package and Docker image `0.6.3`. Annotated Git tag [`v6.3.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.3.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.3.0) target verified commit `e6250f81b0bbe64c404cb9401b5a3a340ed58ff9`; both CI jobs passed in [workflow 40781788884](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40781788884). All evaluations are synthetic and do not validate real Tunja WiFi demand. See [temporal evaluation](temporal-evaluation.md) and [validation record](releases/v6.3.0.md).

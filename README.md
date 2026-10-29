@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V6.3.0
+# WiFi Tunja Smart Predictor — V6.4.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,9 +9,9 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V6.3.0 is published as annotated Git tag [`v6.3.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.3.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.3.0). Release commit: `e6250f81b0bbe64c404cb9401b5a3a340ed58ff9`; Python package and Docker image: `0.6.3`. See the [V6.3.0 validation record](docs/releases/v6.3.0.md), [temporal evaluation and synthetic drift guide](docs/temporal-evaluation.md), and [release history](docs/release-history.md).
+**Release status:** V6.4.0 candidate; publication follows final validation. Python package and Docker image candidate: `0.6.4`. See the [model diagnostics guide](docs/model-diagnostics.md), [V6.3.0 validation record](docs/releases/v6.3.0.md), and [release history](docs/release-history.md).
 
-WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.3.0 adds bounded chronological model evaluation and explainable synthetic feature-distribution diagnostics; it does not establish real-world WiFi demand validity or production drift.
+WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.4.0 makes the existing evaluation summary clearer in Model Performance without changing the models or evaluation methodology.
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 
@@ -115,7 +115,7 @@ Five classification candidates and two regression candidates are compared. The c
 
 Metrics include accuracy, precision, recall, F1 for `HIGH`, ROC-AUC where available, and a confusion matrix. **The evaluation is based on synthetic data.** Current generated values are stored in [selected model test metrics](reports/metrics/selected_model_test_metrics.json), with split details in [model metadata](models/model_metadata.json); regenerate these artifacts after retraining. They are not evidence of real-world accuracy.
 
-Model Performance also presents the versioned [diagnostics report](docs/model-diagnostics.md), including per-class support, regression error summaries, and expanding chronological windows. Each window fits on earlier synthetic rows only; none of these results validates real public WiFi demand.
+Model Performance presents the versioned [diagnostics report](docs/model-diagnostics.md), clearly surfacing the model version, evaluation date, headline classification and regression metrics, and synthetic-data disclaimer. Each chronological window fits on earlier synthetic rows only; none of these results validates real public WiFi demand.
 
 ## 11. Dashboard
 

@@ -170,7 +170,7 @@ def test_temporal_evaluation_api_returns_versioned_report(
     assert response.status_code == 200
     body = response.json()
     assert body["schema_version"] == "1.0"
-    assert body["project_version"] == "0.6.3"
+    assert body["project_version"] == "0.6.4"
     assert body["feature_version"] == "scenario-features-v1"
     assert body["dataset"]["sha256"] == hashlib.sha256(b"synthetic test input").hexdigest()
     assert len(body["windows"]) == 2

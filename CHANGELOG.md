@@ -1,5 +1,9 @@
 # Changelog
 
+## V6.4.0 — Clearer model evaluation summary — candidate
+
+Improves the existing Model Performance diagnostics display with the recorded model version and headline classification metrics beside the already reported evaluation timestamp, regression metrics, and synthetic-data caveat. Reuses the existing report payload and does not change model evaluation or API contracts. Candidate Python package and Docker image version: `0.6.4`. Publication pending final validation.
+
 ## V6.3.0 — Temporal evaluation and synthetic drift lab — 2026-10-28
 
 Adds bounded expanding chronological evaluation of cloned classifier and regressor pipelines, selected numeric/categorical feature-distribution diagnostics, dataset and model fingerprints, versioned JSON/Markdown reporting, a typed API route, and Model Performance dashboard controls. Product V6.3.0 uses Python package and Docker image `0.6.3`; annotated Git tag [`v6.3.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.3.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.3.0) point to validated commit `e6250f81b0bbe64c404cb9401b5a3a340ed58ff9`. Local quality checks passed, and both jobs passed in [workflow 40781788884](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40781788884). All results remain limited to synthetic data; distribution differences do not establish model degradation or real-world drift. See [temporal evaluation](docs/temporal-evaluation.md) and the [validation record](docs/releases/v6.3.0.md).

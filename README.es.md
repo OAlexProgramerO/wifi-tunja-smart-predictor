@@ -1,12 +1,12 @@
-# WiFi Tunja Smart Predictor — V6.3.0
+# WiFi Tunja Smart Predictor — V6.4.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V6.3.0 está publicada con la etiqueta Git anotada [`v6.3.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.3.0) y [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.3.0). Commit de publicación: `e6250f81b0bbe64c404cb9401b5a3a340ed58ff9`; paquete Python e imagen Docker: `0.6.3`. Consulte el [registro de validación V6.3.0](docs/releases/v6.3.0.md), la [guía de evaluación temporal y cambio sintético](docs/temporal-evaluation.es.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** candidato V6.4.0; la publicación depende de la validación final. Versiones candidatas del paquete Python y de la imagen Docker: `0.6.4`. Consulte la [guía de diagnósticos del modelo](docs/model-diagnostics.md), el [registro V6.3.0](docs/releases/v6.3.0.md) y el [historial de versiones](docs/release-history.md).
 
-WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.3.0 agrega evaluación cronológica acotada y diagnósticos explicables de distribución de variables sintéticas; no valida demanda real de WiFi ni deriva operativa.
+WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.4.0 presenta con mayor claridad el resumen de evaluación existente en Model Performance, sin cambiar los modelos ni su metodología de evaluación.
 
 Se conservan las verificaciones de huellas de artefactos de V4.3.0 y la trazabilidad de predicciones y validaciones de V4.2.0. Consulte el [diseño de diagnósticos V4.4.0](docs/model-diagnostics.md) para ver el esquema, las métricas, las ventanas temporales y la comprobación de procedencia.
 
@@ -105,7 +105,7 @@ La clasificación compara cinco modelos y selecciona por F1 de `HIGH` en validac
 
 Se reportan exactitud, precisión, exhaustividad, F1, ROC-AUC y matriz de confusión. **La evaluación se basa en datos sintéticos.** Consulte [métricas](reports/metrics/selected_model_test_metrics.json) y [metadatos](models/model_metadata.json); no representan precisión real.
 
-Model Performance muestra también el [informe de diagnóstico versionado](docs/model-diagnostics.md), con soporte por clase, errores de regresión y ventanas cronológicas expansivas. Cada ventana ajusta el pipeline con filas sintéticas anteriores al bloque evaluado; los resultados no validan demanda pública real de WiFi.
+Model Performance presenta el [informe de diagnóstico versionado](docs/model-diagnostics.md) con versión del modelo, fecha de evaluación, métricas principales de clasificación y regresión y el aviso de datos sintéticos. Cada ventana cronológica usa solo filas sintéticas anteriores; los resultados no validan demanda pública real de WiFi.
 
 ## 11. Dashboard
 
