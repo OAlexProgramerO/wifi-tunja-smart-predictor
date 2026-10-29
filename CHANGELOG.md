@@ -1,8 +1,8 @@
 # Changelog
 
-## V6.4.0 — Clearer model evaluation summary — candidate
+## V6.4.0 — Clearer model evaluation summary — 2026-10-29
 
-Improves the existing Model Performance diagnostics display with the recorded model version and headline classification metrics beside the already reported evaluation timestamp, regression metrics, and synthetic-data caveat. Reuses the existing report payload and does not change model evaluation or API contracts. Candidate Python package and Docker image version: `0.6.4`. Publication pending final validation.
+Improves the existing Model Performance diagnostics display with the recorded model version and headline classification metrics beside the already reported evaluation timestamp, regression metrics, and synthetic-data caveat. Reuses the existing report payload and does not change model evaluation or API contracts. Product V6.4.0 uses Python package and Docker image `0.6.4`; annotated Git tag [`v6.4.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.4.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.4.0) point to validated commit `8841996993aec18405f19e143796175cafa51540`. Local pytest, Ruff, and Black passed; both CI jobs passed in [workflow 40967789602](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40967789602). Metrics remain synthetic and do not validate real Tunja WiFi demand. See [model diagnostics](docs/model-diagnostics.md) and the [validation record](docs/releases/v6.4.0.md).
 
 ## V6.3.0 — Temporal evaluation and synthetic drift lab — 2026-10-28
 
