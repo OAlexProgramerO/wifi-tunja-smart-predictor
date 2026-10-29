@@ -33,6 +33,63 @@ def test_temporal_evaluation_controls_render_without_running_evaluation():
     assert any(item.label == "Features for distribution comparison" for item in app.multiselect)
 
 
+def test_model_diagnostics_surface_model_version_date_and_classification_summary():
+    script = """
+import app.dashboard as dashboard
+import wifi_tunja_smart_predictor.models.diagnostics as diagnostics
+report = {
+    "schema_version": "1.0",
+    "model_version": "synthetic-model-1",
+    "generated_at_utc": "2026-10-29T12:00:00+00:00",
+    "test": {
+        "rows": 6,
+        "classification": {
+            "accuracy": 0.8,
+            "precision": 0.7,
+            "recall": 0.6,
+            "f1": 0.65,
+            "roc_auc": 0.75,
+            "class_metrics": {"LOW": {"support": 3}, "HIGH": {"support": 3}},
+            "confusion_matrix": [[2, 1], [1, 2]],
+            "confusion_labels": ["LOW", "HIGH"],
+        },
+        "regression": {"mae": 2.0, "rmse": 3.0, "r2": 0.5, "mean_prediction_bias": 0.1},
+    },
+    "rolling_windows": [],
+    "warnings": ["All evaluation data are synthetic."],
+}
+original_load = diagnostics.load_valid_diagnostics
+original_render = dashboard.render_performance
+original_json_file = dashboard._json_file
+diagnostics.load_valid_diagnostics = lambda: report
+dashboard.render_performance = lambda: None
+dashboard._json_file = lambda _path: {}
+dashboard.render_performance_v3()
+diagnostics.load_valid_diagnostics = original_load
+dashboard.render_performance = original_render
+dashboard._json_file = original_json_file
+"""
+    app = AppTest.from_string(script, default_timeout=30).run()
+
+    assert not app.exception
+    assert any(
+        "model synthetic-model-1" in item.value and "2026-10-29T12:00:00" in item.value
+        for item in app.caption
+    )
+    assert {item.label for item in app.metric} >= {
+        "Accuracy",
+        "Precision (HIGH)",
+        "Recall (HIGH)",
+        "F1 (HIGH)",
+        "ROC-AUC",
+        "MAE",
+        "RMSE",
+        "R²",
+        "Mean prediction bias",
+    }
+    assert any("All evaluation data are synthetic" in item.value for item in app.caption)
+
+
 def test_scenario_result_separates_classification_and_regression_outputs():
 
     result = {

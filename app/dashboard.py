@@ -1964,17 +1964,26 @@ def render_performance_v3() -> None:
         st.warning("Diagnostics are unavailable or stale. Run `python scripts/evaluate_model.py`.")
         return
     st.caption(
-        f"Report schema {report['schema_version']} · generated {report['generated_at_utc']} · "
+        f"Report schema {report['schema_version']} · model {report.get('model_version') or 'unavailable'} · "
+        f"evaluated {report['generated_at_utc']} · "
         f"test rows {report['test']['rows']} · all observations are synthetic."
     )
+    classification = report["test"]["classification"]
+    columns = st.columns(5)
+    for column, key, label in zip(
+        columns,
+        ("accuracy", "precision", "recall", "f1", "roc_auc"),
+        ("Accuracy", "Precision (HIGH)", "Recall (HIGH)", "F1 (HIGH)", "ROC-AUC"),
+    ):
+        value = classification.get(key)
+        column.metric(label, f"{value:.3f}" if isinstance(value, (float, int)) else "N/A")
     st.dataframe(
-        pd.DataFrame.from_dict(report["test"]["classification"]["class_metrics"], orient="index")
+        pd.DataFrame.from_dict(classification["class_metrics"], orient="index")
         .rename_axis("class")
         .reset_index(),
         width="stretch",
         hide_index=True,
     )
-    classification = report["test"]["classification"]
     st.plotly_chart(
         plot_confusion_matrix_plotly(
             classification["confusion_matrix"], classification["confusion_labels"]
