@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V6.5.0 — Model metrics guide — released 2026-10-30
+
+Adds concise Model Performance hover explanations for Accuracy, Precision, Recall, F1-score, MAE, RMSE, and R². Evaluation calculations and synthetic-data disclaimer are unchanged. Product V6.5.0 uses Python package and Docker image `0.6.5`. Annotated Git tag [`v6.5.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.5.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.5.0) target `4b7a243b005243531ce9e8d3e84830f1d23056b3`. Focused and full pytest suites, Ruff, Black, and `git diff --check` passed locally; CI was not run for this commit. Metrics remain synthetic. See the [validation record](releases/v6.5.0.md).
+
 ## V6.4.0 — Clearer model evaluation summary — released 2026-10-29
 
 Improves the existing Model Performance presentation of model version and headline classification metrics. Evaluation methodology, report contract, model artifacts, and predictions are unchanged. Product V6.4.0 uses Python package and Docker image `0.6.4`. Annotated Git tag [`v6.4.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.4.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.4.0) target verified commit `8841996993aec18405f19e143796175cafa51540`; both CI jobs passed in [workflow 40967789602](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/actions/runs/40967789602). Metrics remain synthetic. See [model diagnostics](model-diagnostics.md) and [validation record](releases/v6.4.0.md).

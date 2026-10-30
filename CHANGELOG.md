@@ -1,10 +1,10 @@
 # Changelog
 
-## V6.5.0 — Model metrics guide — release candidate
+## V6.5.0 — Model metrics guide — 2026-10-30
 
-Adds concise hover explanations for Accuracy, Precision, Recall, F1-score, MAE, RMSE, and R² in Model Performance, including the generally preferred direction for each metric. Evaluation calculations and synthetic-data disclaimer are unchanged. Product V6.5.0 maps to Python package and Docker image `0.6.5`.
+Adds concise hover explanations for Accuracy, Precision, Recall, F1-score, MAE, RMSE, and R² in Model Performance, including the generally preferred direction for each metric. Evaluation calculations and synthetic-data disclaimer are unchanged. Product V6.5.0 maps to Python package and Docker image `0.6.5`. Annotated tag [`v6.5.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.5.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.5.0) target `4b7a243b005243531ce9e8d3e84830f1d23056b3`. Focused and full pytest suites, Ruff, Black, and `git diff --check` passed locally; CI was not run for this commit. See the [validation record](docs/releases/v6.5.0.md).
 
-Agrega explicaciones breves al pasar el cursor sobre Accuracy, Precision, Recall, F1-score, MAE, RMSE y R² en Model Performance, incluida la dirección generalmente preferible para cada métrica. No cambia los cálculos de evaluación ni el aviso sobre datos sintéticos. La versión de producto V6.5.0 corresponde al paquete Python y la imagen Docker `0.6.5`.
+Agrega explicaciones breves al pasar el cursor sobre Accuracy, Precision, Recall, F1-score, MAE, RMSE y R² en Model Performance, incluida la dirección generalmente preferible para cada métrica. No cambia los cálculos de evaluación ni el aviso sobre datos sintéticos. La versión de producto V6.5.0 corresponde al paquete Python y la imagen Docker `0.6.5`. La etiqueta anotada [`v6.5.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.5.0) y el [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.5.0) apuntan a `4b7a243b005243531ce9e8d3e84830f1d23056b3`. Las pruebas focalizadas y completas, Ruff, Black y `git diff --check` pasaron localmente; CI no se ejecutó para este commit. Consulte el [registro de validación](docs/releases/v6.5.0.md).
 
 ## V6.4.0 — Clearer model evaluation summary — 2026-10-29
 
