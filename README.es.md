@@ -1,12 +1,12 @@
-# WiFi Tunja Smart Predictor — V6.4.0
+# WiFi Tunja Smart Predictor — V6.5.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V6.4.0 está publicada con la etiqueta Git anotada [`v6.4.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.4.0) y [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.4.0). Commit de publicación: `8841996993aec18405f19e143796175cafa51540`; paquete Python e imagen Docker: `0.6.4`. Consulte el [registro de validación V6.4.0](docs/releases/v6.4.0.md), la [guía de diagnósticos del modelo](docs/model-diagnostics.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V6.5.0 es candidata a publicación; se publicará después de validar los cambios. Paquete Python e imagen Docker: `0.6.5`. Consulte la [guía de diagnósticos del modelo](docs/model-diagnostics.md) y el [historial de versiones](docs/release-history.md).
 
-WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.4.0 presenta con mayor claridad el resumen de evaluación existente en Model Performance, sin cambiar los modelos ni su metodología de evaluación.
+WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.5.0 agrega explicaciones breves de las métricas en Model Performance, sin cambiar la evaluación ni sus cálculos.
 
 Se conservan las verificaciones de huellas de artefactos de V4.3.0 y la trazabilidad de predicciones y validaciones de V4.2.0. Consulte el [diseño de diagnósticos V4.4.0](docs/model-diagnostics.md) para ver el esquema, las métricas, las ventanas temporales y la comprobación de procedencia.
 
@@ -56,6 +56,7 @@ El proyecto demuestra un flujo mantenible de clasificación y regresión con con
 - El banco también permite optimizar asignaciones enteras deterministas para minimizar déficits sintéticos totales o ponderados explícitamente; consulte [método y restricciones](docs/optimizacion.md).
 - V6.2.0 agrega análisis acotado de sensibilidad sintética de demanda por zona y barridos de presupuesto sobre optimizaciones guardadas; consulte la [guía de sensibilidad y robustez](docs/robustness.es.md). Estos casos seleccionados no estiman probabilidades ni confiabilidad real.
 - V6.3.0 agrega una API de evaluación temporal acotada y una vista en Model Performance con informes versionados JSON/Markdown; consulte la [guía](docs/temporal-evaluation.es.md). Los resultados usan solo datos sintéticos.
+- V6.5.0 agrega explicaciones breves al pasar el cursor sobre las métricas de clasificación y regresión en Model Performance.
 
 ## Inicio rápido de desarrollo local
 

@@ -87,6 +87,14 @@ dashboard._json_file = original_json_file
         "R²",
         "Mean prediction bias",
     }
+    metric_help = {item.label: item.help for item in app.metric}
+    assert "higher is generally better" in metric_help["Accuracy"]
+    assert "fewer false alarms" in metric_help["Precision (HIGH)"]
+    assert "fewer missed cases" in metric_help["Recall (HIGH)"]
+    assert "Balances HIGH precision and recall" in metric_help["F1 (HIGH)"]
+    assert "lower is better" in metric_help["MAE"]
+    assert "lower is better" in metric_help["RMSE"]
+    assert "closer to 1" in metric_help["R²"]
     assert any("All evaluation data are synthetic" in item.value for item in app.caption)
 
 

@@ -300,6 +300,17 @@ def render_network(frame: pd.DataFrame) -> None:
     st.plotly_chart(plot_network_metrics(frame), width="stretch")
 
 
+MODEL_METRIC_HELP = {
+    "accuracy": "Share of all predictions that are correct; higher is generally better.",
+    "precision": "Share of HIGH predictions that are truly HIGH; higher means fewer false alarms.",
+    "recall": "Share of true HIGH cases identified; higher means fewer missed cases.",
+    "f1": "Balances HIGH precision and recall; higher is generally better.",
+    "mae": "Average absolute prediction error in connections; lower is better.",
+    "rmse": "Root mean squared prediction error in connections; lower is better and large errors count more.",
+    "r2": "How much variation is explained; closer to 1 is generally better (negative values are possible).",
+}
+
+
 def render_performance() -> None:
     _section_header(
         "5. Model performance",
@@ -344,7 +355,11 @@ def render_performance() -> None:
             ("Accuracy", "Precision · HIGH", "Recall · HIGH", "F1 · HIGH", "ROC-AUC"),
         ):
             value = selected.get(key)
-            column.metric(label, f"{value:.3f}" if isinstance(value, (float, int)) else "N/A")
+            column.metric(
+                label,
+                f"{value:.3f}" if isinstance(value, (float, int)) else "N/A",
+                help=MODEL_METRIC_HELP.get(key),
+            )
         test_period = metadata.get("test_period", {})
         st.caption(
             f"Test period: {test_period.get('start', 'unknown')} to "
@@ -1949,7 +1964,9 @@ def render_performance_v3() -> None:
     ):
         value = regression.get(key) if key == "test_interval_coverage" else metrics.get(key)
         column.metric(
-            label, f"{value:.3f}" if isinstance(value, (float, int)) else "Train models to populate"
+            label,
+            f"{value:.3f}" if isinstance(value, (float, int)) else "Train models to populate",
+            help=MODEL_METRIC_HELP.get(key),
         )
     if regression:
         st.caption(
@@ -1976,7 +1993,11 @@ def render_performance_v3() -> None:
         ("Accuracy", "Precision (HIGH)", "Recall (HIGH)", "F1 (HIGH)", "ROC-AUC"),
     ):
         value = classification.get(key)
-        column.metric(label, f"{value:.3f}" if isinstance(value, (float, int)) else "N/A")
+        column.metric(
+            label,
+            f"{value:.3f}" if isinstance(value, (float, int)) else "N/A",
+            help=MODEL_METRIC_HELP.get(key),
+        )
     st.dataframe(
         pd.DataFrame.from_dict(classification["class_metrics"], orient="index")
         .rename_axis("class")
@@ -2000,7 +2021,11 @@ def render_performance_v3() -> None:
         ("MAE", "RMSE", "R²", "Mean prediction bias"),
     ):
         value = regression_test.get(key)
-        column.metric(label, f"{value:.3f}" if isinstance(value, (float, int)) else "N/A")
+        column.metric(
+            label,
+            f"{value:.3f}" if isinstance(value, (float, int)) else "N/A",
+            help=MODEL_METRIC_HELP.get(key),
+        )
     for warning in report["warnings"]:
         st.caption(f"⚠️ {warning}")
 

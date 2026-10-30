@@ -19,7 +19,7 @@ The report does not claim probability calibration or real-world forecast validit
 ## Consumers
 
 - `GET /model-diagnostics` serves a typed response only after current-provenance checks.
-- Model Performance shows the recorded model version and evaluation date, headline classification metrics, class support/confusion matrix, rolling windows, regression errors, and synthetic-data warnings. V6.4.0 makes the model version and key classification metrics visible beside the existing date and regression summary; the report payload and evaluation methodology are unchanged.
+- Model Performance shows the recorded model version and evaluation date, headline classification metrics, class support/confusion matrix, rolling windows, regression errors, and synthetic-data warnings. V6.5.0 adds concise hover explanations for Accuracy, Precision, Recall, F1-score, MAE, RMSE, and R², including the generally preferred direction. The report payload, evaluation methodology, and synthetic-data disclaimer are unchanged.
 - The deterministic assistant answers current metric-value questions from the validated report in English or Spanish; it does not embed metric values in templates.
 
 See [API contracts](api.md), [assistant behavior](assistant.md), and [limitations](limitations.md).
