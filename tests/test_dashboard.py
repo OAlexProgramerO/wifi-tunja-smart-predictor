@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pandas as pd
+import pytest
 from streamlit.testing.v1 import AppTest
 
 
@@ -167,7 +168,7 @@ def test_geospatial_summary_aggregates_only_selected_synthetic_window(mini_frame
     assert set(summary["zone_id"]).issubset(set(frame["zone_id"]))
 
 
-def test_experiment_history_dashboard_requests_selected_page_and_labels_no_overlap(monkeypatch):
+def test_experiment_history_dashboard_renders_selected_experiment_comparison(monkeypatch):
     from app import dashboard
 
     requests = []
@@ -201,8 +202,17 @@ def test_experiment_history_dashboard_requests_selected_page_and_labels_no_overl
             return {
                 "comparisons": [
                     {
-                        "comparison_status": "no_shared_zones",
-                        "interpretation_detail": "These experiments share no zone IDs.",
+                        "comparison_status": "comparable",
+                        "scientific_comparability": "limited",
+                        "shared_zones": ["zone-1"],
+                        "changes": {
+                            "zone-1": {
+                                "demand_connections": 2.0,
+                                "capacity_connections": 5.0,
+                                "overload_connections": -3.0,
+                            }
+                        },
+                        "interpretation_detail": "Synthetic scenario differences only; not a real-network forecast.",
                     }
                 ]
             }
@@ -212,7 +222,20 @@ def test_experiment_history_dashboard_requests_selected_page_and_labels_no_overl
             "name": (
                 "Synthetic base" if experiment_id == "experiment-a" else "Synthetic alternative"
             ),
-            "result": {"capacity_plan": {"zones": []}},
+            "configuration": {
+                "datetime": f"2026-01-0{1 if experiment_id == 'experiment-a' else 2}T00:00:00"
+            },
+            "result": {
+                "capacity_plan": {"zones": []},
+                "zones": [
+                    {
+                        "zone_id": "zone-1",
+                        "demand": 10.0 if experiment_id == "experiment-a" else 12.0,
+                        "effective_capacity": 8.0 if experiment_id == "experiment-a" else 13.0,
+                        "overload_connections": 2.0 if experiment_id == "experiment-a" else 0.0,
+                    }
+                ],
+            },
         }
 
     monkeypatch.setattr(dashboard, "main_api_request", fake_request)
@@ -226,13 +249,23 @@ def test_experiment_history_dashboard_requests_selected_page_and_labels_no_overl
     assert app.number_input[0].label == "History page"
     assert "Showing records 1–2" in app.caption[2].value
 
-    app.multiselect[0].set_value(["experiment-b"]).run()
+    assert app.selectbox[1].options == ["Select a verified experiment", "Synthetic alternative"]
+    app.selectbox[1].set_value("experiment-b").run()
     app.button[0].click().run()
-    assert any("These experiments share no zone IDs." in item.value for item in app.info)
+    assert (
+        "/experiments/compare",
+        {"experiment_ids": ["experiment-a", "experiment-b"]},
+    ) in requests
+    assert any("Synthetic scenario differences only" in item.value for item in app.info)
+    assert "#### Selected experiments" in [item.value for item in app.markdown]
+    assert any("Demand difference" in item.value.columns for item in app.dataframe)
+    assert app.dataframe[-1].value.iloc[0]["Demand · comparison"] == 12.0
+    assert app.dataframe[-1].value.iloc[0]["Demand difference"] == 2.0
 
     app.number_input[0].set_value(2).run()
     assert any(path == "/experiments?limit=25&offset=25" for path, _ in requests)
     assert "No experiments on this page" in app.info[-1].value
+    assert any(path.endswith("/report?format=json") for path, _ in requests)
 
 
 def test_experiment_history_warns_for_incomplete_records_and_excludes_comparison(monkeypatch):
@@ -283,5 +316,84 @@ def test_experiment_history_warns_for_incomplete_records_and_excludes_comparison
     assert any("INVALID_PERSISTED_RECORD" in item.value for item in app.warning)
     assert any("MODEL_PROVENANCE_MISSING" in item.value for item in app.warning)
     assert any("evaluación no posible" in item.value for item in app.warning)
-    assert app.multiselect[0].options == []
+    assert app.selectbox[1].options == ["Select a verified experiment"]
     assert app.button[0].disabled
+
+
+def test_experiment_history_empty_page_is_handled_without_comparison(monkeypatch):
+    from app import dashboard
+
+    monkeypatch.setattr(
+        dashboard,
+        "main_api_request",
+        lambda path, payload=None: {"items": [], "integrity_warnings": []},
+    )
+    app = AppTest.from_string(
+        "from app.dashboard import _render_page\n"
+        "_render_page('Experiment History', 'Experiments')\n",
+        default_timeout=30,
+    ).run()
+
+    assert not app.exception
+    assert any("No saved experiments yet" in item.value for item in app.info)
+    assert not app.selectbox
+
+
+def test_experiment_comparison_without_shared_zones_is_not_presented_as_equal():
+    app = AppTest.from_string(
+        "from app.dashboard import _render_experiment_comparison\n"
+        "_render_experiment_comparison("
+        "{'comparisons': [{'comparison_status': 'no_shared_zones', "
+        "'interpretation_detail': 'These experiments share no zone IDs.'}]}, "
+        "{'name': 'Baseline', 'configuration': {}, 'result': {'zones': []}}, "
+        "{'name': 'Alternative', 'configuration': {}, 'result': {'zones': []}})\n",
+        default_timeout=30,
+    ).run()
+
+    assert not app.exception
+    assert any("share no zone IDs" in item.value for item in app.warning)
+    assert not app.dataframe
+
+
+@pytest.mark.parametrize(
+    ("api_error", "expected_message"),
+    [
+        ("Main API returned HTTP 409.", "These experiments are incompatible"),
+        ("Main API is unavailable at the configured MAIN_API_URL endpoint.", "API is unavailable"),
+    ],
+)
+def test_experiment_history_handles_comparison_api_errors(monkeypatch, api_error, expected_message):
+    from app import dashboard
+    from wifi_tunja_smart_predictor.api_client import ApiClientError
+
+    def fake_request(path, payload=None):
+        if path.startswith("/experiments?"):
+            return {
+                "items": [
+                    {
+                        "id": experiment_id,
+                        "name": experiment_id,
+                        "created_at_utc": "2026-01-01T00:00:00+00:00",
+                        "integrity": {"status": "verified", "reason_codes": []},
+                    }
+                    for experiment_id in ("experiment-a", "experiment-b")
+                ],
+                "integrity_warnings": [],
+            }
+        if path == "/experiments/compare":
+            raise ApiClientError(api_error)
+        if path.endswith("/report?format=json"):
+            return {"report_schema_version": "1.0"}
+        return {"result": {"capacity_plan": {"zones": []}}}
+
+    monkeypatch.setattr(dashboard, "main_api_request", fake_request)
+    app = AppTest.from_string(
+        "from app.dashboard import _render_page\n"
+        "_render_page('Experiment History', 'Experiments')\n",
+        default_timeout=30,
+    ).run()
+    app.selectbox[1].set_value("experiment-b").run()
+    app.button[0].click().run()
+
+    assert not app.exception
+    assert any(expected_message in item.value for item in [*app.warning, *app.error])

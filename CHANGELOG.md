@@ -1,5 +1,11 @@
 # Changelog
 
+## V6.6.0 — Visual experiment comparison — release candidate
+
+Adds a two-experiment comparison workflow to Experiment History using the existing compatibility-checked API. It presents shared-zone demand, simulated capacity, and overload values with API-provided differences; incompatible comparisons are explained and empty/error states are handled. Product V6.6.0 maps to Python package and Docker image `0.6.6`. All compared results remain synthetic.
+
+Agrega en Experiment History un flujo para comparar dos experimentos mediante la API existente, que verifica compatibilidad. Presenta demanda, capacidad simulada y sobrecarga de zonas compartidas con las diferencias devueltas por la API; explica incompatibilidades y gestiona estados vacíos o errores. La versión de producto V6.6.0 corresponde al paquete Python y la imagen Docker `0.6.6`. Todos los resultados comparados siguen siendo sintéticos.
+
 ## V6.5.0 — Model metrics guide — 2026-10-30
 
 Adds concise hover explanations for Accuracy, Precision, Recall, F1-score, MAE, RMSE, and R² in Model Performance, including the generally preferred direction for each metric. Evaluation calculations and synthetic-data disclaimer are unchanged. Product V6.5.0 maps to Python package and Docker image `0.6.5`. Annotated tag [`v6.5.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.5.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.5.0) target `4b7a243b005243531ce9e8d3e84830f1d23056b3`. Focused and full pytest suites, Ruff, Black, and `git diff --check` passed locally; CI was not run for this commit. See the [validation record](docs/releases/v6.5.0.md).

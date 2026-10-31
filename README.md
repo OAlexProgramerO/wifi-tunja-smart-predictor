@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V6.5.0
+# WiFi Tunja Smart Predictor — V6.6.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,9 +9,9 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V6.5.0 is published as annotated Git tag [`v6.5.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.5.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.5.0). Release commit: `4b7a243b005243531ce9e8d3e84830f1d23056b3`; Python package and Docker image: `0.6.5`. See the [V6.5.0 validation record](docs/releases/v6.5.0.md), [model diagnostics guide](docs/model-diagnostics.md), and [release history](docs/release-history.md).
+**Release status:** V6.6.0 release candidate; publication will follow validation. Python package and Docker image: `0.6.6`. See the [experiment guide](docs/experiments.md) and [release history](docs/release-history.md).
 
-WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.5.0 adds concise metric explanations to Model Performance without changing model evaluation or calculations.
+WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.6.0 adds visual comparison of two compatible saved experiments in Experiment History.
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 
@@ -63,7 +63,7 @@ The project explores how an hourly WiFi demand classification system can be stru
 - V6.2.0 adds bounded one-factor synthetic demand sensitivity and budget sweeps to saved optimization runs; see the [sensitivity and robustness guide](docs/robustness.md). These selected tests do not estimate probabilities or real-world reliability.
 - V6.3.0 adds a bounded temporal evaluation API and Model Performance workflow with versioned JSON/Markdown reporting; see the [guide](docs/temporal-evaluation.md). Results use synthetic data only.
 - V6.5.0 adds concise hover explanations for the classification and regression metrics shown in Model Performance.
-- Experiment History dashboard page connected to saved scenario runs; simulated demand and capacity are connection counts, not throughput.
+- Experiment History compares two saved scenarios through the existing compatibility-checked API; all demand and capacity values remain synthetic connection-count estimates, not real public WiFi measurements or operational recommendations.
 - pytest, Ruff, Black, and GitHub Actions configuration.
 
 ## Local development quick start
@@ -72,7 +72,7 @@ For local development, install with `python -m pip install -e ".[dev]"`, train b
 
 The scenario endpoint is `POST /scenario/predict`; evaluation includes `POST /evaluation/temporal`; experiment routes include `POST /experiments/scenarios`, V6 `POST /experiments/what-if`, V6.1 `POST /experiments/optimize`, V6.2.0 `POST /experiments/robustness`, paginated `GET /experiments`, `GET /experiments/{id}`, and JSON/Markdown `GET /experiments/{id}/report`. These routes use port 8000. OpenAPI docs are available at each service's `/docs` path. See [temporal evaluation](docs/temporal-evaluation.md), [capacity planning](docs/capacity-planning.md), [experiments and reporting](docs/experiments.md), [the scenario workbench](docs/scenario-workbench.md), [optimization](docs/optimization.md), and [sensitivity and robustness](docs/robustness.md).
 
-To create an experiment, open **Live Scenario**, choose a synthetic zone and time, run the prediction, set simulated capacity and an optional connection-count allocation budget, then choose **Run and save experiment**. **Experiment History** lists saved runs and downloads a versioned JSON report. For comparison, take two experiment IDs from `GET /experiments` and send them in `POST /experiments/compare`; comparisons require the same time, dataset fingerprint, and model artifact fingerprints. The API never labels these simulations as operational network recommendations.
+To create an experiment, open **Live Scenario**, choose a synthetic zone and time, run the prediction, set simulated capacity and an optional connection-count allocation budget, then choose **Run and save experiment**. **Experiment History** lists saved runs, downloads a versioned JSON report, and displays a side-by-side comparison for two selected verified experiments. The existing comparison rules require matching scenario time, dataset fingerprint, model artifact fingerprints and recorded versions. Shared-zone differences describe synthetic scenarios only; they are not real public WiFi measurements or operational recommendations.
 
 See [Scenario Prediction](docs/scenario_prediction.md), [Assistant](docs/assistant.md), [Performance](docs/performance.md), [Geospatial Resolution](docs/geospatial.md), [Security Baseline](docs/security.md), and [Limitations, Privacy, and Security](docs/limitations.md).
 

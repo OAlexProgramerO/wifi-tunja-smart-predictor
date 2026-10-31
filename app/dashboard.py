@@ -2030,6 +2030,115 @@ def render_performance_v3() -> None:
         st.caption(f"⚠️ {warning}")
 
 
+def _render_experiment_comparison(
+    comparison_payload: dict, baseline_record: dict, comparison_record: dict
+) -> None:
+    comparisons = comparison_payload.get("comparisons")
+    if not isinstance(comparisons, list) or not comparisons or not isinstance(comparisons[0], dict):
+        st.error("The comparison API returned an incomplete result. Please try again.")
+        return
+
+    comparison = comparisons[0]
+    baseline_result = baseline_record.get("result", {})
+    comparison_result = comparison_record.get("result", {})
+    baseline_configuration = baseline_record.get("configuration", {})
+    comparison_configuration = comparison_record.get("configuration", {})
+    if not all(
+        isinstance(value, dict)
+        for value in (
+            baseline_result,
+            comparison_result,
+            baseline_configuration,
+            comparison_configuration,
+        )
+    ):
+        st.error("The saved experiment details are incomplete. No comparison is shown.")
+        return
+    st.markdown("#### Selected experiments")
+    st.caption(
+        f"Baseline: {baseline_record.get('name', 'Unnamed experiment')} · "
+        f"{baseline_configuration.get('datetime', 'time unavailable')}"
+    )
+    st.caption(
+        f"Compared with: {comparison_record.get('name', 'Unnamed experiment')} · "
+        f"{comparison_configuration.get('datetime', 'time unavailable')}"
+    )
+
+    status = comparison.get("comparison_status")
+    if status == "no_shared_zones":
+        detail = comparison.get("interpretation_detail")
+        st.warning(
+            detail
+            if isinstance(detail, str)
+            else "These experiments share no zones, so there are no values to compare."
+        )
+        return
+    if status != "comparable":
+        st.warning("The comparison result is not assessable; no values are shown.")
+        return
+
+    detail = comparison.get("interpretation_detail")
+    st.info(
+        detail
+        if isinstance(detail, str)
+        else "Differences describe synthetic scenarios only; they are not real-network forecasts."
+    )
+    st.caption(
+        "Differences equal comparison minus baseline; positive values are higher and negative "
+        "values are lower. Values are estimated connection counts."
+    )
+    baseline_zones = (
+        {
+            zone.get("zone_id"): zone
+            for zone in baseline_result.get("zones", [])
+            if isinstance(zone, dict) and zone.get("zone_id")
+        }
+        if isinstance(baseline_result.get("zones", []), list)
+        else {}
+    )
+    comparison_zones = (
+        {
+            zone.get("zone_id"): zone
+            for zone in comparison_result.get("zones", [])
+            if isinstance(zone, dict) and zone.get("zone_id")
+        }
+        if isinstance(comparison_result.get("zones", []), list)
+        else {}
+    )
+    changes = comparison.get("changes", {})
+    shared_zones = comparison.get("shared_zones", [])
+    if not isinstance(changes, dict) or not isinstance(shared_zones, list):
+        st.error("The comparison API returned incomplete zone data. No values are shown.")
+        return
+    rows = []
+    for zone_id in shared_zones:
+        if not isinstance(zone_id, str):
+            continue
+        baseline_zone = baseline_zones.get(zone_id, {})
+        comparison_zone = comparison_zones.get(zone_id, {})
+        change = changes.get(zone_id, {})
+        if not isinstance(change, dict):
+            change = {}
+        rows.append(
+            {
+                "Zone ID": zone_id,
+                "Demand · baseline": baseline_zone.get("demand"),
+                "Demand · comparison": comparison_zone.get("demand"),
+                "Demand difference": change.get("demand_connections"),
+                "Effective capacity · baseline": baseline_zone.get("effective_capacity"),
+                "Effective capacity · comparison": comparison_zone.get("effective_capacity"),
+                "Effective capacity difference": change.get("capacity_connections"),
+                "Overload · baseline": baseline_zone.get("overload_connections"),
+                "Overload · comparison": comparison_zone.get("overload_connections"),
+                "Overload difference": change.get("overload_connections"),
+            }
+        )
+    if rows:
+        st.dataframe(pd.DataFrame(rows), hide_index=True, width="stretch")
+    else:
+        st.info("The API returned no shared-zone values to display.")
+
+
 def _render_page(title: str, kind: str) -> None:
     section_names = {
         "Overview": "Overview",
@@ -2158,38 +2267,67 @@ def _render_page(title: str, kind: str) -> None:
                     ),
                 )
                 record = main_api_request(f"/experiments/{selected_id}")
-                st.json(record["result"]["capacity_plan"])
-                compare_ids = st.multiselect(
-                    "Compare compatible experiments",
-                    [
-                        item["id"]
-                        for item in experiments
-                        if item["id"] != selected_id
-                        and item.get("integrity", {}).get("status") == "verified"
-                        and next(
-                            candidate.get("integrity", {}).get("status")
-                            for candidate in experiments
-                            if candidate["id"] == selected_id
-                        )
-                        == "verified"
-                    ],
+                capacity_plan = record.get("result", {}).get("capacity_plan")
+                if isinstance(capacity_plan, dict):
+                    st.json(capacity_plan)
+                else:
+                    st.info("This saved record does not contain a capacity plan.")
+                compare_ids = [
+                    item["id"]
+                    for item in experiments
+                    if item["id"] != selected_id
+                    and item.get("integrity", {}).get("status") == "verified"
+                    and next(
+                        candidate.get("integrity", {}).get("status")
+                        for candidate in experiments
+                        if candidate["id"] == selected_id
+                    )
+                    == "verified"
+                ]
+                comparison_id = st.selectbox(
+                    "Compare with",
+                    [None, *compare_ids],
                     format_func=lambda value: next(
-                        item["name"] for item in experiments if item["id"] == value
+                        (
+                            item.get("name", item["id"])
+                            for item in experiments
+                            if item["id"] == value
+                        ),
+                        "Select a verified experiment",
                     ),
                 )
-                if st.button("Compare with selected experiment", disabled=not compare_ids):
+                baseline_name = next(
+                    item.get("name", selected_id)
+                    for item in experiments
+                    if item["id"] == selected_id
+                )
+                comparison_name = next(
+                    (
+                        item.get("name", comparison_id)
+                        for item in experiments
+                        if item["id"] == comparison_id
+                    ),
+                    "no comparison selected",
+                )
+                st.caption(f"Selected: {baseline_name} ↔ {comparison_name}")
+                if st.button("Compare selected experiments", disabled=comparison_id is None):
                     try:
-                        comparison = main_api_request(
-                            "/experiments/compare", {"experiment_ids": [selected_id, *compare_ids]}
-                        )
-                        for item in comparison.get("comparisons", []):
-                            if item.get("comparison_status") == "no_shared_zones":
-                                st.info(
-                                    item.get("interpretation_detail", "No shared zones to compare.")
-                                )
-                        st.json(comparison)
+                        with st.spinner("Comparing saved synthetic experiments…"):
+                            comparison = main_api_request(
+                                "/experiments/compare",
+                                {"experiment_ids": [selected_id, comparison_id]},
+                            )
+                            comparison_record = main_api_request(f"/experiments/{comparison_id}")
+                        _render_experiment_comparison(comparison, record, comparison_record)
                     except ApiClientError as exc:
-                        st.error(str(exc))
+                        if "HTTP 409" in str(exc):
+                            st.warning(
+                                "These experiments are incompatible. Comparison requires the "
+                                "same scenario time, dataset fingerprint, model artifact "
+                                "fingerprints, and recorded versions."
+                            )
+                        else:
+                            st.error(str(exc))
                 report = main_api_request(f"/experiments/{selected_id}/report?format=json")
                 st.download_button(
                     "Download JSON report",
