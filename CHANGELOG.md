@@ -1,10 +1,10 @@
 # Changelog
 
-## V6.6.0 — Visual experiment comparison — release candidate
+## V6.6.0 — Visual experiment comparison — 2026-10-31
 
-Adds a two-experiment comparison workflow to Experiment History using the existing compatibility-checked API. It presents shared-zone demand, simulated capacity, and overload values with API-provided differences; incompatible comparisons are explained and empty/error states are handled. Product V6.6.0 maps to Python package and Docker image `0.6.6`. All compared results remain synthetic.
+Adds a two-experiment comparison workflow to Experiment History using the existing compatibility-checked API. It presents shared-zone demand, effective capacity, and overload values with API-provided differences; incompatible comparisons are explained and empty/error states are handled. Product V6.6.0 maps to Python package and Docker image `0.6.6`. Annotated tag [`v6.6.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.6.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.6.0) target `2c99a8cb8d9bcc70deed7f03cf5689d6636c49f9`. Focused and full pytest suites, Ruff, Black, and `git diff --check` passed locally; no GitHub Actions run was created. All compared results remain synthetic.
 
-Agrega en Experiment History un flujo para comparar dos experimentos mediante la API existente, que verifica compatibilidad. Presenta demanda, capacidad simulada y sobrecarga de zonas compartidas con las diferencias devueltas por la API; explica incompatibilidades y gestiona estados vacíos o errores. La versión de producto V6.6.0 corresponde al paquete Python y la imagen Docker `0.6.6`. Todos los resultados comparados siguen siendo sintéticos.
+Agrega en Experiment History un flujo para comparar dos experimentos mediante la API existente, que verifica compatibilidad. Presenta demanda, capacidad efectiva y sobrecarga de zonas compartidas con las diferencias devueltas por la API; explica incompatibilidades y gestiona estados vacíos o errores. La versión de producto V6.6.0 corresponde al paquete Python y la imagen Docker `0.6.6`. La etiqueta anotada [`v6.6.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.6.0) y el [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.6.0) apuntan a `2c99a8cb8d9bcc70deed7f03cf5689d6636c49f9`. Las pruebas focalizadas y completas, Ruff, Black y `git diff --check` pasaron localmente; GitHub Actions no creó una ejecución. Todos los resultados comparados siguen siendo sintéticos.
 
 ## V6.5.0 — Model metrics guide — 2026-10-30
 
