@@ -1,5 +1,11 @@
 # Changelog
 
+## V6.7.0 — Experiment comparison reports — release candidate
+
+Adds downloadable JSON and Markdown reports after a saved-experiment comparison. Reports preserve both experiment IDs, scenario context, recorded dataset/model provenance, the existing compatibility result and differences, and an explicit synthetic-data disclaimer. Product V6.7.0 maps to Python package and Docker image `0.6.7`.
+
+Agrega informes descargables JSON y Markdown después de comparar experimentos guardados. Los informes conservan ambos IDs, el contexto del escenario, la procedencia registrada de datos/modelos, el resultado de compatibilidad y las diferencias existentes, además de un aviso explícito de datos sintéticos. La versión de producto V6.7.0 corresponde al paquete Python y la imagen Docker `0.6.7`.
+
 ## V6.6.0 — Visual experiment comparison — 2026-10-31
 
 Adds a two-experiment comparison workflow to Experiment History using the existing compatibility-checked API. It presents shared-zone demand, effective capacity, and overload values with API-provided differences; incompatible comparisons are explained and empty/error states are handled. Product V6.6.0 maps to Python package and Docker image `0.6.6`. Annotated tag [`v6.6.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.6.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.6.0) target `2c99a8cb8d9bcc70deed7f03cf5689d6636c49f9`. Focused and full pytest suites, Ruff, Black, and `git diff --check` passed locally; no GitHub Actions run was created. All compared results remain synthetic.

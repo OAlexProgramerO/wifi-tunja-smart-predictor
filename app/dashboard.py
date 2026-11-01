@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from pathlib import Path
 
 import pandas as pd
@@ -33,6 +34,11 @@ from wifi_tunja_smart_predictor.config import (
 )
 from wifi_tunja_smart_predictor.data.loader import load_raw_dataset
 from wifi_tunja_smart_predictor.exceptions import DatasetNotFoundError, ModelNotFoundError
+from wifi_tunja_smart_predictor.reporting.service import (
+    build_experiment_comparison_report,
+    render_experiment_comparison_markdown,
+    serialize_experiment_json,
+)
 from wifi_tunja_smart_predictor.scenarios.builder import ScenarioRequest
 from wifi_tunja_smart_predictor.scenarios.service import ScenarioPredictionService
 from wifi_tunja_smart_predictor.simulation.metrics import METRIC_REGISTRY
@@ -47,6 +53,7 @@ from wifi_tunja_smart_predictor.visualization.plots import (
 )
 
 logger = logging.getLogger(__name__)
+EXPERIMENT_COMPARISON_STATE_KEY = "experiment_history_comparison_report"
 
 
 @st.cache_data(show_spinner=False, ttl="15m", max_entries=2)
@@ -2267,7 +2274,10 @@ def _render_page(title: str, kind: str) -> None:
                     ),
                 )
                 record = main_api_request(f"/experiments/{selected_id}")
-                capacity_plan = record.get("result", {}).get("capacity_plan")
+                record_result = record.get("result")
+                capacity_plan = (
+                    record_result.get("capacity_plan") if isinstance(record_result, dict) else None
+                )
                 if isinstance(capacity_plan, dict):
                     st.json(capacity_plan)
                 else:
@@ -2311,6 +2321,7 @@ def _render_page(title: str, kind: str) -> None:
                 )
                 st.caption(f"Selected: {baseline_name} ↔ {comparison_name}")
                 if st.button("Compare selected experiments", disabled=comparison_id is None):
+                    st.session_state.pop(EXPERIMENT_COMPARISON_STATE_KEY, None)
                     try:
                         with st.spinner("Comparing saved synthetic experiments…"):
                             comparison = main_api_request(
@@ -2318,7 +2329,26 @@ def _render_page(title: str, kind: str) -> None:
                                 {"experiment_ids": [selected_id, comparison_id]},
                             )
                             comparison_record = main_api_request(f"/experiments/{comparison_id}")
-                        _render_experiment_comparison(comparison, record, comparison_record)
+                        comparison_state = {
+                            "baseline_id": selected_id,
+                            "comparison_id": comparison_id,
+                            "comparison": comparison,
+                            "baseline_record": record,
+                            "comparison_record": comparison_record,
+                        }
+                        st.session_state[EXPERIMENT_COMPARISON_STATE_KEY] = comparison_state
+                        try:
+                            report_envelope = build_experiment_comparison_report(
+                                record, comparison_record, comparison
+                            )
+                            comparison_state["json_report"] = serialize_experiment_json(
+                                report_envelope
+                            )
+                            comparison_state["markdown_report"] = (
+                                render_experiment_comparison_markdown(report_envelope)
+                            )
+                        except (TypeError, ValueError, OverflowError):
+                            comparison_state["report_error"] = True
                     except ApiClientError as exc:
                         if "HTTP 409" in str(exc):
                             st.warning(
@@ -2328,6 +2358,48 @@ def _render_page(title: str, kind: str) -> None:
                             )
                         else:
                             st.error(str(exc))
+                comparison_state = st.session_state.get(EXPERIMENT_COMPARISON_STATE_KEY)
+                if (
+                    isinstance(comparison_state, dict)
+                    and comparison_state.get("baseline_id") == selected_id
+                    and comparison_state.get("comparison_id") == comparison_id
+                ):
+                    _render_experiment_comparison(
+                        comparison_state["comparison"],
+                        comparison_state["baseline_record"],
+                        comparison_state["comparison_record"],
+                    )
+                    if comparison_state.get("report_error"):
+                        st.error(
+                            "The comparison is visible, but its reports could not be generated "
+                            "from the returned data."
+                        )
+                    elif isinstance(comparison_state.get("json_report"), str) and isinstance(
+                        comparison_state.get("markdown_report"), str
+                    ):
+                        st.caption(
+                            "JSON contains the comparison response, compatibility details, "
+                            "scenario context, dataset/model provenance, and synthetic-data "
+                            "disclaimer. Markdown presents the same information in a readable form."
+                        )
+                        safe_ids = [
+                            re.sub(r"[^A-Za-z0-9_-]+", "-", experiment_id).strip("-") or "unknown"
+                            for experiment_id in (selected_id, comparison_id)
+                        ]
+                        file_stem = f"experiment-comparison-{safe_ids[0]}-{safe_ids[1]}"
+                        json_column, markdown_column = st.columns(2)
+                        json_column.download_button(
+                            "Download JSON comparison report",
+                            comparison_state["json_report"],
+                            file_name=f"{file_stem}.json",
+                            mime="application/json",
+                        )
+                        markdown_column.download_button(
+                            "Download Markdown comparison report",
+                            comparison_state["markdown_report"],
+                            file_name=f"{file_stem}.md",
+                            mime="text/markdown",
+                        )
                 report = main_api_request(f"/experiments/{selected_id}/report?format=json")
                 st.download_button(
                     "Download JSON report",

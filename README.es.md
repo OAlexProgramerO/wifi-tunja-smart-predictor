@@ -1,12 +1,12 @@
-# WiFi Tunja Smart Predictor — V6.6.0
+# WiFi Tunja Smart Predictor — V6.7.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V6.6.0 está publicada con la etiqueta Git anotada [`v6.6.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.6.0) y [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.6.0). Commit de publicación: `2c99a8cb8d9bcc70deed7f03cf5689d6636c49f9`; paquete Python e imagen Docker: `0.6.6`. Consulte la [guía de experimentos](docs/experiments.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V6.7.0 es candidata a publicación; se publicará después de validar los cambios. Paquete Python e imagen Docker: `0.6.7`. Consulte la [guía de experimentos](docs/experiments.md) y el [historial de versiones](docs/release-history.md).
 
-WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.6.0 permite comparar visualmente dos experimentos guardados compatibles en Experiment History.
+WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.7.0 agrega informes descargables JSON y Markdown al flujo de comparación de experimentos guardados.
 
 Se conservan las verificaciones de huellas de artefactos de V4.3.0 y la trazabilidad de predicciones y validaciones de V4.2.0. Consulte el [diseño de diagnósticos V4.4.0](docs/model-diagnostics.md) para ver el esquema, las métricas, las ventanas temporales y la comprobación de procedencia.
 
@@ -50,7 +50,7 @@ El proyecto demuestra un flujo mantenible de clasificación y regresión con con
 - Explicaciones deterministas del asistente para las secciones del panel, escenarios actuales, indicadores y métricas, en inglés y español.
 - Análisis histórico de demanda en inglés y español: comparación de zonas, frecuencia HIGH, horas/días pico y periodos del día.
 - Diez secciones: resumen, escenario, explorador, análisis geográfico y de red, rendimiento, historial de experimentos, asistente, predicción avanzada y acerca de.
-- Experimentos reproducibles de planificación de capacidad, persistidos en SQLite, con asignación determinista, historial paginado e informes JSON/Markdown. «Experiment History» compara dos escenarios guardados mediante la API existente, que verifica compatibilidad; la demanda y capacidad son conteos sintéticos de conexiones, no mediciones reales de WiFi público ni recomendaciones operativas.
+- Experimentos reproducibles de planificación de capacidad, persistidos en SQLite, con asignación determinista, historial paginado e informes JSON/Markdown. «Experiment History» compara dos escenarios guardados mediante la API existente, que verifica compatibilidad, y permite exportar la comparación con procedencia; la demanda y capacidad son datos sintéticos, no mediciones reales de WiFi público ni recomendaciones operativas.
 - Inteligencia geoespacial con filtros por fechas inclusivas, zona, hora, día y clase de demanda sobre observaciones históricas generadas, y mapa sintético sin mosaicos externos.
 - Banco de escenarios que compara predicciones fijas del modelo con supuestos alternativos de capacidad y presupuesto, guarda experimentos reproducibles y exporta informes con el análisis.
 - El banco también permite optimizar asignaciones enteras deterministas para minimizar déficits sintéticos totales o ponderados explícitamente; consulte [método y restricciones](docs/optimizacion.md).
@@ -66,7 +66,7 @@ Consulte [Predicción de escenarios](docs/scenario_prediction.md), [Asistente](d
 
 La API incluye `POST /evaluation/temporal`, `POST /experiments/scenarios`, `POST /experiments/what-if`, V6.1 `POST /experiments/optimize`, V6.2.0 `POST /experiments/robustness`, `GET /experiments` con paginación, `GET /experiments/{id}` y `GET /experiments/{id}/report` en JSON o Markdown (puerto 8000). Consulte [referencia API en español](docs/api.es.md), [evaluación temporal](docs/temporal-evaluation.es.md), [planificación de capacidad](docs/capacity-planning.md), [experimentos e informes](docs/experiments.md), el [banco de escenarios](docs/scenario-workbench.md), [optimización](docs/optimizacion.md) y [sensibilidad y robustez](docs/robustness.es.md).
 
-Para guardar un experimento, abra **Live Scenario**, elija una zona y hora sintéticas, ejecute la predicción, indique la capacidad simulada y un presupuesto opcional de conexiones y pulse **Run and save experiment**. **Experiment History** muestra los escenarios guardados, permite descargar el informe JSON versionado y presenta una comparación lado a lado entre dos experimentos verificados. La API existente exige igualdad de hora del escenario, huella del dataset, huellas de artefactos de modelo y versiones registradas. Las diferencias compartidas describen escenarios sintéticos; no son mediciones de WiFi público real ni recomendaciones operativas.
+Para guardar un experimento, abra **Live Scenario**, elija una zona y hora sintéticas, ejecute la predicción, indique la capacidad simulada y un presupuesto opcional de conexiones y pulse **Run and save experiment**. **Experiment History** muestra los escenarios guardados, permite descargar informes JSON individuales y compara lado a lado dos experimentos verificados. Después de comparar, puede descargar el resultado en JSON o Markdown con ambos IDs, contexto del escenario, procedencia de datos y modelos, compatibilidad y el aviso de datos sintéticos. La API existente exige igualdad de hora del escenario, huella del dataset, huellas de artefactos de modelo y versiones registradas. Las diferencias describen escenarios sintéticos; no son mediciones de WiFi público real ni recomendaciones operativas.
 
 ## 3. Problema
 

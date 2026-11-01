@@ -377,3 +377,226 @@ def render_experiment_markdown(report: dict[str, Any]) -> str:
 def serialize_experiment_json(report: dict[str, Any]) -> str:
     """Serialize a report deterministically other than its generation timestamp."""
     return json.dumps(report, indent=2, sort_keys=True, allow_nan=False)
+
+
+def build_experiment_comparison_report(
+    baseline_record: dict[str, Any],
+    comparison_record: dict[str, Any],
+    comparison_payload: dict[str, Any],
+    *,
+    generated_at_utc: datetime | None = None,
+) -> dict[str, Any]:
+    """Build a versioned report from two records and the existing compare response."""
+    if not all(isinstance(value, dict) for value in (baseline_record, comparison_record)):
+        raise ValueError("Comparison report requires two saved experiment records.")
+    baseline_id = baseline_record.get("id")
+    comparison_id = comparison_record.get("id")
+    if not isinstance(baseline_id, str) or not baseline_id:
+        raise ValueError("Comparison baseline is missing its experiment ID.")
+    if not isinstance(comparison_id, str) or not comparison_id:
+        raise ValueError("Compared experiment is missing its experiment ID.")
+    if not isinstance(comparison_payload, dict):
+        raise ValueError("Comparison response is missing.")
+    comparisons = comparison_payload.get("comparisons")
+    if not isinstance(comparisons, list) or len(comparisons) != 1:
+        raise ValueError("Comparison response must contain one comparison result.")
+    comparison = comparisons[0]
+    if not isinstance(comparison, dict):
+        raise ValueError("Comparison result is malformed.")
+    status = comparison.get("comparison_status")
+    if not isinstance(status, str) or status not in {"comparable", "no_shared_zones"}:
+        raise ValueError("Comparison result is not valid for report export.")
+    if comparison_payload.get("baseline_experiment_id") != baseline_id:
+        raise ValueError("Comparison response does not match the selected baseline.")
+    if comparison.get("baseline_experiment_id") != baseline_id:
+        raise ValueError("Comparison result does not match the selected baseline.")
+    if comparison.get("experiment_id") != comparison_id:
+        raise ValueError("Comparison result does not match the selected experiment.")
+
+    shared_zones = comparison.get("shared_zones")
+    changes = comparison.get("changes")
+    if (
+        not isinstance(shared_zones, list)
+        or any(not isinstance(zone_id, str) for zone_id in shared_zones)
+        or not isinstance(changes, dict)
+    ):
+        raise ValueError("Comparison zone results are malformed.")
+    if (status == "comparable" and not shared_zones) or (
+        status == "no_shared_zones" and shared_zones
+    ):
+        raise ValueError("Comparison status does not match its shared-zone results.")
+    generated = generated_at_utc or datetime.now(UTC)
+    if generated.tzinfo is None:
+        raise ValueError("generated_at_utc must be timezone-aware")
+
+    def experiment_summary(record: dict[str, Any]) -> dict[str, Any]:
+        configuration = record.get("configuration")
+        result = record.get("result")
+        if not isinstance(configuration, dict) or not isinstance(result, dict):
+            raise ValueError("Experiment record is missing its configuration or result object.")
+        provenance = result.get("provenance", {})
+        if provenance is None:
+            provenance = {}
+        if not isinstance(provenance, dict):
+            raise ValueError("Experiment provenance is malformed.")
+        models = provenance.get("models", [])
+        zones = result.get("zones", [])
+        if not isinstance(models, list) or any(not isinstance(item, dict) for item in models):
+            raise ValueError("Experiment model provenance is malformed.")
+        if not isinstance(zones, list):
+            raise ValueError("Experiment zone results are malformed.")
+        dataset_provenance = {
+            "version": provenance.get("dataset_version") or "Not recorded",
+            "sha256": provenance.get("dataset_sha256") or "Not recorded",
+            "fingerprint_algorithm": provenance.get("dataset_fingerprint_algorithm")
+            or "Not recorded",
+        }
+        scenario_context = {
+            key: configuration[key]
+            for key in ("zones", "resource_budget_connections", "scenario_kind")
+            if key in configuration
+        }
+        return {
+            "experiment_id": record["id"],
+            "name": record.get("name") or "Not recorded",
+            "created_at_utc": record.get("created_at_utc") or "Not recorded",
+            "scenario_time": configuration.get("datetime")
+            or result.get("time_window")
+            or "Not recorded",
+            "scenario_context": scenario_context,
+            "dataset_provenance": dataset_provenance,
+            "model_provenance": models,
+            "shared_zone_outputs": [
+                zone
+                for zone in zones
+                if isinstance(zone, dict)
+                and isinstance(zone.get("zone_id"), str)
+                and zone.get("zone_id") in shared_zones
+            ],
+        }
+
+    generated = generated.astimezone(UTC)
+    baseline = experiment_summary(baseline_record)
+    compared = experiment_summary(comparison_record)
+    reasons = comparison.get("comparability_reasons", [])
+    reason_codes = comparison.get("comparability_reason_codes", [])
+    return {
+        "report_schema_version": "1.0",
+        "comparison_schema_version": comparison_payload.get("schema_version") or "Not recorded",
+        "generated_at_utc": generated.isoformat(),
+        "baseline_experiment_id": baseline_id,
+        "comparison_experiment_id": comparison_id,
+        "experiments": {"baseline": baseline, "comparison": compared},
+        "compatibility": {
+            "status": status,
+            "scientific_comparability": comparison.get("scientific_comparability")
+            or "Not recorded",
+            "reasons": reasons if isinstance(reasons, list) else [],
+            "reason_codes": reason_codes if isinstance(reason_codes, list) else [],
+            "interpretation_detail": comparison.get("interpretation_detail") or "Not recorded",
+        },
+        "comparison": comparison,
+        "disclaimer": SYNTHETIC_DISCLAIMER,
+    }
+
+
+def render_experiment_comparison_markdown(report: dict[str, Any]) -> str:
+    """Render a safe Markdown comparison report from its shared envelope."""
+
+    def safe_text(value: object) -> str:
+        return escape(str(value)).replace("|", r"\|").replace("`", r"\`").replace("\n", " ")
+
+    experiments = report["experiments"]
+    baseline = experiments["baseline"]
+    compared = experiments["comparison"]
+    comparison = report["comparison"]
+    lines = [
+        "# Saved experiment comparison",
+        "",
+        f"Report schema: {safe_text(report['report_schema_version'])}",
+        f"Comparison schema: {safe_text(report['comparison_schema_version'])}",
+        f"Generated (UTC): {safe_text(report['generated_at_utc'])}",
+        "",
+        "## Selected experiments",
+        "",
+    ]
+    for label, experiment in (("Baseline", baseline), ("Comparison", compared)):
+        lines.extend(
+            [
+                f"### {label}: {safe_text(experiment['name'])}",
+                f"- Experiment ID: `{safe_text(experiment['experiment_id'])}`",
+                f"- Created (UTC): {safe_text(experiment['created_at_utc'])}",
+                f"- Scenario time: {safe_text(experiment['scenario_time'])}",
+                f"- Dataset version: {safe_text(experiment['dataset_provenance']['version'])}",
+                f"- Dataset SHA-256: {safe_text(experiment['dataset_provenance']['sha256'])}",
+                "- Model artifact provenance:",
+            ]
+        )
+        for index, trace in enumerate(experiment["model_provenance"], start=1):
+            for role in ("classifier", "regressor"):
+                artifact = trace.get(role)
+                if not isinstance(artifact, dict):
+                    artifact = {}
+                lines.append(
+                    f"  - Run {index} {role}: version "
+                    f"{safe_text(artifact.get('model_version') or 'Not recorded')}; "
+                    f"SHA-256 {safe_text(artifact.get('artifact_sha256') or 'Not recorded')}."
+                )
+        context_json = json.dumps(
+            experiment["scenario_context"], indent=2, sort_keys=True, allow_nan=False
+        ).replace("```", r"\u0060\u0060\u0060")
+        lines.extend(["- Scenario context:", "", "```json", context_json, "```", ""])
+
+    compatibility = report["compatibility"]
+    lines.extend(
+        [
+            "## Compatibility and comparison",
+            "",
+            f"Status: {safe_text(compatibility['status'])}",
+            f"Scientific comparability: {safe_text(compatibility['scientific_comparability'])}",
+            f"Interpretation: {safe_text(compatibility['interpretation_detail'])}",
+            f"Reasons: {safe_text(', '.join(compatibility['reasons']) or 'None')}",
+            f"Reason codes: {safe_text(', '.join(compatibility['reason_codes']) or 'None')}",
+            "",
+            "| Zone | Baseline demand | Comparison demand | Demand difference | Baseline capacity | Comparison capacity | Capacity difference | Baseline overload | Comparison overload | Overload difference |",
+            "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        ]
+    )
+    baseline_zones = {
+        row.get("zone_id"): row
+        for row in baseline["shared_zone_outputs"]
+        if isinstance(row.get("zone_id"), str)
+    }
+    comparison_zones = {
+        row.get("zone_id"): row
+        for row in compared["shared_zone_outputs"]
+        if isinstance(row.get("zone_id"), str)
+    }
+    changes = comparison.get("changes", {})
+    for zone_id in comparison.get("shared_zones", []):
+        baseline_zone = baseline_zones.get(zone_id, {})
+        compared_zone = comparison_zones.get(zone_id, {})
+        change = changes.get(zone_id, {}) if isinstance(changes, dict) else {}
+        if not isinstance(change, dict):
+            change = {}
+        lines.append(
+            "| "
+            + " | ".join(
+                safe_text(value)
+                for value in (
+                    zone_id,
+                    baseline_zone.get("demand", "Not recorded"),
+                    compared_zone.get("demand", "Not recorded"),
+                    change.get("demand_connections", "Not recorded"),
+                    baseline_zone.get("effective_capacity", "Not recorded"),
+                    compared_zone.get("effective_capacity", "Not recorded"),
+                    change.get("capacity_connections", "Not recorded"),
+                    baseline_zone.get("overload_connections", "Not recorded"),
+                    compared_zone.get("overload_connections", "Not recorded"),
+                    change.get("overload_connections", "Not recorded"),
+                )
+            )
+            + " |"
+        )
+    lines.extend(["", safe_text(report["disclaimer"])])
+    return "\n".join(lines)

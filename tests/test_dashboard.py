@@ -200,8 +200,12 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
             return {"report_schema_version": "1.0"}
         if path == "/experiments/compare":
             return {
+                "schema_version": "1.0",
+                "baseline_experiment_id": "experiment-a",
                 "comparisons": [
                     {
+                        "baseline_experiment_id": "experiment-a",
+                        "experiment_id": "experiment-b",
                         "comparison_status": "comparable",
                         "scientific_comparability": "limited",
                         "shared_zones": ["zone-1"],
@@ -214,7 +218,7 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
                         },
                         "interpretation_detail": "Synthetic scenario differences only; not a real-network forecast.",
                     }
-                ]
+                ],
             }
         experiment_id = path.rsplit("/", 1)[-1]
         return {
@@ -261,6 +265,14 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
     assert any("Demand difference" in item.value.columns for item in app.dataframe)
     assert app.dataframe[-1].value.iloc[0]["Demand · comparison"] == 12.0
     assert app.dataframe[-1].value.iloc[0]["Demand difference"] == 2.0
+    assert [item.label for item in app.download_button] == [
+        "Download JSON comparison report",
+        "Download Markdown comparison report",
+        "Download JSON report",
+    ]
+    app.download_button[0].click().run()
+    assert any("Demand difference" in item.value.columns for item in app.dataframe)
+    assert len(app.download_button) == 3
 
     app.number_input[0].set_value(2).run()
     assert any(path == "/experiments?limit=25&offset=25" for path, _ in requests)
