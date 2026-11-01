@@ -1,10 +1,10 @@
 # Changelog
 
-## V6.7.0 — Experiment comparison reports — release candidate
+## V6.7.0 — Experiment comparison reports — 2026-11-01
 
-Adds downloadable JSON and Markdown reports after a saved-experiment comparison. Reports preserve both experiment IDs, scenario context, recorded dataset/model provenance, the existing compatibility result and differences, and an explicit synthetic-data disclaimer. Product V6.7.0 maps to Python package and Docker image `0.6.7`.
+Adds downloadable JSON and Markdown reports after a saved-experiment comparison. Reports preserve both experiment IDs, scenario context, recorded dataset/model provenance, the existing compatibility result and differences, and an explicit synthetic-data disclaimer. Product V6.7.0 maps to Python package and Docker image `0.6.7`. Annotated tag [`v6.7.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.7.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.7.0) target `b4942e6b6fec0c701239ae9766661e9d083120fb`. Focused and full pytest suites, Ruff, Black, and `git diff --check` passed locally; no GitHub Actions run was created.
 
-Agrega informes descargables JSON y Markdown después de comparar experimentos guardados. Los informes conservan ambos IDs, el contexto del escenario, la procedencia registrada de datos/modelos, el resultado de compatibilidad y las diferencias existentes, además de un aviso explícito de datos sintéticos. La versión de producto V6.7.0 corresponde al paquete Python y la imagen Docker `0.6.7`.
+Agrega informes descargables JSON y Markdown después de comparar experimentos guardados. Los informes conservan ambos IDs, el contexto del escenario, la procedencia registrada de datos/modelos, el resultado de compatibilidad y las diferencias existentes, además de un aviso explícito de datos sintéticos. La versión de producto V6.7.0 corresponde al paquete Python y la imagen Docker `0.6.7`. La etiqueta anotada [`v6.7.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.7.0) y el [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.7.0) apuntan a `b4942e6b6fec0c701239ae9766661e9d083120fb`. Las pruebas focalizadas y completas, Ruff, Black y `git diff --check` pasaron localmente; GitHub Actions no creó una ejecución.
 
 ## V6.6.0 — Visual experiment comparison — 2026-10-31
 

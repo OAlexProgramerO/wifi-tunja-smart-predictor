@@ -4,7 +4,7 @@
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V6.7.0 es candidata a publicación; se publicará después de validar los cambios. Paquete Python e imagen Docker: `0.6.7`. Consulte la [guía de experimentos](docs/experiments.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V6.7.0 está publicada con la etiqueta Git anotada [`v6.7.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.7.0) y [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.7.0). Commit de publicación: `b4942e6b6fec0c701239ae9766661e9d083120fb`; paquete Python e imagen Docker: `0.6.7`. Consulte la [guía de experimentos](docs/experiments.md) y el [historial de versiones](docs/release-history.md).
 
 WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.7.0 agrega informes descargables JSON y Markdown al flujo de comparación de experimentos guardados.
 
