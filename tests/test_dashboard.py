@@ -249,13 +249,16 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
     )
     app = AppTest.from_string(script, default_timeout=30).run()
     assert not app.exception
-    assert requests[0][0] == "/experiments?limit=25&offset=0"
+    assert requests[0][0].startswith("/experiments?limit=25&offset=0")
     assert app.number_input[0].label == "History page"
-    assert "Showing records 1–2" in app.caption[2].value
+    assert "Showing 2 of 2 matching records" in app.caption[2].value
+    assert app.text_input[0].label == "Search experiment ID or name"
+    assert app.text_input[1].label == "Synthetic zone ID"
+    assert app.button[0].label == "Clear filters"
 
     assert app.selectbox[1].options == ["Select a verified experiment", "Synthetic alternative"]
     app.selectbox[1].set_value("experiment-b").run()
-    app.button[0].click().run()
+    app.button[1].click().run()
     assert (
         "/experiments/compare",
         {"experiment_ids": ["experiment-a", "experiment-b"]},
@@ -278,6 +281,32 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
     assert any(path == "/experiments?limit=25&offset=25" for path, _ in requests)
     assert "No experiments on this page" in app.info[-1].value
     assert any(path.endswith("/report?format=json") for path, _ in requests)
+
+
+def test_experiment_history_search_filter_and_clear_restore_history(monkeypatch):
+    from app import dashboard
+
+    requests = []
+
+    def fake_request(path, payload=None):
+        requests.append(path)
+        return {"items": [], "total_count": 0, "integrity_warnings": []}
+
+    monkeypatch.setattr(dashboard, "main_api_request", fake_request)
+    app = AppTest.from_string(
+        "from app.dashboard import _render_page\n"
+        "_render_page('Experiment History', 'Experiments')\n",
+        default_timeout=30,
+    ).run()
+    assert not app.exception
+    app.text_input[0].set_value("base").run()
+    assert "search=base" in requests[-1]
+    app.text_input[1].set_value("zone-1").run()
+    assert "zone_id=zone-1" in requests[-1]
+    app.button[0].click().run()
+    assert not app.exception
+    assert "search=" not in requests[-1]
+    assert "zone_id=" not in requests[-1]
 
 
 def test_experiment_history_warns_for_incomplete_records_and_excludes_comparison(monkeypatch):
@@ -329,7 +358,7 @@ def test_experiment_history_warns_for_incomplete_records_and_excludes_comparison
     assert any("MODEL_PROVENANCE_MISSING" in item.value for item in app.warning)
     assert any("evaluación no posible" in item.value for item in app.warning)
     assert app.selectbox[1].options == ["Select a verified experiment"]
-    assert app.button[0].disabled
+    assert app.button[1].disabled
 
 
 def test_experiment_history_empty_page_is_handled_without_comparison(monkeypatch):
@@ -405,7 +434,7 @@ def test_experiment_history_handles_comparison_api_errors(monkeypatch, api_error
         default_timeout=30,
     ).run()
     app.selectbox[1].set_value("experiment-b").run()
-    app.button[0].click().run()
+    app.button[1].click().run()
 
     assert not app.exception
     assert any(expected_message in item.value for item in [*app.warning, *app.error])

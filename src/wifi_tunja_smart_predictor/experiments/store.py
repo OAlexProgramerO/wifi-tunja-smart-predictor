@@ -7,7 +7,7 @@ import sqlite3
 import uuid
 from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -132,19 +132,43 @@ class ExperimentStore:
         return self._decode(row) if row else None
 
     def list_page(
-        self, limit: int = 50, offset: int = 0
-    ) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+        self,
+        limit: int = 50,
+        offset: int = 0,
+        *,
+        search: str | None = None,
+        zone_id: str | None = None,
+        start_date: date | None = None,
+        end_date: date | None = None,
+    ) -> tuple[list[dict[str, Any]], list[dict[str, str]], int]:
         """Return readable records and safe warnings for invalid persisted rows."""
         with self._connect() as connection:
             rows = connection.execute(
-                "SELECT * FROM experiments ORDER BY created_at_utc DESC, id LIMIT ? OFFSET ?",
-                (limit, offset),
+                "SELECT * FROM experiments ORDER BY created_at_utc DESC, id"
             ).fetchall()
         records = []
         warnings = []
         for row in rows:
             try:
-                records.append(self._decode(row))
+                record = self._decode(row)
+                created = datetime.fromisoformat(record["created_at_utc"].replace("Z", "+00:00"))
+                if start_date and created.astimezone(UTC).date() < start_date:
+                    continue
+                if end_date and created.astimezone(UTC).date() > end_date:
+                    continue
+                if (
+                    search
+                    and search.casefold() not in f"{record['id']} {record['name']}".casefold()
+                ):
+                    continue
+                if zone_id:
+                    configured_zones = record["configuration"].get("zones", [])
+                    if not isinstance(configured_zones, list) or not any(
+                        isinstance(zone, dict) and zone.get("zone_id") == zone_id
+                        for zone in configured_zones
+                    ):
+                        continue
+                records.append(record)
             except ValueError:
                 warnings.append(
                     {
@@ -153,11 +177,12 @@ class ExperimentStore:
                         "message": "This saved record failed integrity checks and was omitted.",
                     }
                 )
-        return records, warnings
+        total_count = len(records)
+        return records[offset : offset + limit], warnings, total_count
 
     def list(self, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         """Return readable records, omitting malformed rows without hiding valid history."""
-        records, _warnings = self.list_page(limit, offset)
+        records, _warnings, _total = self.list_page(limit, offset)
         return records
 
     @staticmethod

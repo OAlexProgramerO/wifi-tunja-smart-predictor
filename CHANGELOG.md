@@ -1,5 +1,11 @@
 # Changelog
 
+## V6.8.0 — Experiment history search and filters — 2026-11-02
+
+Adds history-wide search by experiment ID/name and filters by synthetic zone ID and inclusive UTC creation-date range. Filtering is performed before pagination, with a filtered total count; demand-class filtering is unavailable because saved experiment records do not store that field. Product V6.8.0 maps to Python package and Docker image `0.6.8`. Saved experiments remain synthetic.
+
+Agrega búsqueda global del historial por ID/nombre del experimento y filtros por ID de zona sintética y rango inclusivo de fechas UTC de creación. Los filtros se aplican antes de paginar y el total corresponde al resultado filtrado; no se ofrece filtro por clase de demanda porque ese campo no se guarda. La versión de producto V6.8.0 corresponde al paquete Python y la imagen Docker `0.6.8`. Los experimentos guardados siguen siendo sintéticos.
+
 ## V6.7.0 — Experiment comparison reports — 2026-11-01
 
 Adds downloadable JSON and Markdown reports after a saved-experiment comparison. Reports preserve both experiment IDs, scenario context, recorded dataset/model provenance, the existing compatibility result and differences, and an explicit synthetic-data disclaimer. Product V6.7.0 maps to Python package and Docker image `0.6.7`. Annotated tag [`v6.7.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.7.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.7.0) target `b4942e6b6fec0c701239ae9766661e9d083120fb`. Focused and full pytest suites, Ruff, Black, and `git diff --check` passed locally; no GitHub Actions run was created.

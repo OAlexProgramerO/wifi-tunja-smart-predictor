@@ -515,6 +515,54 @@ def test_experiment_list_skips_corrupt_row_and_returns_warning(tmp_path, monkeyp
     experiment_routes._store.cache_clear()
 
 
+def test_experiment_history_filters_before_pagination_and_reports_filtered_total(
+    tmp_path, monkeypatch
+) -> None:
+    path = tmp_path / "filtered.sqlite3"
+    store = ExperimentStore(path)
+    records = [
+        store.save(
+            name,
+            {"zones": [{"zone_id": zone}]},
+            {},
+        )
+        for name, zone in (("Alpha", "zone-a"), ("Beta", "zone-b"), ("Alpha second", "zone-a"))
+    ]
+    with sqlite3.connect(path) as connection:
+        for record, created in zip(
+            records,
+            (
+                "2026-01-01T01:00:00+00:00",
+                "2026-01-02T01:00:00+00:00",
+                "2026-01-03T01:00:00+00:00",
+            ),
+        ):
+            connection.execute(
+                "UPDATE experiments SET created_at_utc = ? WHERE id = ?",
+                (created, record["id"]),
+            )
+    monkeypatch.setenv("EXPERIMENT_DB_PATH", str(path))
+    experiment_routes._store.cache_clear()
+    client = TestClient(app)
+    response = client.get(
+        "/experiments?search=alpha&zone_id=zone-a&start_date=2026-01-01&end_date=2026-01-03&limit=1&offset=1"
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_count"] == 2
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["name"] == "Alpha"
+    date_response = client.get("/experiments?start_date=2026-01-02&end_date=2026-01-02")
+    assert date_response.status_code == 200
+    assert date_response.json()["total_count"] == 1
+    assert date_response.json()["items"][0]["name"] == "Beta"
+    unfiltered = client.get("/experiments")
+    assert unfiltered.json()["total_count"] == 3
+    assert client.get("/experiments?start_date=2026-01-03&end_date=2026-01-01").status_code == 422
+    assert client.get("/experiments?search=").status_code == 422
+    experiment_routes._store.cache_clear()
+
+
 def test_malformed_markdown_report_returns_safe_service_unavailable(tmp_path, monkeypatch) -> None:
     store = ExperimentStore(tmp_path / "malformed-report.sqlite3")
     record = store.save(

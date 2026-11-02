@@ -325,3 +325,4 @@ class ExperimentPage(BaseModel):
     limit: int
     offset: int
     integrity_warnings: list[ExperimentIntegrityWarning] = Field(default_factory=list)
+    total_count: int = 0

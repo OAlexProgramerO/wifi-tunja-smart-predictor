@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import date
 from functools import lru_cache
 from math import isfinite
 
@@ -378,13 +379,32 @@ def create_robustness_analysis(payload: RobustnessAnalysisRequest) -> dict:
 
 
 @router.get("", response_model=ExperimentPage)
-def list_experiments(limit: int = Query(50, ge=1, le=100), offset: int = Query(0, ge=0)) -> dict:
-    items, integrity_warnings = _read_store(lambda: _store().list_page(limit, offset))
+def list_experiments(
+    limit: int = Query(50, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    search: str | None = Query(None, min_length=1, max_length=120),
+    zone_id: str | None = Query(None, min_length=1, max_length=120),
+    start_date: date | None = None,
+    end_date: date | None = None,
+) -> dict:
+    if start_date and end_date and start_date > end_date:
+        raise HTTPException(status_code=422, detail="start_date must be on or before end_date.")
+    items, integrity_warnings, total_count = _read_store(
+        lambda: _store().list_page(
+            limit,
+            offset,
+            search=search,
+            zone_id=zone_id,
+            start_date=start_date,
+            end_date=end_date,
+        )
+    )
     return {
         "items": items,
         "limit": limit,
         "offset": offset,
         "integrity_warnings": integrity_warnings,
+        "total_count": total_count,
     }
 
 

@@ -6,6 +6,7 @@ import json
 import logging
 import re
 from pathlib import Path
+from urllib.parse import urlencode
 
 import pandas as pd
 import plotly.express as px
@@ -54,6 +55,17 @@ from wifi_tunja_smart_predictor.visualization.plots import (
 
 logger = logging.getLogger(__name__)
 EXPERIMENT_COMPARISON_STATE_KEY = "experiment_history_comparison_report"
+
+
+def _clear_experiment_history_filters() -> None:
+    st.session_state["experiment_history_search"] = ""
+    st.session_state["experiment_history_zone"] = ""
+    st.session_state["experiment_history_dates"] = ()
+    st.session_state["experiment_history_page"] = 1
+
+
+def _reset_experiment_history_page() -> None:
+    st.session_state["experiment_history_page"] = 1
 
 
 @st.cache_data(show_spinner=False, ttl="15m", max_entries=2)
@@ -2221,6 +2233,23 @@ def _render_page(title: str, kind: str) -> None:
         )
         try:
             page_size = 25
+            search = st.text_input(
+                "Search experiment ID or name",
+                key="experiment_history_search",
+                on_change=_reset_experiment_history_page,
+            )
+            zone_id = st.text_input(
+                "Synthetic zone ID",
+                key="experiment_history_zone",
+                on_change=_reset_experiment_history_page,
+            )
+            date_range = st.date_input(
+                "Creation date range (UTC, inclusive)",
+                value=(),
+                key="experiment_history_dates",
+                on_change=_reset_experiment_history_page,
+            )
+            st.button("Clear filters", on_click=_clear_experiment_history_filters)
             page_number = st.number_input(
                 "History page",
                 min_value=1,
@@ -2229,15 +2258,28 @@ def _render_page(title: str, kind: str) -> None:
                 key="experiment_history_page",
             )
             offset = (page_number - 1) * page_size
-            page = main_api_request(f"/experiments?limit={page_size}&offset={offset}")
+            params = {"limit": page_size, "offset": offset}
+            if search.strip():
+                params["search"] = search.strip()
+            if zone_id.strip():
+                params["zone_id"] = zone_id.strip()
+            if isinstance(date_range, tuple) and len(date_range) == 2:
+                params["start_date"] = date_range[0].isoformat()
+                params["end_date"] = date_range[1].isoformat()
+            page = main_api_request(f"/experiments?{urlencode(params)}")
             experiments = page["items"]
             warnings = page.get("integrity_warnings", [])
+            total_count = page.get("total_count", len(experiments) + offset)
             for warning in warnings:
                 st.warning(
                     f"Record {warning.get('experiment_id', 'unknown')} omitted: {warning.get('reason_code', 'INTEGRITY_WARNING')}"
                 )
             if not experiments:
-                if offset:
+                if search.strip() or zone_id.strip() or date_range:
+                    st.info(
+                        "No experiments match these filters. Clear filters to restore the full history."
+                    )
+                elif offset:
                     st.info(
                         "No experiments on this page. Choose an earlier page to view saved history."
                     )
@@ -2245,7 +2287,7 @@ def _render_page(title: str, kind: str) -> None:
                     st.info("No saved experiments yet. Run and save one from Scenario Prediction.")
             else:
                 st.caption(
-                    f"Showing records {offset + 1}–{offset + len(experiments)} · "
+                    f"Showing {len(experiments)} of {total_count} matching records · "
                     "synthetic scenario history"
                 )
                 integrity_labels = {
