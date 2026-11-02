@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V6.7.0
+# WiFi Tunja Smart Predictor — V6.8.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,9 +9,9 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V6.7.0 is published as annotated Git tag [`v6.7.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.7.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.7.0). Release commit: `b4942e6b6fec0c701239ae9766661e9d083120fb`; Python package and Docker image: `0.6.7`. See the [experiment guide](docs/experiments.md) and [release history](docs/release-history.md).
+**Release status:** V6.8.0 is published as annotated Git tag [`v6.8.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.8.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.8.0). Release commit: `6bdc439fd6d8d7ea76733634156c3b715dd11499`; Python package and Docker image: `0.6.8`. See the [experiment guide](docs/experiments.md) and [release history](docs/release-history.md).
 
-WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.7.0 adds downloadable JSON and Markdown reports to the saved-experiment comparison workflow.
+WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.8.0 adds history-wide search and filters for saved experiments.
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 

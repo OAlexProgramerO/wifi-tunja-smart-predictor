@@ -1,12 +1,12 @@
-# WiFi Tunja Smart Predictor — V6.7.0
+# WiFi Tunja Smart Predictor — V6.8.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V6.7.0 está publicada con la etiqueta Git anotada [`v6.7.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.7.0) y [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.7.0). Commit de publicación: `b4942e6b6fec0c701239ae9766661e9d083120fb`; paquete Python e imagen Docker: `0.6.7`. Consulte la [guía de experimentos](docs/experiments.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V6.8.0 está publicada con la etiqueta Git anotada [`v6.8.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.8.0) y [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.8.0). Commit de publicación: `6bdc439fd6d8d7ea76733634156c3b715dd11499`; paquete Python e imagen Docker: `0.6.8`. Consulte la [guía de experimentos](docs/experiments.md) y el [historial de versiones](docs/release-history.md).
 
-WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.7.0 agrega informes descargables JSON y Markdown al flujo de comparación de experimentos guardados.
+WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.8.0 agrega búsqueda y filtros globales para experimentos guardados.
 
 Se conservan las verificaciones de huellas de artefactos de V4.3.0 y la trazabilidad de predicciones y validaciones de V4.2.0. Consulte el [diseño de diagnósticos V4.4.0](docs/model-diagnostics.md) para ver el esquema, las métricas, las ventanas temporales y la comprobación de procedencia.
 
