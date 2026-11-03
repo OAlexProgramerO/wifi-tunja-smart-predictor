@@ -172,6 +172,7 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
     from app import dashboard
 
     requests = []
+    markdown_requests = []
 
     def fake_request(path, payload=None):
         requests.append((path, payload))
@@ -184,12 +185,16 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
                         "id": "experiment-a",
                         "name": "Synthetic base",
                         "created_at_utc": "2026-01-01T00:00:00+00:00",
+                        "status": "COMPLETED",
+                        "experiment_type": "capacity_scenario",
                         "integrity": {"status": "verified", "reason_codes": []},
                     },
                     {
                         "id": "experiment-b",
                         "name": "Synthetic alternative",
                         "created_at_utc": "2026-01-02T00:00:00+00:00",
+                        "status": "COMPLETED",
+                        "experiment_type": "capacity_scenario",
                         "integrity": {"status": "verified", "reason_codes": []},
                     },
                 ],
@@ -227,7 +232,10 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
                 "Synthetic base" if experiment_id == "experiment-a" else "Synthetic alternative"
             ),
             "configuration": {
-                "datetime": f"2026-01-0{1 if experiment_id == 'experiment-a' else 2}T00:00:00"
+                "datetime": f"2026-01-0{1 if experiment_id == 'experiment-a' else 2}T00:00:00+00:00",
+                "description": "Synthetic test scenario",
+                "resource_budget_connections": 20,
+                "zones": [{"zone_id": "zone-1", "capacity_connections": 8}],
             },
             "result": {
                 "capacity_plan": {"zones": []},
@@ -239,10 +247,46 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
                         "overload_connections": 2.0 if experiment_id == "experiment-a" else 0.0,
                     }
                 ],
+                "provenance": {
+                    "dataset_version": "synthetic-v1",
+                    "dataset_sha256": "a" * 64,
+                    "dataset_fingerprint_algorithm": "sha256-canonical-v1",
+                    "models": [
+                        {
+                            "prediction_id": f"prediction-{experiment_id}",
+                            "application_version": "0.6.9",
+                            "classifier": {
+                                "selected_model": "random_forest",
+                                "model_version": "model-v1",
+                                "artifact_sha256": "b" * 64,
+                            },
+                            "regressor": {
+                                "selected_model": "linear_regression",
+                                "model_version": "model-v1",
+                                "artifact_sha256": "c" * 64,
+                            },
+                        }
+                    ],
+                },
+                "limitations": ["Synthetic scenario only."],
+            },
+            "status": "COMPLETED",
+            "experiment_type": "capacity_scenario",
+            "created_at_utc": f"2026-01-0{1 if experiment_id == 'experiment-a' else 2}T00:00:00+00:00",
+            "integrity": {
+                "status": "verified",
+                "assessment_status": "assessable",
+                "reason_codes": [],
             },
         }
 
     monkeypatch.setattr(dashboard, "main_api_request", fake_request)
+
+    def fake_markdown_request(path):
+        markdown_requests.append(path)
+        return "# Synthetic report"
+
+    monkeypatch.setattr(dashboard, "main_api_text_request", fake_markdown_request)
     script = (
         "from app.dashboard import _render_page\n"
         "_render_page('Experiment History', 'Experiments')\n"
@@ -252,6 +296,9 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
     assert requests[0][0].startswith("/experiments?limit=25&offset=0")
     assert app.number_input[0].label == "History page"
     assert "Showing 2 of 2 matching records" in app.caption[2].value
+    assert any(metric.label == "Created (UTC)" for metric in app.metric)
+    assert any("Dataset version: synthetic-v1" in caption.value for caption in app.caption)
+    assert any("Demand classification: Not recorded" in item.value for item in app.info)
     assert app.text_input[0].label == "Search experiment ID or name"
     assert app.text_input[1].label == "Synthetic zone ID"
     assert app.button[0].label == "Clear filters"
@@ -272,10 +319,17 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
         "Download JSON comparison report",
         "Download Markdown comparison report",
         "Download JSON report",
+        "Download Markdown report",
     ]
+    assert markdown_requests
+    assert set(markdown_requests) == {"/experiments/experiment-a/report?format=markdown"}
     app.download_button[0].click().run()
     assert any("Demand difference" in item.value.columns for item in app.dataframe)
-    assert len(app.download_button) == 3
+    assert len(app.download_button) == 4
+
+    app.selectbox[0].set_value("experiment-b").run()
+    assert ("/experiments/experiment-b", None) in requests
+    assert any("experiment-b" in caption.value for caption in app.caption)
 
     app.number_input[0].set_value(2).run()
     assert any(path == "/experiments?limit=25&offset=25" for path, _ in requests)
@@ -307,6 +361,53 @@ def test_experiment_history_search_filter_and_clear_restore_history(monkeypatch)
     assert not app.exception
     assert "search=" not in requests[-1]
     assert "zone_id=" not in requests[-1]
+
+
+def test_experiment_detail_handles_missing_fields_and_preserves_zero_and_false():
+    app = AppTest.from_string(
+        "from app.dashboard import _render_experiment_detail, _recorded_value\n"
+        "_render_experiment_detail({'id': 'legacy', 'configuration': {}, 'result': {}, 'integrity': {}})\n"
+        "assert _recorded_value(0) == '0'\n"
+        "assert _recorded_value(False) == 'False'\n",
+        default_timeout=30,
+    ).run()
+
+    assert not app.exception
+    assert any(
+        metric.label == "Created (UTC)" and metric.value == "Not recorded" for metric in app.metric
+    )
+    assert any("Demand classification: Not recorded" in item.value for item in app.info)
+    assert any("provenance was not recorded" in item.value for item in app.info)
+
+
+def test_experiment_history_handles_unknown_selected_experiment(monkeypatch):
+    from app import dashboard
+    from wifi_tunja_smart_predictor.api_client import ApiClientError
+
+    def fake_request(path, payload=None):
+        if path.startswith("/experiments?"):
+            return {
+                "items": [
+                    {
+                        "id": "missing-record",
+                        "name": "Missing synthetic experiment",
+                        "created_at_utc": "2026-01-01T00:00:00+00:00",
+                        "integrity": {"status": "verified", "reason_codes": []},
+                    }
+                ],
+                "total_count": 1,
+            }
+        raise ApiClientError("Main API returned HTTP 404.")
+
+    monkeypatch.setattr(dashboard, "main_api_request", fake_request)
+    app = AppTest.from_string(
+        "from app.dashboard import _render_page\n"
+        "_render_page('Experiment History', 'Experiments')\n",
+        default_timeout=30,
+    ).run()
+
+    assert not app.exception
+    assert any("HTTP 404" in item.value for item in app.error)
 
 
 def test_experiment_history_warns_for_incomplete_records_and_excludes_comparison(monkeypatch):
@@ -347,6 +448,7 @@ def test_experiment_history_warns_for_incomplete_records_and_excludes_comparison
         }
 
     monkeypatch.setattr(dashboard, "main_api_request", fake_request)
+    monkeypatch.setattr(dashboard, "main_api_text_request", lambda path: "# Synthetic report")
     script = (
         "from app.dashboard import _render_page\n"
         "_render_page('Experiment History', 'Experiments')\n"
@@ -425,9 +527,13 @@ def test_experiment_history_handles_comparison_api_errors(monkeypatch, api_error
             raise ApiClientError(api_error)
         if path.endswith("/report?format=json"):
             return {"report_schema_version": "1.0"}
-        return {"result": {"capacity_plan": {"zones": []}}}
+        return {
+            "result": {"capacity_plan": {"zones": []}},
+            "integrity": {"status": "verified", "reason_codes": []},
+        }
 
     monkeypatch.setattr(dashboard, "main_api_request", fake_request)
+    monkeypatch.setattr(dashboard, "main_api_text_request", lambda path: "# Synthetic report")
     app = AppTest.from_string(
         "from app.dashboard import _render_page\n"
         "_render_page('Experiment History', 'Experiments')\n",

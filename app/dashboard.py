@@ -2158,6 +2158,145 @@ def _render_experiment_comparison(
         st.info("The API returned no shared-zone values to display.")
 
 
+def _recorded_value(value) -> str:
+    """Format optional persisted values without treating zero or false as missing."""
+    if value is None or (isinstance(value, str) and not value.strip()):
+        return "Not recorded"
+    if isinstance(value, (dict, list)) and not value:
+        return "Not recorded"
+    return str(value)
+
+
+def _render_experiment_detail(record: dict) -> None:
+    """Show persisted experiment context, results, validation, and provenance."""
+    if not isinstance(record, dict):
+        st.error("The experiment detail response is malformed.")
+        return
+
+    configuration = record.get("configuration")
+    configuration = configuration if isinstance(configuration, dict) else {}
+    result = record.get("result")
+    result = result if isinstance(result, dict) else {}
+    st.subheader("Selected experiment details")
+    st.caption(f"Experiment ID: {_recorded_value(record.get('id'))}")
+    metadata_columns = st.columns(3)
+    metadata_columns[0].metric("Created (UTC)", _recorded_value(record.get("created_at_utc")))
+    metadata_columns[1].metric("Status", _recorded_value(record.get("status")))
+    metadata_columns[2].metric("Experiment type", _recorded_value(record.get("experiment_type")))
+
+    st.markdown("**Recorded scenario context**")
+    scenario_time = configuration.get("datetime") or result.get("time_window")
+    st.caption(f"Scenario date and time: {_recorded_value(scenario_time)}")
+    st.caption(f"Description: {_recorded_value(configuration.get('description'))}")
+    budget = configuration.get("resource_budget_connections")
+    st.caption(f"Allocation budget (connections): {_recorded_value(budget)}")
+    configured_zones = configuration.get("zones")
+    if isinstance(configured_zones, list) and configured_zones:
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {
+                        "Synthetic zone ID": _recorded_value(zone.get("zone_id")),
+                        "Configured capacity (connections)": _recorded_value(
+                            zone.get("capacity_connections")
+                        ),
+                    }
+                    for zone in configured_zones
+                    if isinstance(zone, dict)
+                ]
+            ),
+            hide_index=True,
+            width="stretch",
+        )
+    else:
+        st.info("Synthetic zone configuration was not recorded for this experiment.")
+
+    st.markdown("**Stored scenario results**")
+    st.info("Demand classification: Not recorded for this experiment.")
+    result_zones = result.get("zones")
+    if isinstance(result_zones, list) and result_zones:
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {
+                        "Synthetic zone ID": _recorded_value(zone.get("zone_id")),
+                        "Estimated next-hour connections": _recorded_value(zone.get("demand")),
+                        "Effective capacity (connections)": _recorded_value(
+                            zone.get("effective_capacity", zone.get("capacity"))
+                        ),
+                        "Overload (connections)": _recorded_value(
+                            zone.get(
+                                "overload_connections", zone.get("capacity_deficit_connections")
+                            )
+                        ),
+                        "Recorded status": _recorded_value(zone.get("status")),
+                    }
+                    for zone in result_zones
+                    if isinstance(zone, dict)
+                ]
+            ),
+            hide_index=True,
+            width="stretch",
+        )
+    else:
+        st.info("Per-zone prediction results were not recorded for this experiment.")
+    if not result:
+        st.info("No result payload was recorded for this experiment.")
+
+    provenance = result.get("provenance")
+    if isinstance(provenance, dict) and provenance:
+        st.markdown("**Recorded data and model provenance**")
+        st.caption(f"Dataset version: {_recorded_value(provenance.get('dataset_version'))}")
+        st.caption(
+            "Dataset fingerprint: "
+            f"{_recorded_value(provenance.get('dataset_sha256'))} · algorithm: "
+            f"{_recorded_value(provenance.get('dataset_fingerprint_algorithm'))}"
+        )
+        model_traces = provenance.get("models")
+        if isinstance(model_traces, list) and model_traces:
+            for index, trace in enumerate(model_traces, start=1):
+                if not isinstance(trace, dict):
+                    st.caption(f"Model trace {index}: Not recorded")
+                    continue
+                st.caption(
+                    f"Model trace {index} · application version: "
+                    f"{_recorded_value(trace.get('application_version'))} · "
+                    f"prediction ID: {_recorded_value(trace.get('prediction_id'))}"
+                )
+                for role in ("classifier", "regressor"):
+                    reference = trace.get(role)
+                    reference = reference if isinstance(reference, dict) else {}
+                    st.caption(
+                        f"{role.title()}: {_recorded_value(reference.get('selected_model'))} · "
+                        f"version {_recorded_value(reference.get('model_version'))} · "
+                        f"artifact SHA-256 {_recorded_value(reference.get('artifact_sha256'))}"
+                    )
+        else:
+            st.caption("Model artifact provenance: Not recorded")
+    else:
+        st.info("Dataset and model provenance was not recorded for this experiment.")
+
+    integrity = record.get("integrity")
+    if isinstance(integrity, dict):
+        reasons = integrity.get("reason_codes")
+        st.caption(
+            f"Record validation: {_recorded_value(integrity.get('status'))} · "
+            f"assessment: {_recorded_value(integrity.get('assessment_status'))} · "
+            f"reason codes: {_recorded_value(reasons)}"
+        )
+    else:
+        st.caption("Record validation: Not recorded")
+    st.caption("Comparison compatibility is evaluated when two saved experiments are compared.")
+    st.caption(
+        "This saved experiment uses synthetic data and does not represent measured public WiFi "
+        "demand in Tunja or an operational recommendation."
+    )
+    with st.expander("Complete stored scenario configuration"):
+        st.json(configuration)
+    with st.expander("Complete stored result and validation details"):
+        st.json({"result": result, "integrity": integrity})
+
+
 def _render_page(title: str, kind: str) -> None:
     section_names = {
         "Overview": "Overview",
@@ -2315,26 +2454,23 @@ def _render_page(title: str, kind: str) -> None:
                         if item["id"] == value
                     ),
                 )
-                record = main_api_request(f"/experiments/{selected_id}")
-                record_result = record.get("result")
-                capacity_plan = (
-                    record_result.get("capacity_plan") if isinstance(record_result, dict) else None
-                )
-                if isinstance(capacity_plan, dict):
-                    st.json(capacity_plan)
+                with st.spinner("Loading saved experiment details…"):
+                    record = main_api_request(f"/experiments/{selected_id}")
+                if isinstance(record, dict):
+                    _render_experiment_detail(record)
                 else:
-                    st.info("This saved record does not contain a capacity plan.")
+                    st.error("The experiment detail response is malformed.")
+                selected_integrity = (
+                    record.get("integrity")
+                    if isinstance(record, dict) and isinstance(record.get("integrity"), dict)
+                    else {}
+                )
                 compare_ids = [
                     item["id"]
                     for item in experiments
                     if item["id"] != selected_id
                     and item.get("integrity", {}).get("status") == "verified"
-                    and next(
-                        candidate.get("integrity", {}).get("status")
-                        for candidate in experiments
-                        if candidate["id"] == selected_id
-                    )
-                    == "verified"
+                    and selected_integrity.get("status") == "verified"
                 ]
                 comparison_id = st.selectbox(
                     "Compare with",
@@ -2442,13 +2578,29 @@ def _render_page(title: str, kind: str) -> None:
                             file_name=f"{file_stem}.md",
                             mime="text/markdown",
                         )
-                report = main_api_request(f"/experiments/{selected_id}/report?format=json")
-                st.download_button(
-                    "Download JSON report",
-                    json.dumps(report, indent=2, ensure_ascii=False),
-                    file_name=f"experiment-{selected_id}.json",
-                    mime="application/json",
-                )
+                json_column, markdown_column = st.columns(2)
+                try:
+                    report = main_api_request(f"/experiments/{selected_id}/report?format=json")
+                    json_column.download_button(
+                        "Download JSON report",
+                        json.dumps(report, indent=2, ensure_ascii=False),
+                        file_name=f"experiment-{selected_id}.json",
+                        mime="application/json",
+                    )
+                except ApiClientError as exc:
+                    json_column.error(f"Individual JSON report unavailable: {exc}")
+                try:
+                    markdown_report = main_api_text_request(
+                        f"/experiments/{selected_id}/report?format=markdown"
+                    )
+                    markdown_column.download_button(
+                        "Download Markdown report",
+                        markdown_report,
+                        file_name=f"experiment-{selected_id}.md",
+                        mime="text/markdown",
+                    )
+                except ApiClientError as exc:
+                    markdown_column.error(f"Individual Markdown report unavailable: {exc}")
         except ApiClientError as exc:
             st.error(str(exc))
     elif kind == "Advanced":

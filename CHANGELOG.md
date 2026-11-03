@@ -1,5 +1,11 @@
 # Changelog
 
+## V6.9.0 — Experiment detail inspection and provenance view — 2026-11-03
+
+Adds a structured detail view in Experiment History for persisted scenario context, configured zones and capacity, allocation budget, per-zone connection estimates, record integrity, and available dataset/model provenance. Unrecorded fields are labeled explicitly. Individual JSON and Markdown reports remain available; demand classification is not present in saved records, and all displayed results remain synthetic.
+
+Agrega en Experiment History una vista estructurada del contexto persistido, zonas y capacidad configuradas, presupuesto, estimaciones por zona, integridad del registro y procedencia de datos/modelos disponible. Los campos ausentes se indican explícitamente. Se mantienen los informes individuales JSON y Markdown; la clase de demanda no está en los registros y todos los resultados mostrados siguen siendo sintéticos.
+
 ## V6.8.0 — Experiment history search and filters — 2026-11-02
 
 Adds history-wide search by experiment ID/name and filters by synthetic zone ID and inclusive UTC creation-date range. Filtering is performed before pagination, with a filtered total count; demand-class filtering is unavailable because saved experiment records do not store that field. Product V6.8.0 maps to Python package and Docker image `0.6.8`. Annotated tag [`v6.8.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.8.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.8.0) target `6bdc439fd6d8d7ea76733634156c3b715dd11499`. Full pytest, Ruff, Black, and `git diff --check` passed locally. Saved experiments remain synthetic.
