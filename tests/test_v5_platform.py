@@ -512,6 +512,7 @@ def test_experiment_list_skips_corrupt_row_and_returns_warning(tmp_path, monkeyp
     assert response.status_code == 200
     assert [item["id"] for item in response.json()["items"]] == [valid["id"]]
     assert response.json()["integrity_warnings"][0]["reason_code"] == "INVALID_PERSISTED_RECORD"
+    assert response.json()["analytics"]["total_experiment_count"] == 1
     experiment_routes._store.cache_clear()
 
 
@@ -560,6 +561,213 @@ def test_experiment_history_filters_before_pagination_and_reports_filtered_total
     assert unfiltered.json()["total_count"] == 3
     assert client.get("/experiments?start_date=2026-01-03&end_date=2026-01-01").status_code == 422
     assert client.get("/experiments?search=").status_code == 422
+    experiment_routes._store.cache_clear()
+
+
+def test_experiment_analytics_cover_all_filtered_records_and_group_in_utc(
+    tmp_path, monkeypatch
+) -> None:
+    path = tmp_path / "analytics.sqlite3"
+    store = ExperimentStore(path)
+    model_reference = {
+        "selected_model": "test-model",
+        "model_version": "model-v1",
+        "artifact_sha256": "b" * 64,
+    }
+
+    def save_analytics_record(name, created_at, zones, budget, demands):
+        record_zones = [
+            {"zone_id": zone_id, "capacity_connections": capacity} for zone_id, capacity in zones
+        ]
+        result_zones = [
+            {
+                "zone_id": zone_id,
+                "demand": demand,
+                "effective_capacity": capacity,
+                "overload_connections": max(0, demand - capacity),
+            }
+            for (zone_id, capacity), demand in zip(zones, demands)
+        ]
+        record = store.save(
+            name,
+            {
+                "datetime": "2026-01-01T18:00:00+00:00",
+                "zones": record_zones,
+                "resource_budget_connections": budget,
+            },
+            {
+                "time_window": "2026-01-01T18:00:00+00:00",
+                "zones": result_zones,
+                "provenance": {
+                    "dataset_version": "synthetic-v1",
+                    "dataset_sha256": "a" * 64,
+                    "dataset_fingerprint_algorithm": "sha256-canonical-v1",
+                    "models": [
+                        {
+                            "application_version": "0.6.10",
+                            "classifier": model_reference,
+                            "regressor": model_reference,
+                        }
+                    ],
+                },
+            },
+        )
+        with sqlite3.connect(path) as connection:
+            connection.execute(
+                "UPDATE experiments SET created_at_utc = ? WHERE id = ?",
+                (created_at, record["id"]),
+            )
+        return record
+
+    save_analytics_record(
+        "Alpha",
+        "2026-01-01T23:30:00-02:00",
+        [("zone-1", 10)],
+        0,
+        [0],
+    )
+    save_analytics_record(
+        "Beta",
+        "2026-01-02T02:00:00+00:00",
+        [("zone-1", 20), ("zone-2", 30)],
+        10,
+        [10, 14],
+    )
+    save_analytics_record(
+        "Invalid result",
+        "2026-01-03T02:00:00+00:00",
+        [("zone-3", 50)],
+        20,
+        [-1],
+    )
+    monkeypatch.setenv("EXPERIMENT_DB_PATH", str(path))
+    experiment_routes._store.cache_clear()
+    client = TestClient(app)
+
+    response = client.get(
+        "/experiments?zone_id=zone-1&start_date=2026-01-02&end_date=2026-01-02&limit=1&offset=0"
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_count"] == 2
+    assert len(payload["items"]) == 1
+    analytics = payload["analytics"]
+    assert analytics["total_experiment_count"] == 2
+    assert analytics["experiments_by_zone"] == [
+        {"zone_id": "zone-1", "experiment_count": 2},
+        {"zone_id": "zone-2", "experiment_count": 1},
+    ]
+    assert analytics["experiments_by_creation_date_utc"] == [
+        {"date_utc": "2026-01-02", "experiment_count": 2}
+    ]
+    capacity_summary = analytics["numeric_summaries"]["configured_capacity_connections"]
+    assert capacity_summary["observation_count"] == 3
+    assert capacity_summary["statistics"] == {
+        "minimum": 10.0,
+        "maximum": 30.0,
+        "mean": 20.0,
+        "median": 20.0,
+    }
+    budget_summary = analytics["numeric_summaries"]["allocation_budget_connections"]
+    assert budget_summary["statistics"]["minimum"] == 0.0
+    estimate_summary = analytics["numeric_summaries"]["estimated_next_hour_connections"]
+    assert estimate_summary["observation_count"] == 3
+    assert estimate_summary["statistics"]["mean"] == 8.0
+    assert analytics["record_integrity_counts"] == {"verified": 2}
+
+    unfiltered = client.get("/experiments?limit=1&offset=0").json()["analytics"]
+    assert unfiltered["total_experiment_count"] == 3
+    assert unfiltered["record_integrity_counts"]["invalid"] == 1
+    assert unfiltered["experiments_by_zone"] == [
+        {"zone_id": "zone-1", "experiment_count": 2},
+        {"zone_id": "zone-2", "experiment_count": 1},
+    ]
+    experiment_routes._store.cache_clear()
+
+
+def test_experiment_analytics_marks_missing_fields_and_empty_filters(tmp_path, monkeypatch) -> None:
+    path = tmp_path / "incomplete-analytics.sqlite3"
+    ExperimentStore(path).save("Incomplete", {}, {})
+    monkeypatch.setenv("EXPERIMENT_DB_PATH", str(path))
+    experiment_routes._store.cache_clear()
+    client = TestClient(app)
+
+    incomplete = client.get("/experiments").json()["analytics"]
+    assert incomplete["total_experiment_count"] == 1
+    assert incomplete["numeric_summaries"]["configured_capacity_connections"] == {
+        "observation_count": 0,
+        "statistics": None,
+    }
+    assert incomplete["missing_experiment_counts"]["zone_configuration"] == 1
+    assert incomplete["missing_experiment_counts"]["allocation_budget"] == 1
+    assert incomplete["missing_experiment_counts"]["connection_estimates"] == 1
+
+    empty = client.get("/experiments?zone_id=missing-zone").json()["analytics"]
+    assert empty["total_experiment_count"] == 0
+    assert empty["experiments_by_zone"] == []
+    assert empty["numeric_summaries"]["allocation_budget_connections"] == {
+        "observation_count": 0,
+        "statistics": None,
+    }
+    experiment_routes._store.cache_clear()
+
+
+def test_experiment_analytics_excludes_integrity_invalid_numeric_overflow(tmp_path, monkeypatch):
+    path = tmp_path / "overflow-analytics.sqlite3"
+    huge = 10**400
+    ExperimentStore(path).save(
+        "Overflow synthetic record",
+        {
+            "datetime": "2026-01-01T00:00:00+00:00",
+            "zones": [{"zone_id": "zone-overflow", "capacity_connections": huge}],
+            "resource_budget_connections": huge,
+        },
+        {
+            "zones": [
+                {
+                    "zone_id": "zone-overflow",
+                    "demand": huge,
+                    "effective_capacity": huge,
+                    "overload_connections": 0,
+                }
+            ]
+        },
+    )
+    monkeypatch.setenv("EXPERIMENT_DB_PATH", str(path))
+    experiment_routes._store.cache_clear()
+    analytics = TestClient(app).get("/experiments").json()["analytics"]
+    assert analytics["total_experiment_count"] == 1
+    assert analytics["record_integrity_counts"] == {"invalid": 1}
+    assert analytics["experiments_by_zone"] == []
+    assert analytics["numeric_summaries"]["configured_capacity_connections"] == {
+        "observation_count": 0,
+        "statistics": None,
+    }
+    assert (
+        analytics["missing_experiment_counts"]["invalid_records_excluded_from_field_analytics"] == 1
+    )
+    experiment_routes._store.cache_clear()
+
+
+def test_experiment_analytics_handles_malformed_persisted_configuration(tmp_path, monkeypatch):
+    path = tmp_path / "malformed-analytics.sqlite3"
+    store = ExperimentStore(path)
+    record = store.save("Malformed", {}, {})
+    with sqlite3.connect(path) as connection:
+        connection.execute(
+            "UPDATE experiments SET configuration_json = ? WHERE id = ?",
+            ('{"scenario_kind": []}', record["id"]),
+        )
+    monkeypatch.setenv("EXPERIMENT_DB_PATH", str(path))
+    experiment_routes._store.cache_clear()
+
+    response = TestClient(app).get("/experiments")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_count"] == 1
+    assert payload["items"][0]["integrity"]["reason_codes"] == ["INTEGRITY_CHECK_FAILED"]
+    assert payload["analytics"]["record_integrity_counts"] == {"invalid": 1}
+    assert payload["analytics"]["experiments_by_zone"] == []
     experiment_routes._store.cache_clear()
 
 

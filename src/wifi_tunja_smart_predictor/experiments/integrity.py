@@ -11,7 +11,12 @@ _SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 
 
 def _is_number(value: Any) -> bool:
-    return not isinstance(value, bool) and isinstance(value, (int, float)) and isfinite(value)
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return False
+    try:
+        return isfinite(value)
+    except OverflowError:
+        return False
 
 
 def _contains_non_finite(value: Any) -> bool:

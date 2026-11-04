@@ -326,3 +326,4 @@ class ExperimentPage(BaseModel):
     offset: int
     integrity_warnings: list[ExperimentIntegrityWarning] = Field(default_factory=list)
     total_count: int = 0
+    analytics: dict[str, Any] | None = None

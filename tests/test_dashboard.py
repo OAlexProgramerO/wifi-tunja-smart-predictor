@@ -200,6 +200,31 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
                 ],
                 "limit": 25,
                 "offset": 25,
+                "total_count": 2,
+                "analytics": {
+                    "total_experiment_count": 2,
+                    "experiments_by_zone": [{"zone_id": "zone-1", "experiment_count": 2}],
+                    "experiments_by_creation_date_utc": [
+                        {"date_utc": "2026-01-01", "experiment_count": 1},
+                        {"date_utc": "2026-01-02", "experiment_count": 1},
+                    ],
+                    "record_integrity_counts": {"verified": 2},
+                    "numeric_summaries": {
+                        "configured_capacity_connections": {
+                            "observation_count": 2,
+                            "statistics": {"minimum": 8, "maximum": 8, "mean": 8, "median": 8},
+                        },
+                        "allocation_budget_connections": {
+                            "observation_count": 2,
+                            "statistics": {"minimum": 20, "maximum": 20, "mean": 20, "median": 20},
+                        },
+                        "estimated_next_hour_connections": {
+                            "observation_count": 2,
+                            "statistics": {"minimum": 10, "maximum": 12, "mean": 11, "median": 11},
+                        },
+                    },
+                    "missing_experiment_counts": {},
+                },
             }
         if path.endswith("/report?format=json"):
             return {"report_schema_version": "1.0"}
@@ -254,7 +279,7 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
                     "models": [
                         {
                             "prediction_id": f"prediction-{experiment_id}",
-                            "application_version": "0.6.9",
+                            "application_version": "0.6.10",
                             "classifier": {
                                 "selected_model": "random_forest",
                                 "model_version": "model-v1",
@@ -295,7 +320,11 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
     assert not app.exception
     assert requests[0][0].startswith("/experiments?limit=25&offset=0")
     assert app.number_input[0].label == "History page"
-    assert "Showing 2 of 2 matching records" in app.caption[2].value
+    assert any("Showing 2 of 2 matching records" in caption.value for caption in app.caption)
+    assert any(
+        metric.label == "Experiments in filtered history" and metric.value == "2"
+        for metric in app.metric
+    )
     assert any(metric.label == "Created (UTC)" for metric in app.metric)
     assert any("Dataset version: synthetic-v1" in caption.value for caption in app.caption)
     assert any("Demand classification: Not recorded" in item.value for item in app.info)
@@ -378,6 +407,71 @@ def test_experiment_detail_handles_missing_fields_and_preserves_zero_and_false()
     )
     assert any("Demand classification: Not recorded" in item.value for item in app.info)
     assert any("provenance was not recorded" in item.value for item in app.info)
+
+
+def test_experiment_history_analytics_renders_supported_filtered_metrics():
+    analytics = {
+        "total_experiment_count": 3,
+        "experiments_by_zone": [
+            {"zone_id": "zone-1", "experiment_count": 2},
+            {"zone_id": "zone-2", "experiment_count": 1},
+        ],
+        "experiments_by_creation_date_utc": [{"date_utc": "2026-01-02", "experiment_count": 3}],
+        "record_integrity_counts": {"verified": 2, "incomplete": 1},
+        "numeric_summaries": {
+            "configured_capacity_connections": {
+                "observation_count": 3,
+                "statistics": {
+                    "minimum": 10.0,
+                    "maximum": 30.0,
+                    "mean": 20.0,
+                    "median": 20.0,
+                },
+            },
+            "allocation_budget_connections": {
+                "observation_count": 2,
+                "statistics": None,
+            },
+            "estimated_next_hour_connections": {
+                "observation_count": 0,
+                "statistics": None,
+            },
+        },
+        "missing_experiment_counts": {
+            "connection_estimates": 3,
+            "dataset_fingerprint": 1,
+        },
+    }
+    app = AppTest.from_string(
+        "from app.dashboard import _render_experiment_history_analytics\n"
+        f"_render_experiment_history_analytics({analytics!r})\n",
+        default_timeout=30,
+    ).run()
+
+    assert not app.exception
+    assert any(
+        metric.label == "Experiments in filtered history" and metric.value == "3"
+        for metric in app.metric
+    )
+    assert len(app.get("plotly_chart")) == 2
+    assert any("incomplete: 1" in caption.value for caption in app.caption)
+    assert any("no valid stored connection estimate: 3" in caption.value for caption in app.caption)
+    assert any(
+        "Insufficient observations for summary statistics" in str(frame.value.to_dict())
+        for frame in app.dataframe
+    )
+
+
+def test_experiment_history_analytics_has_empty_filtered_state():
+    app = AppTest.from_string(
+        "from app.dashboard import _render_experiment_history_analytics\n"
+        "_render_experiment_history_analytics({'total_experiment_count': 0})\n",
+        default_timeout=30,
+    ).run()
+
+    assert not app.exception
+    assert any("No saved experiments match the current filters" in item.value for item in app.info)
+    assert not app.get("plotly_chart")
 
 
 def test_experiment_history_handles_unknown_selected_experiment(monkeypatch):

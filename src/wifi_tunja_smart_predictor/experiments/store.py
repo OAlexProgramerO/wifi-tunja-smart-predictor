@@ -5,9 +5,11 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
+from collections import Counter
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import UTC, date, datetime
+from math import isfinite
 from pathlib import Path
 from typing import Any
 
@@ -140,49 +142,171 @@ class ExperimentStore:
         zone_id: str | None = None,
         start_date: date | None = None,
         end_date: date | None = None,
-    ) -> tuple[list[dict[str, Any]], list[dict[str, str]], int]:
-        """Return readable records and safe warnings for invalid persisted rows."""
+    ) -> tuple[list[dict[str, Any]], list[dict[str, str]], int, dict[str, Any]]:
+        """Return one filtered page and complete filtered-history analytics."""
+        records: list[dict[str, Any]] = []
+        warnings: list[dict[str, str]] = []
+        total_count = 0
+        zones_by_experiment: Counter[str] = Counter()
+        created_by_utc_date: Counter[str] = Counter()
+        integrity_counts: Counter[str] = Counter()
+        capacities: list[float] = []
+        budgets: list[float] = []
+        estimates: list[float] = []
+        missing_counts: Counter[str] = Counter()
+
         with self._connect() as connection:
-            rows = connection.execute(
+            cursor = connection.execute(
                 "SELECT * FROM experiments ORDER BY created_at_utc DESC, id"
-            ).fetchall()
-        records = []
-        warnings = []
-        for row in rows:
-            try:
-                record = self._decode(row)
-                created = datetime.fromisoformat(record["created_at_utc"].replace("Z", "+00:00"))
-                if start_date and created.astimezone(UTC).date() < start_date:
+            )
+            for row in cursor:
+                try:
+                    record = self._decode(row)
+                except ValueError:
+                    warnings.append(
+                        {
+                            "experiment_id": str(row["id"]),
+                            "reason_code": "INVALID_PERSISTED_RECORD",
+                            "message": "This saved record failed integrity checks and was omitted.",
+                        }
+                    )
                     continue
-                if end_date and created.astimezone(UTC).date() > end_date:
+
+                created = datetime.fromisoformat(
+                    record["created_at_utc"].replace("Z", "+00:00")
+                ).astimezone(UTC)
+                if start_date and created.date() < start_date:
+                    continue
+                if end_date and created.date() > end_date:
                     continue
                 if (
                     search
                     and search.casefold() not in f"{record['id']} {record['name']}".casefold()
                 ):
                     continue
-                if zone_id:
-                    configured_zones = record["configuration"].get("zones", [])
-                    if not isinstance(configured_zones, list) or not any(
-                        isinstance(zone, dict) and zone.get("zone_id") == zone_id
-                        for zone in configured_zones
-                    ):
-                        continue
-                records.append(record)
-            except ValueError:
-                warnings.append(
-                    {
-                        "experiment_id": str(row["id"]),
-                        "reason_code": "INVALID_PERSISTED_RECORD",
-                        "message": "This saved record failed integrity checks and was omitted.",
-                    }
-                )
-        total_count = len(records)
-        return records[offset : offset + limit], warnings, total_count
+
+                configuration = record["configuration"]
+                result = record["result"]
+                configured_zones = configuration.get("zones")
+                configured_zones = configured_zones if isinstance(configured_zones, list) else []
+                zone_ids = {
+                    zone["zone_id"]
+                    for zone in configured_zones
+                    if isinstance(zone, dict)
+                    and isinstance(zone.get("zone_id"), str)
+                    and bool(zone["zone_id"])
+                }
+                if zone_id and zone_id not in zone_ids:
+                    continue
+
+                total_count += 1
+                if total_count > offset and len(records) < limit:
+                    records.append(record)
+                created_by_utc_date[created.date().isoformat()] += 1
+                integrity_status = record["integrity"].get("status", "unknown")
+                integrity_counts[integrity_status] += 1
+                if integrity_status == "invalid":
+                    missing_counts["invalid_records_excluded_from_field_analytics"] += 1
+                    continue
+
+                for identifier in zone_ids:
+                    zones_by_experiment[identifier] += 1
+
+                capacity_values = [
+                    self._finite_number(zone.get("capacity_connections"))
+                    for zone in configured_zones
+                    if isinstance(zone, dict)
+                ]
+                valid_capacities = [value for value in capacity_values if value is not None]
+                capacities.extend(valid_capacities)
+                if not zone_ids:
+                    missing_counts["zone_configuration"] += 1
+                if not valid_capacities:
+                    missing_counts["configured_capacity"] += 1
+                if not capacity_values or any(value is None for value in capacity_values):
+                    missing_counts["configured_capacity_values"] += (
+                        sum(value is None for value in capacity_values) or 1
+                    )
+
+                budget = self._finite_number(configuration.get("resource_budget_connections"))
+                if budget is None:
+                    missing_counts["allocation_budget"] += 1
+                else:
+                    budgets.append(budget)
+
+                result_zones = result.get("zones")
+                result_zones = result_zones if isinstance(result_zones, list) else []
+                valid_estimates = [
+                    value
+                    for zone in result_zones
+                    if isinstance(zone, dict)
+                    for value in [self._finite_number(zone.get("demand"))]
+                    if value is not None
+                ]
+                estimates.extend(valid_estimates)
+                if not valid_estimates:
+                    missing_counts["connection_estimates"] += 1
+
+                provenance = result.get("provenance")
+                provenance = provenance if isinstance(provenance, dict) else {}
+                if not isinstance(provenance.get("dataset_sha256"), str):
+                    missing_counts["dataset_fingerprint"] += 1
+                model_traces = provenance.get("models")
+                if not isinstance(model_traces, list) or not model_traces:
+                    missing_counts["model_provenance"] += 1
+
+        analytics = {
+            "total_experiment_count": total_count,
+            "experiments_by_zone": [
+                {"zone_id": identifier, "experiment_count": count}
+                for identifier, count in sorted(zones_by_experiment.items())
+            ],
+            "experiments_by_creation_date_utc": [
+                {"date_utc": day, "experiment_count": count}
+                for day, count in sorted(created_by_utc_date.items())
+            ],
+            "record_integrity_counts": dict(sorted(integrity_counts.items())),
+            "numeric_summaries": {
+                "configured_capacity_connections": self._numeric_summary(capacities),
+                "allocation_budget_connections": self._numeric_summary(budgets),
+                "estimated_next_hour_connections": self._numeric_summary(estimates),
+            },
+            "missing_experiment_counts": dict(sorted(missing_counts.items())),
+        }
+        return records, warnings, total_count, analytics
+
+    @staticmethod
+    def _finite_number(value: Any) -> float | None:
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            return None
+        try:
+            number = float(value)
+        except OverflowError:
+            return None
+        return number if isfinite(number) else None
+
+    @staticmethod
+    def _numeric_summary(values: list[float]) -> dict[str, Any]:
+        summary: dict[str, Any] = {"observation_count": len(values), "statistics": None}
+        if len(values) >= 2:
+            ordered = sorted(values)
+            middle = len(ordered) // 2
+            middle_value = (
+                ordered[middle]
+                if len(ordered) % 2
+                else ordered[middle - 1] / 2 + ordered[middle] / 2
+            )
+            summary["statistics"] = {
+                "minimum": ordered[0],
+                "maximum": ordered[-1],
+                "mean": sum(value / len(values) for value in values),
+                "median": middle_value,
+            }
+        return summary
 
     def list(self, limit: int = 50, offset: int = 0) -> list[dict[str, Any]]:
         """Return readable records, omitting malformed rows without hiding valid history."""
-        records, _warnings, _total = self.list_page(limit, offset)
+        records, _warnings, _total, _analytics = self.list_page(limit, offset)
         return records
 
     @staticmethod
@@ -221,5 +345,12 @@ class ExperimentStore:
         }
         if not isinstance(record["id"], str) or not isinstance(record["name"], str):
             raise ValueError("Experiment record has invalid identifying fields.")
-        record["integrity"] = inspect_experiment_integrity(record)
+        try:
+            record["integrity"] = inspect_experiment_integrity(record)
+        except (TypeError, ValueError, OverflowError):
+            record["integrity"] = {
+                "status": "invalid",
+                "assessment_status": "not_assessable",
+                "reason_codes": ["INTEGRITY_CHECK_FAILED"],
+            }
         return record

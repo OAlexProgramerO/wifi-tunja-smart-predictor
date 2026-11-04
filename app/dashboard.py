@@ -2297,6 +2297,125 @@ def _render_experiment_detail(record: dict) -> None:
         st.json({"result": result, "integrity": integrity})
 
 
+def _render_experiment_history_analytics(analytics: dict) -> None:
+    """Present API-calculated analytics for the complete filtered history."""
+    with st.expander("Filtered experiment history analytics", expanded=True):
+        total = analytics.get("total_experiment_count")
+        if not isinstance(total, int) or total < 0:
+            st.info("History analytics are unavailable because the response is incomplete.")
+            return
+
+        st.metric("Experiments in filtered history", total)
+        st.caption(
+            "Aggregated across all matching valid records, including records on other pages. "
+            "Trend dates use created_at_utc normalized to UTC; they are not scenario dates."
+        )
+        if total == 0:
+            st.info("No saved experiments match the current filters.")
+            return
+
+        zone_rows = analytics.get("experiments_by_zone")
+        date_rows = analytics.get("experiments_by_creation_date_utc")
+        chart_columns = st.columns(2)
+        if isinstance(zone_rows, list) and zone_rows:
+            chart_columns[0].plotly_chart(
+                px.bar(
+                    pd.DataFrame(zone_rows),
+                    x="zone_id",
+                    y="experiment_count",
+                    title="Experiments by synthetic zone ID",
+                    labels={
+                        "zone_id": "Synthetic zone ID",
+                        "experiment_count": "Experiments",
+                    },
+                ),
+                width="stretch",
+            )
+        else:
+            chart_columns[0].info("No valid synthetic zone IDs are available for grouping.")
+        if isinstance(date_rows, list) and date_rows:
+            chart_columns[1].plotly_chart(
+                px.line(
+                    pd.DataFrame(date_rows),
+                    x="date_utc",
+                    y="experiment_count",
+                    markers=True,
+                    title="Experiments by creation date (UTC)",
+                    labels={"date_utc": "Creation date (UTC)", "experiment_count": "Experiments"},
+                ),
+                width="stretch",
+            )
+        else:
+            chart_columns[1].info("No valid creation dates are available for the trend.")
+
+        numeric_summaries = analytics.get("numeric_summaries")
+        summary_labels = {
+            "configured_capacity_connections": "Configured capacity · connections per zone",
+            "allocation_budget_connections": "Allocation budget · connections per experiment",
+            "estimated_next_hour_connections": "Stored next-hour estimates · connections per zone",
+        }
+        summary_rows = []
+        if isinstance(numeric_summaries, dict):
+            for key, label in summary_labels.items():
+                summary = numeric_summaries.get(key)
+                if not isinstance(summary, dict):
+                    continue
+                observation_count = summary.get("observation_count", 0)
+                statistics = summary.get("statistics")
+                if isinstance(statistics, dict) and observation_count >= 2:
+                    rendered_statistics = ", ".join(
+                        f"{name}: {statistics[name]:.2f}"
+                        for name in ("minimum", "maximum", "mean", "median")
+                        if isinstance(statistics.get(name), (int, float))
+                    )
+                elif observation_count > 0:
+                    rendered_statistics = "Insufficient observations for summary statistics"
+                else:
+                    rendered_statistics = "No numeric observations"
+                summary_rows.append(
+                    {
+                        "Metric": label,
+                        "Valid observations": observation_count,
+                        "Summary (min, max, mean, median)": rendered_statistics,
+                    }
+                )
+        if summary_rows:
+            st.dataframe(pd.DataFrame(summary_rows), hide_index=True, width="stretch")
+
+        integrity_counts = analytics.get("record_integrity_counts")
+        if isinstance(integrity_counts, dict) and integrity_counts:
+            st.caption(
+                "Filtered record integrity counts: "
+                + ", ".join(f"{status}: {count}" for status, count in integrity_counts.items())
+            )
+        missing_counts = analytics.get("missing_experiment_counts")
+        missing_labels = {
+            "zone_configuration": "no valid zone configuration",
+            "configured_capacity": "no valid configured capacity",
+            "configured_capacity_values": "missing/invalid capacity entries",
+            "allocation_budget": "no valid allocation budget",
+            "connection_estimates": "no valid stored connection estimate",
+            "dataset_fingerprint": "no stored dataset fingerprint",
+            "model_provenance": "no stored model provenance",
+            "invalid_records_excluded_from_field_analytics": "integrity-invalid records excluded from zone/numeric analytics",
+        }
+        if isinstance(missing_counts, dict) and any(missing_counts.values()):
+            st.caption(
+                "Missing/incomplete analytical fields: "
+                + "; ".join(
+                    f"{missing_labels.get(key, key)}: {count}"
+                    for key, count in missing_counts.items()
+                    if count
+                )
+            )
+        else:
+            st.caption("No missing analytical fields were found in the filtered records.")
+        st.caption(
+            "Capacity and estimate summaries count persisted zone values; allocation budgets "
+            "count per experiment. Statistics require at least two valid numeric observations."
+        )
+
+
 def _render_page(title: str, kind: str) -> None:
     section_names = {
         "Overview": "Overview",
@@ -2409,6 +2528,11 @@ def _render_page(title: str, kind: str) -> None:
             experiments = page["items"]
             warnings = page.get("integrity_warnings", [])
             total_count = page.get("total_count", len(experiments) + offset)
+            analytics = page.get("analytics")
+            if isinstance(analytics, dict):
+                _render_experiment_history_analytics(analytics)
+            elif "analytics" in page:
+                st.info("History analytics are unavailable because the response is malformed.")
             for warning in warnings:
                 st.warning(
                     f"Record {warning.get('experiment_id', 'unknown')} omitted: {warning.get('reason_code', 'INTEGRITY_WARNING')}"

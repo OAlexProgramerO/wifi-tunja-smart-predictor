@@ -1,5 +1,11 @@
 # Changelog
 
+## V6.10.0 — Experiment History Analytics — 2026-11-04
+
+Adds filtered-history analytics to the existing Experiment History response and dashboard. It groups matching records by configured synthetic zone and UTC creation date, summarizes persisted per-zone configured capacity and demand estimates plus per-experiment allocation budgets, and reports integrity and missing-field counts. Summaries span all filtered records before pagination; invalid-integrity records are counted but excluded from zone/numeric summaries. Statistics require at least two valid observations. Results remain synthetic.
+
+Agrega analíticas del historial filtrado a la respuesta existente y al dashboard. Agrupa registros coincidentes por zona sintética configurada y fecha UTC de creación, resume capacidad y estimaciones persistidas por zona, presupuesto por experimento y conteos de integridad/campos ausentes. Los agregados cubren todos los registros filtrados antes de paginar; los registros con integridad inválida se cuentan, pero se excluyen de las estadísticas numéricas y agrupaciones por zona. Las estadísticas requieren al menos dos observaciones válidas. Los resultados siguen siendo sintéticos.
+
 ## V6.9.0 — Experiment detail inspection and provenance view — 2026-11-03
 
 Adds a structured detail view in Experiment History for persisted scenario context, configured zones and capacity, allocation budget, per-zone connection estimates, record integrity, and available dataset/model provenance. Unrecorded fields are labeled explicitly. Individual JSON and Markdown reports remain available; demand classification is not present in saved records, and all displayed results remain synthetic. Product V6.9.0 maps to Python package and Docker image `0.6.9`. Annotated tag [`v6.9.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.9.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.9.0) target `9cdc434a45ef94ec9ae236575694a249f0a61e8f`. Full pytest, Ruff, Black, and `git diff --check` passed locally.

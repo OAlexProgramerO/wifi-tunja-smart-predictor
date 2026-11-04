@@ -389,7 +389,7 @@ def list_experiments(
 ) -> dict:
     if start_date and end_date and start_date > end_date:
         raise HTTPException(status_code=422, detail="start_date must be on or before end_date.")
-    items, integrity_warnings, total_count = _read_store(
+    items, integrity_warnings, total_count, analytics = _read_store(
         lambda: _store().list_page(
             limit,
             offset,
@@ -405,6 +405,7 @@ def list_experiments(
         "offset": offset,
         "integrity_warnings": integrity_warnings,
         "total_count": total_count,
+        "analytics": analytics,
     }
 
 
