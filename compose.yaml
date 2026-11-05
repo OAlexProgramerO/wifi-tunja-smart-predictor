@@ -1,13 +1,13 @@
 name: wifi-tunja-smart-predictor
 
 x-app: &app
-  image: wifi-tunja-smart-predictor:0.6.10
+  image: wifi-tunja-smart-predictor:0.7.0
   platform: linux/amd64
   build:
     context: .
     dockerfile: Dockerfile
     args:
-      APP_VERSION: "0.6.10"
+      APP_VERSION: "0.7.0"
   init: true
   user: "10001:10001"
   read_only: true
@@ -32,6 +32,7 @@ services:
       - runtime-models:/app/models
       - runtime-reports:/app/reports
       - runtime-experiments:/app/experiments
+      - runtime-connectivity:/app/connectivity
     environment:
       <<: *app-environment
       EXPERIMENT_DB_PATH: /app/experiments/experiments.sqlite3
@@ -48,9 +49,11 @@ services:
       - runtime-models:/app/models:ro
       - runtime-reports:/app/reports:ro
       - runtime-experiments:/app/experiments:rw
+      - runtime-connectivity:/app/connectivity:ro
     environment:
       <<: *app-environment
       EXPERIMENT_DB_PATH: /app/experiments/experiments.sqlite3
+      OFFICIAL_DATA_DB_PATH: /app/connectivity/official_connectivity.sqlite3
     ports:
       - "127.0.0.1:${MAIN_API_HOST_PORT:-8000}:8000"
     healthcheck:
@@ -76,9 +79,11 @@ services:
       - runtime-models:/app/models:ro
       - runtime-reports:/app/reports:ro
       - runtime-experiments:/app/experiments:ro
+      - runtime-connectivity:/app/connectivity:ro
     environment:
       <<: *app-environment
       EXPERIMENT_DB_PATH: /app/experiments/experiments.sqlite3
+      OFFICIAL_DATA_DB_PATH: /app/connectivity/official_connectivity.sqlite3
     ports:
       - "127.0.0.1:${ASSISTANT_API_HOST_PORT:-8001}:8001"
     healthcheck:
@@ -113,11 +118,13 @@ services:
       <<: *app-environment
       MAIN_API_URL: ${MAIN_API_URL:-http://main-api:8000}
       ASSISTANT_API_URL: ${ASSISTANT_API_URL:-http://assistant-api:8001}
+      OFFICIAL_DATA_DB_PATH: /app/connectivity/official_connectivity.sqlite3
     volumes:
       - runtime-data:/app/data:ro
       - runtime-models:/app/models:ro
       - runtime-reports:/app/reports:ro
       - runtime-experiments:/app/experiments:ro
+      - runtime-connectivity:/app/connectivity:rw
     ports:
       - "127.0.0.1:${DASHBOARD_HOST_PORT:-8501}:8501"
     healthcheck:
@@ -136,3 +143,4 @@ volumes:
   runtime-models:
   runtime-reports:
   runtime-experiments:
+  runtime-connectivity:

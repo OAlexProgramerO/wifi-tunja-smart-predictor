@@ -1,6 +1,6 @@
 FROM python:3.12.14-slim-bookworm
 
-ARG APP_VERSION=0.6.10
+ARG APP_VERSION=0.7.0
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -10,13 +10,13 @@ WORKDIR /app
 
 LABEL org.opencontainers.image.title="WiFi Tunja Smart Predictor" \
     org.opencontainers.image.version="${APP_VERSION}" \
-    org.opencontainers.image.description="Synthetic-data WiFi demand prediction demonstration"
+    org.opencontainers.image.description="Synthetic WiFi demand demonstration with official Colombian connectivity analytics"
 
 RUN groupadd --gid 10001 app \
     && useradd --uid 10001 --gid app --create-home --shell /usr/sbin/nologin app \
     && mkdir -p /app/data/raw /app/data/processed /app/data/sample /app/data/interim \
-        /app/models /app/reports/metrics /app/reports/figures /app/experiments \
-    && chown -R app:app /app/data /app/models /app/reports /app/experiments
+        /app/models /app/reports/metrics /app/reports/figures /app/experiments /app/connectivity \
+    && chown -R app:app /app/data /app/models /app/reports /app/experiments /app/connectivity
 
 COPY requirements.lock ./
 RUN python -m pip install --no-cache-dir --require-hashes -r requirements.lock

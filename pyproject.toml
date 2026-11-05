@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "wifi-tunja-smart-predictor"
-version = "0.6.10"
-description = "Synthetic-data ML prototype for public WiFi demand prediction in Tunja, Colombia."
+version = "0.7.0"
+description = "Synthetic WiFi demand demonstration with official Colombian connectivity analytics."
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
@@ -23,6 +23,7 @@ dependencies = [
     "streamlit>=1.36",
     "pydantic>=2.5",
     "python-dotenv>=1.0",
+    "requests>=2.31",
 ]
 
 [project.optional-dependencies]

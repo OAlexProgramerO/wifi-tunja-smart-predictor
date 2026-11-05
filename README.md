@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V6.10.0
+# WiFi Tunja Smart Predictor — V7.0.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,17 +9,19 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V6.9.0 is published as annotated Git tag [`v6.9.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.9.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.9.0). Release commit: `9cdc434a45ef94ec9ae236575694a249f0a61e8f`; Python package and Docker image: `0.6.9`. See the [experiment guide](docs/experiments.md) and [release history](docs/release-history.md).
+**Release status:** V7.0.0 introduces an optional official MinTIC fixed-access snapshot for Tunja, kept separate from synthetic scenarios. Python package and Docker image: `0.7.0`. See the [official connectivity guide](docs/official-connectivity.md) and [release history](docs/release-history.md).
 
-WiFi Tunja Smart Predictor is a synthetic-data demonstration of hourly demand classification and connection-count estimation, delivered through FastAPI, a Streamlit dashboard, and a deterministic assistant. V6.10.0 adds filtered analytics to Experiment History.
+WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.0.0 adds an isolated real-connectivity experience for municipality-level Tunja access records.
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 
-The project uses synthetic data only. Its metrics do not establish predictive performance for real public WiFi demand or municipal infrastructure in Tunja. See the [methodology](docs/methodology.md), [limitations](docs/limitations.md), [API guide](docs/api.md), and [assistant guide](docs/assistant.md).
+The existing ML models and scenarios continue to use synthetic data only; their metrics do not establish predictive performance for real public WiFi demand or municipal infrastructure in Tunja. Official subscriptions and bandwidth categories are descriptive records, not evidence of traffic, congestion, or saturation. See the [official connectivity guide](docs/official-connectivity.md), [methodology](docs/methodology.md), [limitations](docs/limitations.md), [API guide](docs/api.md), and [assistant guide](docs/assistant.md).
 
 **Security boundary:** API protections are a practical baseline. Authentication, authorization, production rate limiting, WAF protection, and penetration-tested deployment are not provided.
 
 > **Synthetic data only.** Access points, coordinates, demand, weather, events, network metrics, and historical values are simulated. They do not represent actual public WiFi usage or municipal infrastructure in Tunja.
+
+> **Official-data scope:** The optional MinTIC source reports fixed internet subscription records at municipal granularity. It does not provide neighborhood coverage, real-time availability, traffic, or saturation ground truth. Refresh it with `python scripts/refresh_official_data.py`; a validated local snapshot remains available during source outages.
 
 ## Docker quick start
 
@@ -34,6 +36,8 @@ docker compose up --build --wait --wait-timeout 900
 On its first run, the `runtime-init` service creates the synthetic dataset, trains both existing models, and evaluates them to create the diagnostics report in Compose-managed volumes. Wait for the APIs and dashboard to become healthy. Open the dashboard at <http://localhost:8501>, the main API docs at <http://localhost:8000/docs>, and assistant API docs at <http://localhost:8001/docs>. Inspect with `docker compose ps`, follow logs with `docker compose logs -f`, run the HTTP smoke checks from the dashboard container with `docker compose exec -T dashboard python scripts/smoke_test.py`, and stop with `docker compose down`. Data/model volumes persist after `down`; `docker compose down -v` removes only this Compose project's generated volumes.
 
 The V5.3.0 verification record includes passing remote Docker build/startup, HTTP smoke, and persistence checks; this local machine did not have a running Docker engine. See the [V5.3.0 validation record](docs/releases/v5.3.0.md) for observed results and audit scope.
+
+V7.0.0 adds the optional official-data snapshot on a dedicated Compose volume. Refresh from the running dashboard container with `docker compose exec dashboard python scripts/refresh_official_data.py`; the main API reads that persisted snapshot and Compose restarts preserve it.
 
 ## 1. Project overview
 
@@ -55,7 +59,8 @@ The project explores how an hourly WiFi demand classification system can be stru
 - Context-aware natural demand questions in English and Spanish, including zone/time aliases and follow-up location reuse through the existing scenario service.
 - Dashboard-aware assistant explanations for the dashboard sections, current scenario results, indicators, and model metrics in English and Spanish.
 - Historical demand analysis in English and Spanish, including zone comparisons, HIGH-demand rates, peak hours/weekdays, time-of-day comparisons, and supported monthly change summaries.
-- Ten dashboard sections: Overview, Live Scenario, Demand Explorer, Geographic Analysis, Network Analysis, Model Performance, Experiment History, AI Assistant, Advanced Prediction, and About.
+- Official MinTIC fixed-access ingestion, provenance-preserving local snapshots, and municipality-level Tunja descriptive analytics, separate from the synthetic dashboard and models.
+- Twelve dashboard sections, including Real Connectivity Intelligence, alongside the existing synthetic workflows.
 - Reproducible capacity-planning experiments with SQLite persistence, deterministic budget allocation, paginated API history, and JSON/Markdown exports.
 - Geospatial Intelligence filters and summarizes generated historical observations by inclusive date range, zone, hour, weekday, and demand class, with an offline synthetic access-point map.
 - Scenario Workbench compares fixed model demand predictions against baseline and alternative capacity/budget assumptions, persists reproducible records, and exports scenario-aware reports.
@@ -202,14 +207,14 @@ black --check .
 
 ## 22. Project limitations
 
-- All observations and evaluation results are synthetic.
-- There is no live data ingestion, municipal telemetry connection, or model monitoring.
+- Model training observations and evaluation results are synthetic. The optional official connectivity page reports fixed broadband access aggregates by municipality and reporting quarter; it is not WiFi telemetry, subscriber counts, or a real-world model validation set.
+- Official data is retrieved on demand and cached locally. It does not provide neighborhood-level measurements, live network conditions, or model monitoring.
 - Predicted probabilities are model scores, not calibrated operational confidence.
 - Regression, capacity use, and intervals all describe synthetic targets; interval coverage may change under distribution shift.
 
 ## 23. Future improvements
 
-Potential next steps include authorized real datasets, live providers, production deployment, monitoring, and persistent session storage.
+Potential next steps include verified neighborhood-level connectivity sources, production deployment, monitoring, and persistent session storage.
 
 ## 24. Author
 

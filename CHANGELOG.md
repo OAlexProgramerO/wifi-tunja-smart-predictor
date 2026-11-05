@@ -1,5 +1,11 @@
 # Changelog
 
+## V7.0.0 — Real Connectivity Intelligence (implementation in progress)
+
+Adds a separately labeled, optional MinTIC fixed-internet connector for official municipality-level Tunja access records, with paginated refresh, schema validation, raw/normalized SQLite snapshots, provenance, offline reuse, and read-only source/analysis API plus dashboard. The deterministic assistant answers source-grounded real-connectivity questions when a local snapshot is present and never falls back to synthetic data for them. This does not add real-data ML or a saturation proxy. CRC Postdata QoE and ONTIC resources are documented as unintegrated references because no stable machine-readable Tunja feed/layer was verified. Product target V7.0.0; package and Docker target 0.7.0. Publication is pending validation and release.
+
+Agrega un conector opcional y claramente separado para registros oficiales MinTIC de accesos fijos a nivel municipal en Tunja, con actualización paginada, validación de esquema, instantáneas SQLite crudas/normalizadas, procedencia, uso sin conexión y API de solo lectura con dashboard. El asistente determinista responde preguntas respaldadas por la fuente cuando hay una instantánea local y no sustituye con datos sintéticos las consultas reales. No agrega ML con datos reales ni un indicador de saturación. Los recursos QoE de CRC Postdata y ONTIC se documentan como referencias no integradas porque no se validó una descarga estructurada estable para Tunja. Producto objetivo V7.0.0; paquete e imagen Docker objetivo 0.7.0. Publicación pendiente de validaciones y release.
+
 ## V6.10.0 — Experiment History Analytics — 2026-11-04
 
 Adds filtered-history analytics to the existing Experiment History response and dashboard. It groups matching records by configured synthetic zone and UTC creation date, summarizes persisted per-zone configured capacity and demand estimates plus per-experiment allocation budgets, and reports integrity and missing-field counts. Summaries span all filtered records before pagination; invalid-integrity records are counted but excluded from zone/numeric summaries. Statistics require at least two valid observations. Results remain synthetic.

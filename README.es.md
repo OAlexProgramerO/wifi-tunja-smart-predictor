@@ -1,20 +1,24 @@
-# WiFi Tunja Smart Predictor — V6.10.0
+# WiFi Tunja Smart Predictor — V7.0.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V6.9.0 está publicada con la etiqueta Git anotada [`v6.9.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.9.0) y [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.9.0). Commit de publicación: `9cdc434a45ef94ec9ae236575694a249f0a61e8f`; paquete Python e imagen Docker: `0.6.9`. Consulte la [guía de experimentos](docs/experiments.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V7.0.0 incorpora una instantánea opcional de accesos fijos MinTIC para Tunja, separada de los escenarios sintéticos. Paquete Python e imagen Docker: `0.7.0`. Consulte la [guía de conectividad oficial](docs/official-connectivity.es.md) y el [historial de versiones](docs/release-history.md).
 
-WiFi Tunja Smart Predictor es una demostración con datos sintéticos de clasificación horaria de demanda y estimación del número de conexiones, disponible mediante FastAPI, un dashboard Streamlit y un asistente determinista. V6.10.0 agrega analíticas filtradas al historial de experimentos.
+WiFi Tunja Smart Predictor combina su demostración sintética de clasificación horaria y estimación de conexiones con análisis descriptivos de un conjunto oficial MinTIC opcional. V7.0.0 agrega una experiencia separada para registros municipales oficiales de accesos fijos en Tunja.
 
 Se conservan las verificaciones de huellas de artefactos de V4.3.0 y la trazabilidad de predicciones y validaciones de V4.2.0. Consulte el [diseño de diagnósticos V4.4.0](docs/model-diagnostics.md) para ver el esquema, las métricas, las ventanas temporales y la comprobación de procedencia.
 
-El proyecto usa únicamente datos sintéticos. Sus métricas no demuestran rendimiento predictivo para la demanda real de WiFi público ni para infraestructura municipal en Tunja. Consulte la [metodología](docs/methodology.md), [limitaciones](docs/limitations.md), [guía de API](docs/api.md) y [guía del asistente](docs/assistant.md).
+Los modelos ML y escenarios existentes siguen usando únicamente datos sintéticos; sus métricas no demuestran rendimiento predictivo para la demanda real de WiFi público ni para infraestructura municipal en Tunja. Las suscripciones y categorías de ancho de banda oficiales son datos descriptivos, no evidencia de tráfico, congestión o saturación. Consulte la [guía de conectividad oficial](docs/official-connectivity.es.md), [metodología](docs/methodology.md), [limitaciones](docs/limitations.md), [guía de API](docs/api.md) y [guía del asistente](docs/assistant.md).
+
+La sección **Real Connectivity Intelligence** usa una instantánea local opcional del conjunto oficial MinTIC [hwrp-3su3](https://www.datos.gov.co/Ciencia-Tecnolog-a-e-Innovaci-n/Accesos-Fijos-a-Internet-por-Proveedor-Departament/hwrp-3su3), filtrada por código DIVIPOLA 15001 y agregada por municipio, trimestre, proveedor, tecnología y velocidades informadas. Ejecute `python scripts/refresh_official_data.py` para actualizarla. El asistente determinista responde preguntas en inglés y español a partir de la misma instantánea cuando está disponible; no usa predicciones sintéticas como reemplazo de datos oficiales ausentes. La fuente no incluye telemetría WiFi pública ni verdad de terreno de congestión. Consulte [datos oficiales de conectividad](docs/official-connectivity.es.md).
 
 **Límite de seguridad:** Las protecciones de API son una base práctica. No se incluyen autenticación, autorización, limitación de velocidad para producción, WAF ni despliegue probado mediante pentesting.
 
 > **Solo datos sintéticos.** Los puntos de acceso, coordenadas, demanda, clima, eventos, métricas de red y valores históricos son simulados. No representan uso real de WiFi ni infraestructura municipal en Tunja.
+
+> **Alcance de los datos oficiales:** MinTIC informa registros de suscripciones fijas a nivel municipal. No contiene cobertura barrial, disponibilidad en tiempo real, tráfico ni evidencia de saturación. Actualice con `python scripts/refresh_official_data.py`; una instantánea local válida se conserva cuando la fuente no está disponible.
 
 ## Inicio rápido con Docker
 
@@ -29,6 +33,8 @@ docker compose up --build --wait --wait-timeout 900
 En el primer inicio, `runtime-init` genera el dataset sintético, entrena los dos modelos existentes y los evalúa para crear el informe de diagnóstico en volúmenes administrados por Compose. Espere a que las API y el dashboard estén disponibles. Abra el dashboard en <http://localhost:8501>, la documentación de la API principal en <http://localhost:8000/docs> y la del asistente en <http://localhost:8001/docs>. Revise `docker compose ps`, siga los registros con `docker compose logs -f`, ejecute las pruebas HTTP desde el contenedor del dashboard con `docker compose exec -T dashboard python scripts/smoke_test.py` y detenga con `docker compose down`. Los volúmenes de datos/modelos persisten después de `down`; `docker compose down -v` elimina solo los volúmenes generados de este proyecto.
 
 El registro V5.3.0 incluye verificaciones remotas aprobadas de compilación y arranque de Docker, smoke HTTP y persistencia; esta máquina local no tenía un daemon Docker activo. Consulte el [registro de validación V5.3.0](docs/releases/v5.3.0.md) para ver los resultados y el alcance de la auditoría.
+
+V7.0.0 agrega la instantánea oficial opcional en un volumen Compose dedicado. Actualícela desde el contenedor del dashboard con `docker compose exec dashboard python scripts/refresh_official_data.py`; la API principal lee esa instantánea persistida y Compose la conserva al reiniciar.
 
 ## 1. Descripción del proyecto
 
@@ -56,6 +62,7 @@ El proyecto demuestra un flujo mantenible de clasificación y regresión con con
 - El banco también permite optimizar asignaciones enteras deterministas para minimizar déficits sintéticos totales o ponderados explícitamente; consulte [método y restricciones](docs/optimizacion.md).
 - V6.2.0 agrega análisis acotado de sensibilidad sintética de demanda por zona y barridos de presupuesto sobre optimizaciones guardadas; consulte la [guía de sensibilidad y robustez](docs/robustness.es.md). Estos casos seleccionados no estiman probabilidades ni confiabilidad real.
 - V6.3.0 agrega una API de evaluación temporal acotada y una vista en Model Performance con informes versionados JSON/Markdown; consulte la [guía](docs/temporal-evaluation.es.md). Los resultados usan solo datos sintéticos.
+- V7.0.0 integra una instantánea local opcional de accesos fijos oficiales de MinTIC para Tunja, con procedencia, análisis por periodo y respaldo sin conexión; no representa saturación real. Consulte [datos oficiales de conectividad](docs/official-connectivity.es.md).
 - V6.5.0 agrega explicaciones breves al pasar el cursor sobre las métricas de clasificación y regresión en Model Performance.
 
 ## Inicio rápido de desarrollo local
@@ -161,11 +168,11 @@ python -m pip install -e ".[dev]"
 
 ## 22. Limitaciones
 
-Los datos y resultados son sintéticos. No hay ingestión en vivo ni conexión municipal. Los intervalos pueden perder cobertura ante cambios de distribución; la sensibilidad local no es causal. La capacidad usa conexiones como aproximación.
+Las observaciones de entrenamiento y los resultados de evaluación de los modelos son sintéticos. La página opcional de conectividad oficial muestra agregados de accesos fijos a internet por municipio y trimestre; no es telemetría WiFi, conteo de suscriptores ni un conjunto de validación de modelos en el mundo real. La fuente se consulta bajo demanda y se guarda localmente; no ofrece mediciones por barrio, condiciones de red en vivo ni monitoreo de modelos. Los intervalos pueden perder cobertura ante cambios de distribución; la sensibilidad local no es causal. La capacidad usa conexiones como aproximación.
 
 ## 23. Mejoras futuras
 
-Datos reales autorizados, proveedores en vivo, despliegue y monitoreo requieren trabajo futuro, fuera de este prototipo.
+Fuentes verificadas con resolución por barrio, despliegue y monitoreo requieren trabajo futuro, fuera de este prototipo.
 
 ## 24. Autor
 
