@@ -9,7 +9,7 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V7.0.0 introduces an optional official MinTIC fixed-access snapshot for Tunja, kept separate from synthetic scenarios. Python package and Docker image: `0.7.0`. See the [official connectivity guide](docs/official-connectivity.md) and [release history](docs/release-history.md).
+**Release status:** V7.0.0 is released as [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.0.0), with annotated tag [`v7.0.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.0.0) at `33c76266d08077566f4043de393afb655de66c5b`. Python package and Docker image: `0.7.0`. See the [official connectivity guide](docs/official-connectivity.md), [validation record](docs/releases/v7.0.0.md), and [release history](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.0.0 adds an isolated real-connectivity experience for municipality-level Tunja access records.
 

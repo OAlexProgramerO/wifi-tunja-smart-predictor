@@ -4,7 +4,7 @@
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V7.0.0 incorpora una instantánea opcional de accesos fijos MinTIC para Tunja, separada de los escenarios sintéticos. Paquete Python e imagen Docker: `0.7.0`. Consulte la [guía de conectividad oficial](docs/official-connectivity.es.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V7.0.0 está publicado en [GitHub Releases](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.0.0), con la etiqueta anotada [`v7.0.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.0.0) en `33c76266d08077566f4043de393afb655de66c5b`. Paquete Python e imagen Docker: `0.7.0`. Consulte la [guía de conectividad oficial](docs/official-connectivity.es.md), el [registro de validación](docs/releases/v7.0.0.md) y el [historial de versiones](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combina su demostración sintética de clasificación horaria y estimación de conexiones con análisis descriptivos de un conjunto oficial MinTIC opcional. V7.0.0 agrega una experiencia separada para registros municipales oficiales de accesos fijos en Tunja.
 

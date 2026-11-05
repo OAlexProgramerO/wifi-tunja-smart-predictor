@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V7.0.0 — Real Connectivity Intelligence — released 2026-11-05
+
+Adds a separately labeled, optional MinTIC fixed-internet connector for official municipality-level Tunja access records, raw/normalized SQLite snapshots with provenance, offline reuse, read-only API endpoints, a dedicated dashboard, and source-grounded deterministic assistant answers. Existing ML remains synthetic; no saturation proxy or neighborhood observations are claimed. CRC Postdata QoE and ONTIC resources remain references because a stable structured Tunja feed/layer was not verified. Product V7.0.0 maps to Python package and Docker image `0.7.0`. Annotated tag [`v7.0.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.0.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.0.0) target `33c76266d08077566f4043de393afb655de66c5b`. Local tests and static checks passed; Docker build and runtime were not verified because Docker Engine was unavailable. See the [V7.0.0 validation record](releases/v7.0.0.md).
+
 ## V6.5.0 — Model metrics guide — released 2026-10-30
 
 Adds concise Model Performance hover explanations for Accuracy, Precision, Recall, F1-score, MAE, RMSE, and R². Evaluation calculations and synthetic-data disclaimer are unchanged. Product V6.5.0 uses Python package and Docker image `0.6.5`. Annotated Git tag [`v6.5.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v6.5.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v6.5.0) target `4b7a243b005243531ce9e8d3e84830f1d23056b3`. Focused and full pytest suites, Ruff, Black, and `git diff --check` passed locally; CI was not run for this commit. Metrics remain synthetic. See the [validation record](releases/v6.5.0.md).
