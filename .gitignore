@@ -43,6 +43,8 @@ Thumbs.db
 data/raw/*.csv
 data/processed/*.csv
 data/processed/*.json
+data/official_connectivity.sqlite3
+data/official_connectivity.sqlite3-*
 data/interim/*
 !data/interim/.gitkeep
 !data/raw/.gitkeep
