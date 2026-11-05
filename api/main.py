@@ -1,4 +1,4 @@
-"""FastAPI application for synthetic WiFi demand classification."""
+"""FastAPI application for synthetic prediction and official connectivity access."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from api.routes.connectivity import router as connectivity_router
 from api.routes.experiments import router as experiments_router
 from api.routes.prediction import router as prediction_router
 from api.security import install_api_security
@@ -20,7 +21,7 @@ app = FastAPI(
     title=PROJECT_NAME,
     version=PROJECT_VERSION,
     description=(
-        "REST API for synthetic WiFi demand classification and location/time scenario estimates. "
+        "REST API for synthetic WiFi demand classification and scenario estimates, with separate read-only routes for validated official connectivity snapshots. "
         + SYNTHETIC_DATA_DISCLAIMER
         + " Do not interpret outputs as forecasts of real municipal infrastructure."
     ),
@@ -74,3 +75,4 @@ def root() -> dict[str, str]:
 
 app.include_router(prediction_router)
 app.include_router(experiments_router)
+app.include_router(connectivity_router)

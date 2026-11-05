@@ -33,4 +33,12 @@ V6.2.0 agrega `POST /experiments/robustness` para una optimización guardada. Ac
 
 Use `GET /experiments?limit=50&offset=0` (límite 1–100), `GET /experiments/{id}` y `GET /experiments/{id}/report?format=json|markdown`. El informe JSON incluye `optimization_analysis` desde el esquema 1.3 y agrega `robustness_analysis` en esquema 1.4; ejecuciones anteriores siguen legibles con campos aditivos nulos. La recuperación no vuelve a ejecutar el predictor ni el análisis.
 
+## Conectividad oficial (V7.0.0)
+
+- `GET /connectivity/sources` devuelve las fuentes oficiales registradas y su estado de integración.
+- `GET /connectivity/tunja` devuelve el análisis municipal de la última instantánea MinTIC válida guardada, su vigencia y procedencia. Responde 503 cuando no existe una instantánea válida.
+- La actualización se inicia de forma controlada con `python scripts/refresh_official_data.py`; no se agregó una ruta pública de mutación.
+
+Solo se integran accesos fijos MinTIC de `hwrp-3su3`. Consulte [datos oficiales de conectividad](official-connectivity.es.md) para metodología, límites y separación entre datos sintéticos y reales.
+
 La demanda usada es una estimación fija del regresor para conexiones sintéticas de la próxima hora. El optimizador no modifica ni vuelve a entrenar modelos. La optimalidad solo se demuestra para los objetivos aditivos de déficit y las restricciones declaradas; si se alcanza el límite de pasos, se indica que la optimalidad no está probada. Consulte la [metodología de optimización](optimizacion.md) y [experimentos](experiments.md).
