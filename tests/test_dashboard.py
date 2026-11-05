@@ -279,7 +279,7 @@ def test_experiment_history_dashboard_renders_selected_experiment_comparison(mon
                     "models": [
                         {
                             "prediction_id": f"prediction-{experiment_id}",
-                            "application_version": "0.6.10",
+                            "application_version": "0.7.0",
                             "classifier": {
                                 "selected_model": "random_forest",
                                 "model_version": "model-v1",

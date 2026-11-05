@@ -33,6 +33,8 @@ from wifi_tunja_smart_predictor.config import (
     SYNTHETIC_DATA_DISCLAIMER,
     TARGET_COLUMN,
 )
+from wifi_tunja_smart_predictor.connectivity.analysis import analyze_tunja
+from wifi_tunja_smart_predictor.connectivity.mintic import load_snapshot, refresh_official_data
 from wifi_tunja_smart_predictor.data.loader import load_raw_dataset
 from wifi_tunja_smart_predictor.exceptions import DatasetNotFoundError, ModelNotFoundError
 from wifi_tunja_smart_predictor.reporting.service import (
@@ -392,6 +394,7 @@ def render_performance() -> None:
                 selected.get("confusion_matrix_labels") or selected.get("labels"),
             ),
             width="stretch",
+            alt="Classification results for the selected model on held-out synthetic observations.",
         )
     elif matrix:
         st.write(selected.get("test_metrics_selected_model", selected))
@@ -2429,13 +2432,17 @@ def _render_page(title: str, kind: str) -> None:
         "Advanced": "Advanced Prediction",
         "About": "About",
         "Experiments": "Experiment History",
+        "RealConnectivity": "Real Connectivity Intelligence",
     }
     if kind != "Assistant":
         st.session_state["assistant_dashboard_section"] = section_names.get(kind)
     st.title(title)
-    st.caption(
-        f"WiFi Tunja Smart Predictor · v{PROJECT_VERSION} · synthetic decision-support prototype"
+    product_scope = (
+        "official municipal source records · separate from synthetic models"
+        if kind == "RealConnectivity"
+        else "synthetic decision-support prototype"
     )
+    st.caption(f"WiFi Tunja Smart Predictor · v{PROJECT_VERSION} · {product_scope}")
     if kind == "Overview":
         frame = _load_frame()
         render_overview(frame)
@@ -2727,12 +2734,142 @@ def _render_page(title: str, kind: str) -> None:
                     markdown_column.error(f"Individual Markdown report unavailable: {exc}")
         except ApiClientError as exc:
             st.error(str(exc))
+    elif kind == "RealConnectivity":
+        _render_real_connectivity()
     elif kind == "Advanced":
         render_prediction(_load_frame())
     else:
         st.markdown(
             "This prototype uses synthetic access points, coordinates, contexts, and outcomes. It has no live telemetry or real-time provider. Classification predicts `demand_level`; regression estimates `connections_next_hour`. The conformal interval is calibrated on validation residuals. Feature sensitivity does not establish causation. See `docs/` for methodology, API, privacy, and limitations."
         )
+
+
+def _render_real_connectivity() -> None:
+    """Render verified official snapshots separately from the synthetic product."""
+    _section_header(
+        "Official connectivity data",
+        "REAL DATA · MinTIC reported fixed internet access records for Tunja municipality.",
+    )
+    st.warning(
+        "These records describe reported subscriptions and speed bands. They do not measure "
+        "network traffic, availability, congestion, or saturation. Geographic detail is municipal; "
+        "no neighborhood estimates are created."
+    )
+    if st.button("Refresh official MinTIC data", key="refresh_official_connectivity"):
+        with st.spinner("Retrieving and validating the official source…"):
+            try:
+                snapshot = refresh_official_data()
+                if snapshot.get("refresh_error"):
+                    st.warning("Refresh failed; showing the most recent valid local snapshot.")
+                elif snapshot.get("unchanged_source"):
+                    st.success(
+                        "The official source has not changed; using the existing validated snapshot."
+                    )
+                else:
+                    st.success("Official snapshot retrieved and validated.")
+            except Exception as exc:
+                snapshot = None
+                st.error(
+                    f"Refresh unavailable ({type(exc).__name__}). Existing local data was preserved."
+                )
+    else:
+        try:
+            snapshot = load_snapshot()
+        except Exception as exc:
+            snapshot = None
+            st.error(f"Local official-data cache could not be read ({type(exc).__name__}).")
+    if not snapshot:
+        st.info(
+            "No valid official snapshot is stored locally yet. Use Refresh official MinTIC data "
+            "when the source is reachable. The synthetic dashboard remains available separately."
+        )
+        st.markdown(
+            "[Open the official MinTIC dataset](https://www.datos.gov.co/Ciencia-Tecnolog-a-e-Innovaci-n/Accesos-Fijos-a-Internet-por-Proveedor-Departament/hwrp-3su3)"
+        )
+        return
+    batch = snapshot["batch"]
+    analysis = analyze_tunja(snapshot["records"])
+    if snapshot["stale"]:
+        st.warning(
+            "This local snapshot is at least 30 days old; refresh to check for source updates."
+        )
+    if snapshot.get("refresh_error"):
+        st.warning("The latest refresh failed; the most recent valid snapshot is shown.")
+    st.caption(
+        f"Reporting periods: {', '.join(sorted({row['period'] for row in snapshot['records']}))} · "
+        f"Retrieved: {batch['retrieved_at_utc']} · Source updated: {batch['source_updated_at_utc'] or 'not supplied'} · "
+        f"SHA-256: {batch['content_sha256']}"
+    )
+    st.metric(
+        f"Reported accesses · {analysis['latest_reporting_period'] or 'no period'}",
+        f"{analysis['latest_period_reported_access_total']:,}",
+    )
+    st.caption(
+        "Municipality of Tunja · DIVIPOLA 15001 · grouped source rows: "
+        f"{analysis['observation_count']:,}"
+    )
+    left, right = st.columns(2)
+    if analysis["latest_period_provider_accesses"]:
+        left.plotly_chart(
+            px.bar(
+                pd.DataFrame(analysis["latest_period_provider_accesses"]),
+                x="name",
+                y="reported_accesses",
+                title=f"Reported accesses by provider · {analysis['latest_reporting_period']}",
+            ),
+            width="stretch",
+            alt="Reported fixed-access counts by provider for the latest municipality reporting quarter.",
+        )
+    if analysis["latest_period_technology_accesses"]:
+        right.plotly_chart(
+            px.bar(
+                pd.DataFrame(analysis["latest_period_technology_accesses"]),
+                x="name",
+                y="reported_accesses",
+                title=f"Reported accesses by technology · {analysis['latest_reporting_period']}",
+            ),
+            width="stretch",
+            alt="Reported fixed-access counts by technology for the latest municipality reporting quarter.",
+        )
+    period = pd.DataFrame(analysis["quarterly_accesses"])
+    if not period.empty:
+        st.plotly_chart(
+            px.line(
+                period,
+                x="period",
+                y="reported_accesses",
+                markers=True,
+                title="Reported accesses by quarter",
+            ),
+            width="stretch",
+            alt="MinTIC reported fixed-access totals across quarterly periods for Tunja municipality.",
+        )
+    with st.expander("Bandwidth bands (reported source values)"):
+        left, right = st.columns(2)
+        left.dataframe(
+            pd.DataFrame(analysis["latest_period_downstream_values"]),
+            hide_index=True,
+            width="stretch",
+            alt="Reported downstream speed values and access counts for the latest quarter.",
+        )
+        right.dataframe(
+            pd.DataFrame(analysis["latest_period_upstream_values"]),
+            hide_index=True,
+            width="stretch",
+            alt="Reported upstream speed values and access counts for the latest quarter.",
+        )
+    st.markdown(
+        "Source: [MinTIC / Datos Abiertos](https://www.datos.gov.co/Ciencia-Tecnolog-a-e-Innovaci-n/Accesos-Fijos-a-Internet-por-Proveedor-Departament/hwrp-3su3) · "
+        "Dataset `hwrp-3su3`. Municipal quarterly records. Access and rate-band distributions are not evidence of congestion or service saturation."
+    )
+    with st.expander("Aggregation details"):
+        st.caption(
+            "Sum across repeated quarterly rows (not unique subscribers): "
+            f"{analysis['sum_of_reported_access_counts_across_quarterly_rows']:,}. "
+            "The provider and technology charts use the latest reporting quarter."
+        )
+        st.caption("Rejected source row counts by reason:")
+        st.json(json.loads(batch["error_summary"]))
 
 
 def main() -> None:
@@ -2800,9 +2937,15 @@ def main() -> None:
             icon="🧪",
             url_path="experiments",
         ),
+        st.Page(
+            lambda: _render_page("Real Connectivity Intelligence", "RealConnectivity"),
+            title="Real Connectivity Intelligence",
+            icon="🌐",
+            url_path="real-connectivity",
+        ),
     ]
     navigation = st.navigation(pages, position="sidebar")
-    st.sidebar.caption(f"v{PROJECT_VERSION} · simulated data")
+    st.sidebar.caption(f"v{PROJECT_VERSION} · synthetic models + optional official data")
     try:
         navigation.run()
     except DatasetNotFoundError as exc:
