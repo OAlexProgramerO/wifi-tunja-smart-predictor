@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from urllib.parse import urlencode
 
@@ -57,6 +58,41 @@ from wifi_tunja_smart_predictor.visualization.plots import (
 
 logger = logging.getLogger(__name__)
 EXPERIMENT_COMPARISON_STATE_KEY = "experiment_history_comparison_report"
+OFFICIAL_CONNECTIVITY_REFRESH_FUTURE_KEY = "official_connectivity_refresh_future"
+OFFICIAL_CONNECTIVITY_REFRESH_RESULT_KEY = "official_connectivity_refresh_result"
+
+
+@st.cache_resource(max_entries=1)
+def _official_connectivity_refresh_executor() -> ThreadPoolExecutor:
+    return ThreadPoolExecutor(max_workers=1, thread_name_prefix="official-connectivity-refresh")
+
+
+def _refresh_official_connectivity_in_background() -> dict[str, str | bool]:
+    try:
+        snapshot = refresh_official_data()
+        return {
+            "status": "failed" if snapshot.get("refresh_error") else "success",
+            "unchanged_source": bool(snapshot.get("unchanged_source")),
+            "error_type": snapshot.get("refresh_error", ""),
+        }
+    except Exception as exc:
+        logger.warning("Official connectivity refresh failed (%s)", type(exc).__name__)
+        return {"status": "failed", "unchanged_source": False, "error_type": type(exc).__name__}
+
+
+@st.fragment(run_every="1s")
+def _render_official_connectivity_refresh_progress() -> None:
+    future: Future | None = st.session_state.get(OFFICIAL_CONNECTIVITY_REFRESH_FUTURE_KEY)
+    if future is None:
+        return
+    if not future.done():
+        st.info(
+            "Official data refresh is running in the background; the dashboard remains available."
+        )
+        return
+    st.session_state[OFFICIAL_CONNECTIVITY_REFRESH_RESULT_KEY] = future.result()
+    st.session_state[OFFICIAL_CONNECTIVITY_REFRESH_FUTURE_KEY] = None
+    st.rerun()
 
 
 def _clear_experiment_history_filters() -> None:
@@ -2755,29 +2791,34 @@ def _render_real_connectivity() -> None:
         "network traffic, availability, congestion, or saturation. Geographic detail is municipal; "
         "no neighborhood estimates are created."
     )
-    if st.button("Refresh official MinTIC data", key="refresh_official_connectivity"):
-        with st.spinner("Retrieving and validating the official source…"):
-            try:
-                snapshot = refresh_official_data()
-                if snapshot.get("refresh_error"):
-                    st.warning("Refresh failed; showing the most recent valid local snapshot.")
-                elif snapshot.get("unchanged_source"):
-                    st.success(
-                        "The official source has not changed; using the existing validated snapshot."
-                    )
-                else:
-                    st.success("Official snapshot retrieved and validated.")
-            except Exception as exc:
-                snapshot = None
-                st.error(
-                    f"Refresh unavailable ({type(exc).__name__}). Existing local data was preserved."
-                )
-    else:
-        try:
-            snapshot = load_snapshot()
-        except Exception as exc:
-            snapshot = None
-            st.error(f"Local official-data cache could not be read ({type(exc).__name__}).")
+    refresh_future = st.session_state.get(OFFICIAL_CONNECTIVITY_REFRESH_FUTURE_KEY)
+    if st.button(
+        "Refresh official MinTIC data",
+        key="refresh_official_connectivity",
+        disabled=refresh_future is not None,
+    ):
+        st.session_state[
+            OFFICIAL_CONNECTIVITY_REFRESH_FUTURE_KEY
+        ] = _official_connectivity_refresh_executor().submit(
+            _refresh_official_connectivity_in_background
+        )
+    refresh_result = st.session_state.get(OFFICIAL_CONNECTIVITY_REFRESH_RESULT_KEY)
+    if refresh_result:
+        if refresh_result["status"] == "failed":
+            st.warning("Refresh failed; showing the most recent valid local snapshot.")
+        elif refresh_result["unchanged_source"]:
+            st.success(
+                "The official source has not changed; using the existing validated snapshot."
+            )
+        else:
+            st.success("Official snapshot retrieved and validated.")
+        st.session_state[OFFICIAL_CONNECTIVITY_REFRESH_RESULT_KEY] = None
+    _render_official_connectivity_refresh_progress()
+    try:
+        snapshot = load_snapshot()
+    except Exception as exc:
+        snapshot = None
+        st.error(f"Local official-data cache could not be read ({type(exc).__name__}).")
     if not snapshot:
         st.info(
             "No valid official snapshot is stored locally yet. Use Refresh official MinTIC data "

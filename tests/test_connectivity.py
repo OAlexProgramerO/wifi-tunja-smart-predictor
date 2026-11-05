@@ -235,6 +235,42 @@ def test_dashboard_exposes_official_snapshot_without_synthetic_fallback(tmp_path
     assert any("do not measure" in message.value for message in app_test.warning)
 
 
+def test_dashboard_refresh_runs_in_background_and_reports_completion(monkeypatch):
+    from threading import Event
+
+    from streamlit.testing.v1 import AppTest
+
+    from app import dashboard
+
+    refresh_started = Event()
+    finish_refresh = Event()
+
+    def slow_refresh():
+        refresh_started.set()
+        assert finish_refresh.wait(timeout=3)
+        return {"batch": {}, "records": [], "stale": False}
+
+    monkeypatch.setattr(dashboard, "refresh_official_data", slow_refresh)
+    app_test = AppTest.from_string(
+        "from app.dashboard import _render_real_connectivity\n_render_real_connectivity()\n",
+        default_timeout=30,
+    ).run()
+    app_test.button[0].click().run()
+
+    assert refresh_started.wait(timeout=2)
+    assert not app_test.exception
+    assert any("running in the background" in item.value for item in app_test.info)
+
+    finish_refresh.set()
+    future = app_test.session_state[dashboard.OFFICIAL_CONNECTIVITY_REFRESH_FUTURE_KEY]
+    future.result(timeout=2)
+    app_test.run()
+    assert not app_test.exception
+    assert any(
+        "Official snapshot retrieved and validated" in item.value for item in app_test.success
+    )
+
+
 def test_dashboard_renders_verified_latest_period_not_all_period_sum(tmp_path, monkeypatch):
     from streamlit.testing.v1 import AppTest
 
