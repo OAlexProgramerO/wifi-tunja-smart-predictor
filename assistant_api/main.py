@@ -33,7 +33,7 @@ app = FastAPI(
     title=f"{PROJECT_NAME} Assistant",
     version=PROJECT_VERSION,
     description=(
-        "Tool-grounded assistant for synthetic demand scenarios and dataset questions. "
+        "Deterministic tool-grounded assistant for synthetic demand scenarios and official connectivity snapshots. "
         + SYNTHETIC_DATA_DISCLAIMER
     ),
 )

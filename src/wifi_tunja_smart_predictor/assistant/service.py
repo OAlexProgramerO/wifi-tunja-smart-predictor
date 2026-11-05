@@ -34,6 +34,7 @@ from wifi_tunja_smart_predictor.assistant.tools import (
     prediction_tool,
 )
 from wifi_tunja_smart_predictor.config import experiment_database_path
+from wifi_tunja_smart_predictor.connectivity.assistant import official_connectivity_tool
 from wifi_tunja_smart_predictor.data.loader import load_analysis_dataset
 from wifi_tunja_smart_predictor.exceptions import AssistantQueryError, LocationResolutionError
 from wifi_tunja_smart_predictor.experiments.store import ExperimentStore
@@ -46,6 +47,8 @@ logger = logging.getLogger(__name__)
 
 
 def _assistant_operation(intent: str) -> str:
+    if intent == "OFFICIAL_CONNECTIVITY":
+        return "official_connectivity"
     if intent == "EXPERIMENT_HISTORY":
         return "experiment_history"
     if intent.startswith("HISTORICAL"):
@@ -77,6 +80,8 @@ _SECTION_ALIASES = {
     "advanced prediction": "advanced_prediction",
     "advanced": "advanced_prediction",
     "about": "about",
+    "real connectivity intelligence": "real_connectivity_intelligence",
+    "real connectivity": "real_connectivity_intelligence",
 }
 
 
@@ -114,6 +119,7 @@ def _section_explanation(section: str, language: str = "en") -> str:
         "ai_assistant": "AI Assistant uses deterministic intent rules and fixed project tools for dataset, demand, location, model, and dashboard questions. It can reuse session location, time, dashboard section, and scenario context; no LLM credential is required.",
         "advanced_prediction": "Advanced Prediction accepts the model's explicit feature inputs and returns the existing regression estimate and calibrated prediction interval alongside classification output. The interval summarizes uncertainty for this synthetic prototype; real-world coverage is not guaranteed.",
         "about": "About describes WiFi Tunja Smart Predictor, a Python and Streamlit decision-support prototype with deterministic assistant/API services and scikit-learn models. Its observations, locations, and outcomes are synthetic, not municipal WiFi telemetry.",
+        "real_connectivity_intelligence": "Real Connectivity Intelligence reads an optional validated MinTIC fixed-access snapshot for Tunja municipality. It reports provider, technology, quarter, and source-reported speed values; it does not measure neighborhood coverage, live WiFi, traffic, congestion, or saturation. Synthetic scenarios and model predictions remain separate.",
     }
     if language == "es":
         spanish = {
@@ -126,6 +132,7 @@ def _section_explanation(section: str, language: str = "en") -> str:
             "ai_assistant": "AI Assistant usa reglas deterministas y herramientas internas para preguntas sobre datos, demanda, ubicaciones, modelos y el panel. Reutiliza contexto de sesión y no requiere credenciales de un LLM.",
             "advanced_prediction": "Advanced Prediction recibe las entradas explícitas del modelo y devuelve la estimación de regresión, su intervalo calibrado y la clasificación. La cobertura real no está garantizada.",
             "about": "About describe WiFi Tunja Smart Predictor, un prototipo con Python, Streamlit, servicios deterministas y modelos scikit-learn. Sus observaciones, ubicaciones y resultados son sintéticos, no telemetría municipal.",
+            "real_connectivity_intelligence": "Real Connectivity Intelligence consulta una instantánea MinTIC validada y opcional de accesos fijos en el municipio de Tunja. Muestra proveedor, tecnología, trimestre y valores de velocidad informados; no mide cobertura barrial, WiFi en vivo, tráfico, congestión ni saturación. Los escenarios y predicciones de modelos siguen separados y son sintéticos.",
         }
         return spanish[section]
     return answers[section]
@@ -380,6 +387,13 @@ class AssistantService:
                 parsed.intent,
                 {"message": normalize_message(message)},
                 ["deterministic_conversation_templates"],
+                None,
+            )
+        if parsed.intent == "OFFICIAL_CONNECTIVITY":
+            return (
+                "OFFICIAL_CONNECTIVITY",
+                official_connectivity_tool(message),
+                ["official_connectivity_snapshot", "mintic_dataset_metadata"],
                 None,
             )
         if parsed.intent == "EXPERIMENT_HISTORY":

@@ -28,8 +28,8 @@ class DeterministicProvider:
         if intent == "CAPABILITIES":
             message = tool_result.get("message", "")
             if message in {"qué puedes hacer", "en qué puedes ayudarme"}:
-                return "Puedo ayudarte a explorar el conjunto de datos sintético de WiFi, analizar escenarios de demanda y entender los resultados del modelo."
-            return "I can help you explore the synthetic WiFi dataset, analyze demand scenarios, and understand model results."
+                return "Puedo ayudarte a explorar el conjunto de datos sintético de WiFi, analizar escenarios y entender el modelo; también consulto registros oficiales de conectividad de Tunja cuando hay una instantánea válida."
+            return "I can help you explore the synthetic WiFi dataset, analyze demand scenarios, and understand model results. I can also query official Tunja connectivity records when a validated snapshot is available."
         if "answer" in tool_result:
             return str(tool_result["answer"])
         if intent == "LOCATION_INFO":

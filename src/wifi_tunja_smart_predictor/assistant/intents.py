@@ -66,6 +66,94 @@ class ParsedMessage:
     comparison_zones: tuple[str, ...] = ()
 
 
+def _is_official_connectivity_question(text: str) -> bool:
+    """Recognize explicit requests about imported government connectivity evidence."""
+    phrases = (
+        "official connectivity",
+        "official data",
+        "official source",
+        "real connectivity",
+        "real data",
+        "providers represented",
+        "providers in the dataset",
+        "provider distribution",
+        "proveedores representados",
+        "proveedores en el conjunto",
+        "technologies reported",
+        "technology reported",
+        "tecnologias reportadas",
+        "latency",
+        "latency indicators",
+        "jitter",
+        "latencia",
+        "indicadores de latencia",
+        "mintic",
+        "datos oficiales",
+        "conectividad oficial",
+        "datos reales",
+        "fuente oficial",
+        "indicadores de calidad",
+        "quality indicators",
+        "service quality",
+        "calidad del servicio",
+        "neighborhood level",
+        "neighborhood-level",
+        "nivel de barrio",
+        "nivel barrial",
+        "saturation",
+        "saturación",
+        "saturacion",
+        "congestión",
+        "congestion",
+    )
+    if any(phrase in text for phrase in phrases):
+        return True
+    has_municipality = "tunja" in text or "boyac" in text
+    is_provider_listing = any(
+        term in text for term in ("provider", "providers", "proveedor", "proveedores")
+    ) and any(
+        term in text
+        for term in ("represented", "dataset", "source", "representados", "conjunto", "fuente")
+    )
+    is_technology_listing = any(
+        term in text for term in ("technology", "technologies", "tecnologia", "tecnología")
+    ) and any(
+        term in text
+        for term in (
+            "reported",
+            "dataset",
+            "source",
+            "reportadas",
+            "informadas",
+            "conjunto",
+            "fuente",
+        )
+    )
+    if is_provider_listing or is_technology_listing:
+        return True
+    asks_official_fields = any(
+        term in text
+        for term in (
+            "provider",
+            "providers",
+            "proveedor",
+            "proveedores",
+            "technology",
+            "technologies",
+            "tecnologia",
+            "tecnología",
+            "reporting period",
+            "latest period",
+            "periodo reportado",
+            "ultimo periodo",
+            "último periodo",
+            "quality",
+            "calidad",
+        )
+    )
+    return has_municipality and asks_official_fields
+
+
 def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
     """Classify supported questions and extract simple deterministic entities."""
     text = normalize_message(message)
@@ -145,6 +233,8 @@ def parse_message(message: str, *, has_context: bool = False) -> ParsedMessage:
         "en qué puedes ayudarme",
     }:
         intent = "CAPABILITIES"
+    elif _is_official_connectivity_question(text):
+        intent = "OFFICIAL_CONNECTIVITY"
     elif any(
         term in text
         for term in (
@@ -439,6 +529,10 @@ def _mentioned_section(text: str) -> str | None:
         "model_performance": ("model performance", "performance"),
         "ai_assistant": ("ai assistant", "assistant"),
         "advanced_prediction": ("advanced prediction", "advanced"),
+        "real_connectivity_intelligence": (
+            "real connectivity intelligence",
+            "real connectivity",
+        ),
         "about": ("about",),
     }
     for section, aliases in sections.items():
