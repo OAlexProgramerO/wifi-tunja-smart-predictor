@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 import json
 import sqlite3
 from datetime import UTC, datetime, timedelta
@@ -13,6 +15,11 @@ from api.main import app
 from wifi_tunja_smart_predictor.assistant.schemas import ChatRequest
 from wifi_tunja_smart_predictor.assistant.service import AssistantService
 from wifi_tunja_smart_predictor.connectivity.analysis import analyze_tunja
+from wifi_tunja_smart_predictor.connectivity.exports import (
+    build_connectivity_csv,
+    build_connectivity_json,
+    build_export_bundle,
+)
 from wifi_tunja_smart_predictor.connectivity.mintic import (
     API_URL,
     REQUIRED_FIELDS,
@@ -77,6 +84,77 @@ def test_official_refresh_preserves_raw_provenance_and_separates_tunja_rows(tmp_
             (batch["batch_id"],),
         ).fetchone()[0]
     assert raw_count == len(raw_rows)
+
+
+def test_connectivity_csv_and_json_exports_include_raw_processed_and_provenance(tmp_path):
+    snapshot = refresh_official_data(
+        tmp_path / "exports.sqlite3",
+        fetch_records=lambda: [record()],
+        fetch_metadata=lambda: {"source_updated_at_utc": "2025-07-01T00:00:00+00:00"},
+    )
+
+    rows = list(csv.DictReader(io.StringIO(build_connectivity_csv(snapshot))))
+    metadata = json.loads(rows[0]["metadata_json"])
+    csv_record = rows[1]
+    assert rows[0]["export_record_type"] == "metadata"
+    assert metadata["source"]["institution"].endswith("(MinTIC)")
+    assert metadata["source"]["dataset_id"] == "hwrp-3su3"
+    assert metadata["source"]["official_source_url"].startswith("https://www.datos.gov.co/")
+    assert (
+        metadata["provenance"]["retrieval_timestamp_utc"] == snapshot["batch"]["retrieved_at_utc"]
+    )
+    assert metadata["provenance"]["validation_status"] == "valid"
+    assert metadata["coverage"]["latest_reporting_period"] == "2025-Q1"
+    assert metadata["coverage"]["geographic_granularity"] == "municipality"
+    assert csv_record["export_record_type"] == "record"
+    assert json.loads(csv_record["raw_source_record_json"])["velocidad_bajada"] == "100"
+    assert csv_record["processed_downstream_mbps"] == "100"
+    assert csv_record["record_validation_status"] == "accepted"
+
+    bundle = json.loads(build_connectivity_json(snapshot))
+    assert bundle["data_classification"].startswith("REAL_OFFICIAL_DATA")
+    assert bundle["snapshot_status"] == "validated_local_snapshot"
+    assert bundle["raw_records"]["items"][0]["velocidad_bajada"] == "100"
+    assert bundle["processed_records"]["items"][0]["downstream_mbps"] == 100
+    assert bundle["analysis"]["analysis_status"] == "available"
+    assert "saturation" in bundle["limitations"]
+
+
+def test_connectivity_exports_label_stale_snapshot_and_allow_empty_data():
+    stale_snapshot = {
+        "stale": True,
+        "records": [],
+        "batch": {
+            "source_id": "mintic_fixed_accesses",
+            "retrieved_at_utc": "2025-01-02T03:04:05+00:00",
+            "validation_status": "valid",
+        },
+    }
+    bundle = build_export_bundle(stale_snapshot)
+    csv_rows = list(csv.DictReader(io.StringIO(build_connectivity_csv(stale_snapshot))))
+    assert bundle["snapshot_status"] == "stale_local_snapshot"
+    assert bundle["record_count"] == 0
+    assert bundle["coverage"]["reporting_periods"] == []
+    assert bundle["analysis"]["latest_reporting_period"] is None
+    assert bundle["analysis"]["analysis_status"] == "available"
+    assert len(csv_rows) == 1
+    assert csv_rows[0]["export_record_type"] == "metadata"
+    assert json.loads(csv_rows[0]["metadata_json"])["snapshot_status"] == "stale_local_snapshot"
+
+
+def test_connectivity_exports_handle_missing_normalized_fields_without_claiming_validity():
+    snapshot = {
+        "records": [{"raw": {"proveedor": "Proveedor A"}, "period": "2025-Q1"}],
+        "batch": {"validation_status": "valid"},
+    }
+
+    bundle = build_export_bundle(snapshot)
+    rows = list(csv.DictReader(io.StringIO(build_connectivity_csv(snapshot))))
+    exported = json.loads(build_connectivity_json(snapshot))
+    assert bundle["analysis"]["analysis_status"] == "unavailable_incomplete_normalized_fields"
+    assert bundle["provenance"]["export_validation_status"] == "incomplete_snapshot_records"
+    assert rows[1]["record_validation_status"] == "incomplete_normalized_record"
+    assert exported["processed_records"]["items"][0]["provider"] is None
 
 
 def test_normalization_preserves_decimal_speed_values_and_rejects_fractional_counts():
@@ -235,6 +313,30 @@ def test_dashboard_exposes_official_snapshot_without_synthetic_fallback(tmp_path
     assert any("do not measure" in message.value for message in app_test.warning)
 
 
+def test_dashboard_labels_stale_empty_snapshot_and_keeps_metadata_downloads_available(monkeypatch):
+    from streamlit.testing.v1 import AppTest
+
+    from app import dashboard
+
+    monkeypatch.setattr(
+        dashboard,
+        "load_snapshot",
+        lambda: {
+            "batch": {"source_id": "mintic_fixed_accesses", "validation_status": "valid"},
+            "records": [],
+            "stale": True,
+        },
+    )
+    app_test = AppTest.from_string(
+        "from app.dashboard import _render_real_connectivity\n_render_real_connectivity()\n",
+        default_timeout=30,
+    ).run()
+    assert not app_test.exception
+    assert any("not live data" in item.value for item in app_test.warning)
+    assert any("contains no validated records" in item.value for item in app_test.info)
+    assert len(app_test.get("download_button")) == 2
+
+
 def test_dashboard_refresh_runs_in_background_and_reports_completion(monkeypatch):
     from threading import Event
 
@@ -294,6 +396,10 @@ def test_dashboard_renders_verified_latest_period_not_all_period_sum(tmp_path, m
         for metric in app_test.metric
     )
     assert len(app_test.get("plotly_chart")) == 3
+    assert [button.label for button in app_test.get("download_button")] == [
+        "Download validated records (CSV)",
+        "Download analysis and provenance (JSON)",
+    ]
     assert any(
         "Sum across repeated quarterly rows (not unique subscribers): 17" in caption.value
         for caption in app_test.caption

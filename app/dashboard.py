@@ -34,7 +34,11 @@ from wifi_tunja_smart_predictor.config import (
     SYNTHETIC_DATA_DISCLAIMER,
     TARGET_COLUMN,
 )
-from wifi_tunja_smart_predictor.connectivity.analysis import analyze_tunja
+from wifi_tunja_smart_predictor.connectivity.exports import (
+    build_connectivity_csv,
+    build_connectivity_json,
+    build_export_bundle,
+)
 from wifi_tunja_smart_predictor.connectivity.mintic import load_snapshot, refresh_official_data
 from wifi_tunja_smart_predictor.data.loader import load_raw_dataset
 from wifi_tunja_smart_predictor.exceptions import DatasetNotFoundError, ModelNotFoundError
@@ -2828,19 +2832,60 @@ def _render_real_connectivity() -> None:
             "[Open the official MinTIC dataset](https://www.datos.gov.co/Ciencia-Tecnolog-a-e-Innovaci-n/Accesos-Fijos-a-Internet-por-Proveedor-Departament/hwrp-3su3)"
         )
         return
-    batch = snapshot["batch"]
-    analysis = analyze_tunja(snapshot["records"])
-    if snapshot["stale"]:
+    batch = snapshot.get("batch") or {}
+    export_bundle = build_export_bundle(snapshot)
+    analysis = export_bundle["analysis"]
+    if snapshot.get("stale", False):
         st.warning(
-            "This local snapshot is at least 30 days old; refresh to check for source updates."
+            "This cached snapshot is at least 30 days old; it is not live data. Refresh to check for source updates."
         )
     if snapshot.get("refresh_error"):
         st.warning("The latest refresh failed; the most recent valid snapshot is shown.")
     st.caption(
-        f"Reporting periods: {', '.join(sorted({row['period'] for row in snapshot['records']}))} · "
-        f"Retrieved: {batch['retrieved_at_utc']} · Source updated: {batch['source_updated_at_utc'] or 'not supplied'} · "
-        f"SHA-256: {batch['content_sha256']}"
+        f"Reporting periods: {', '.join(export_bundle['coverage']['reporting_periods']) or 'unavailable'} · "
+        f"Retrieved: {batch.get('retrieved_at_utc') or 'unavailable'} · "
+        f"Source updated: {batch.get('source_updated_at_utc') or 'not supplied'} · "
+        f"SHA-256: {batch.get('content_sha256') or 'unavailable'}"
     )
+    retrieved_date = str(batch.get("retrieved_at_utc") or "undated")[:10]
+    with st.expander("Export official connectivity data"):
+        st.caption(
+            f"{export_bundle['snapshot_status'].replace('_', ' ').title()} · "
+            f"{export_bundle['record_count']:,} records in the local snapshot · "
+            f"{len(export_bundle['coverage']['reporting_periods'])} reporting periods. "
+            "Exports are official real-data records and analysis; they are separate from synthetic model data."
+        )
+        csv_column, json_column = st.columns(2)
+        csv_column.download_button(
+            "Download validated records (CSV)",
+            data=build_connectivity_csv(snapshot),
+            file_name=f"mintic-tunja-connectivity-{retrieved_date}.csv",
+            mime="text/csv",
+            key="download_official_connectivity_csv",
+        )
+        json_column.download_button(
+            "Download analysis and provenance (JSON)",
+            data=build_connectivity_json(snapshot),
+            file_name=f"mintic-tunja-connectivity-{retrieved_date}.json",
+            mime="application/json",
+            key="download_official_connectivity_json",
+        )
+        st.caption(
+            "CSV includes a metadata row, each original source record as JSON, and separate processed fields. "
+            "JSON separates raw records, normalized records, and aggregate analysis. Source bandwidth values "
+            "are kept in Mbps; municipality codes and quarter labels are normalized."
+        )
+    if export_bundle["record_count"] == 0:
+        st.info(
+            "The local snapshot contains no validated records. The downloads include source metadata and empty analysis."
+        )
+        return
+    if analysis["analysis_status"] != "available":
+        st.info(
+            "Aggregate analysis is unavailable because this local snapshot has incomplete normalized fields. "
+            "The export preserves available source records and provenance for inspection."
+        )
+        return
     st.metric(
         f"Reported accesses · {analysis['latest_reporting_period'] or 'no period'}",
         f"{analysis['latest_period_reported_access_total']:,}",

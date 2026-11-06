@@ -46,7 +46,7 @@ class SourceUnavailableError(RuntimeError):
 
 
 def _request_json(url: str, params: dict[str, Any] | None = None) -> Any:
-    headers = {"Accept": "application/json", "User-Agent": "wifi-tunja-smart-predictor/0.7.0"}
+    headers = {"Accept": "application/json", "User-Agent": "wifi-tunja-smart-predictor/0.7.1"}
     app_token = os.getenv("SOCRATA_APP_TOKEN")
     if app_token:
         headers["X-App-Token"] = app_token

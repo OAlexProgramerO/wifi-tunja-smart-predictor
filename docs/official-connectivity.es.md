@@ -1,4 +1,4 @@
-# Datos oficiales de conectividad (V7.0.0)
+# Datos oficiales de conectividad (V7.1.0)
 
 ## Fuente integrada
 
@@ -23,6 +23,12 @@ El dashboard y `GET /connectivity/tunja` muestran conteos de accesos por proveed
 Durante la verificación del 05-11-2026, la consulta oficial de Tunja devolvió 16 926 filas: se aceptaron 15 122 filas únicas y se rechazaron 1 804 duplicados exactos. La instantánea cubrió 2023-T4 a 2026-T2; el último trimestre sumó 58 954 en el campo de accesos de las filas agrupadas aceptadas. No representa personas únicas, usuarios simultáneos, clientes WiFi ni saturación. Los metadatos indicaron actualización de filas a las 2026-10-26T13:59:28Z. Un refresh posterior podría cambiar estos conteos.
 
 No se calcula un puntaje de presión ni de saturación. Más suscripciones no prueban congestión y una banda informada no prueba el rendimiento experimentado. El conjunto no contiene tráfico, utilización, disponibilidad ni verdad de terreno de saturación. Los modelos existentes siguen entrenados solo con datos sintéticos; no se combinan ejemplos sintéticos con esta fuente y ningún modelo predice condiciones reales de red.
+
+## Exportar registros y análisis oficiales (V7.1.0)
+
+El expander **Export official connectivity data** está disponible cuando se puede leer una instantánea local validada. El CSV incluye una fila de metadatos y luego registros aceptados. Cada registro conserva el JSON original de la fuente en `raw_source_record_json` y separa los campos normalizados en columnas `processed_*`. El JSON separa `raw_records`, `processed_records`, `analysis` agregada, metadatos de la fuente y procedencia del lote. Ambos formatos incluyen la distinción entre datos reales y sintéticos, institución, nombre y URL oficial, ID del conjunto, horas de recuperación/actualización, periodos, granularidad municipal, conteos y estado de validación cuando están disponibles.
+
+Los valores crudos se conservan sin cambios dentro del JSON de origen. Los valores procesados normalizan trimestre y códigos DIVIPOLA, limpian texto y convierten las bandas de velocidad informadas a números en Mbps; siguen siendo categorías reportadas, no mediciones de rendimiento por usuario. El análisis conserva la semántica de agregación existente, incluida la identificación de sumas repetidas por trimestre. Las filas normalizadas incompletas se exportan con estado explícito; se omite el análisis agregado si faltan campos necesarios. Las instantáneas vacías aún permiten exportar metadatos y análisis vacío. Sin una instantánea local válida, las descargas no están disponibles hasta completar una actualización. Si una caché supera 30 días, JSON y la fila de metadatos CSV la identifican como `stale_local_snapshot`; las exportaciones describen datos recuperados localmente y nunca afirman que la fuente está conectada en vivo.
 
 ## Otras referencias oficiales revisadas
 

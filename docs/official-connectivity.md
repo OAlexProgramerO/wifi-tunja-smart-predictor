@@ -1,4 +1,4 @@
-# Official Connectivity Data (V7.0.0)
+# Official Connectivity Data (V7.1.0)
 
 ## What is integrated
 
@@ -23,6 +23,12 @@ The dashboard and `GET /connectivity/tunja` report source access-count totals gr
 During release verification on 2026-11-05, the live source query for Tunja returned 16,926 rows: 15,122 unique rows accepted and 1,804 exact duplicates rejected. The snapshot covered 2023-Q4 through 2026-Q2; the latest quarter's source access-count column summed to 58,954 across its accepted grouped rows. This is not a count of unique people, simultaneous users, WiFi clients, or saturation. Source metadata reported a row update at 2026-10-26T13:59:28Z. A later refresh may return different counts.
 
 No connectivity-pressure or saturation score is calculated. An increase in subscriptions does not establish congestion, and a reported speed band does not establish achieved performance. The dataset has no traffic, utilization, availability, or direct saturation ground truth. The existing ML classifiers and regressors remain trained on synthetic data only; no synthetic examples are joined to this official dataset and no model predicts real network conditions.
+
+## Exporting official records and analysis (V7.1.0)
+
+The **Export official connectivity data** expander is available when a validated local snapshot can be read. CSV contains a metadata row followed by accepted records. Each record keeps the original source JSON in `raw_source_record_json` and puts normalized fields in separate `processed_*` columns. The JSON export separates `raw_records`, `processed_records`, aggregate `analysis`, source metadata, and batch provenance. Both exports include real-versus-synthetic classification, source institution/name/URL, dataset ID, retrieval/source-update timestamps, reporting periods, municipality granularity, record counts, and validation state where available.
+
+Raw values are preserved unchanged in the source JSON. Processed values normalize quarter and DIVIPOLA codes, clean text, and convert source speed-band values to numeric Mbps; these bands remain reported categories and are not measurements of user throughput. The analysis keeps the existing aggregation semantics, including marking repeated-quarter sums as such. Incomplete normalized rows are included with an explicit incomplete status; aggregate analysis is withheld if required fields are missing. Empty snapshots still produce metadata and empty analysis exports. If no valid local snapshot exists, downloads are unavailable until a refresh succeeds. A cached snapshot older than 30 days is marked `stale_local_snapshot` in JSON and in the CSV metadata row; exports describe locally retrieved data and never claim a live source connection.
 
 ## Other official references checked
 
