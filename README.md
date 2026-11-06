@@ -9,7 +9,7 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V7.1.0 adds CSV and JSON exports for the validated official MinTIC connectivity snapshot and its analysis. Python package and Docker image: `0.7.1`. Publication is pending validation. See the [official connectivity guide](docs/official-connectivity.md), [V7.0.0 release record](docs/releases/v7.0.0.md), and [release history](docs/release-history.md).
+**Release status:** V7.1.0 is published as [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.1.0), with annotated tag [`v7.1.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.1.0) at `0ff5e340c30076ac472f74c8fba72eb2f40dfdef`. Python package and Docker image: `0.7.1`. See the [official connectivity guide](docs/official-connectivity.md), [validation record](docs/releases/v7.1.0.md), and [release history](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.1.0 adds provenance-rich CSV and JSON exports to the municipality-level Tunja connectivity experience.
 
