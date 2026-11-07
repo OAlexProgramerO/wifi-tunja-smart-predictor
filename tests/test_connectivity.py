@@ -27,6 +27,8 @@ from wifi_tunja_smart_predictor.connectivity.mintic import (
     _fetch_records,
     _metadata,
     _request_json,
+    get_refresh_history,
+    latest_refresh_status,
     load_snapshot,
     refresh_official_data,
 )
@@ -169,7 +171,7 @@ def test_normalization_preserves_decimal_speed_values_and_rejects_fractional_cou
 
 def test_failed_refresh_uses_latest_valid_snapshot_and_marks_failure(tmp_path):
     database = tmp_path / "offline.sqlite3"
-    refresh_official_data(
+    original = refresh_official_data(
         database,
         fetch_records=lambda: [record()],
         fetch_metadata=lambda: {},
@@ -182,6 +184,77 @@ def test_failed_refresh_uses_latest_valid_snapshot_and_marks_failure(tmp_path):
     assert cached["refresh_error"] == "SourceUnavailableError"
     assert cached["records"]
     assert load_snapshot(database)["batch"]["validation_status"] == "valid"
+    assert load_snapshot(database)["batch"]["batch_id"] == original["batch"]["batch_id"]
+    history = get_refresh_history(path=database)
+    assert history["total"] == 2
+    assert history["items"][0]["status"] == "failure"
+    assert history["items"][0]["validation_result"] == "not_run"
+    assert history["items"][1]["status"] == "success"
+    assert cached["refresh_attempt"]["error_summary"] == "SourceUnavailableError"
+    status = latest_refresh_status(database)
+    assert status["latest_attempt"]["status"] == "failure"
+    assert status["snapshot"]["status"] == "cached_local"
+    assert status["snapshot"]["is_live"] is False
+
+
+def test_invalid_refresh_is_recorded_and_preserves_previous_success(tmp_path):
+    database = tmp_path / "invalid-attempt.sqlite3"
+    original = refresh_official_data(
+        database,
+        fetch_records=lambda: [record()],
+        fetch_metadata=lambda: {},
+    )
+    failed = refresh_official_data(
+        database,
+        fetch_records=lambda: [record(trimestre="5")],
+        fetch_metadata=lambda: {},
+    )
+
+    assert failed["refresh_error"] == "ValueError"
+    assert failed["refresh_attempt"]["status"] == "failure"
+    assert failed["refresh_attempt"]["records_retrieved"] == 1
+    assert failed["refresh_attempt"]["validation_result"] == "invalid"
+    assert load_snapshot(database)["batch"]["batch_id"] == original["batch"]["batch_id"]
+    latest = latest_refresh_status(database)
+    assert latest["latest_attempt"]["status"] == "failure"
+    assert latest["latest_successful_attempt"]["snapshot_batch_id"] == original["batch"]["batch_id"]
+
+
+def test_failed_first_refresh_is_recorded_without_replacing_data(tmp_path):
+    database = tmp_path / "first-failure.sqlite3"
+
+    def unavailable():
+        raise SourceUnavailableError("offline")
+
+    with pytest.raises(SourceUnavailableError):
+        refresh_official_data(database, fetch_records=unavailable, fetch_metadata=lambda: {})
+
+    history = get_refresh_history(path=database)
+    assert history["total"] == 1
+    assert history["items"][0]["status"] == "failure"
+    assert history["items"][0]["records_retrieved"] is None
+    assert latest_refresh_status(database)["snapshot"]["status"] == "unavailable"
+
+
+def test_refresh_history_paginates_newest_first(tmp_path):
+    database = tmp_path / "pages.sqlite3"
+    for quarter in (1, 2, 3):
+        refresh_official_data(
+            database,
+            fetch_records=lambda quarter=quarter: [record(trimestre=str(quarter))],
+            fetch_metadata=lambda: {},
+        )
+
+    first = get_refresh_history(limit=2, offset=0, path=database)
+    second = get_refresh_history(limit=2, offset=2, path=database)
+    assert first["total"] == 3
+    assert len(first["items"]) == 2
+    assert len(second["items"]) == 1
+    assert [item["reporting_period"] for item in first["items"]] == ["2025-Q3", "2025-Q2"]
+    assert second["items"][0]["reporting_period"] == "2025-Q1"
+    assert all(item["status"] == "success" for item in first["items"] + second["items"])
+    assert all(item["records_retrieved"] == 1 for item in first["items"] + second["items"])
+    assert all(item["validation_result"] == "valid" for item in first["items"] + second["items"])
 
 
 def test_unchanged_source_update_skips_full_data_download(tmp_path):
@@ -300,6 +373,49 @@ def test_connectivity_api_exposes_tunja_analysis_from_snapshot(tmp_path, monkeyp
     assert payload["provenance"]["transformation_version"] == "mintic-tunja-fixed-access-v1"
 
 
+def test_connectivity_refresh_api_exposes_latest_and_paginated_history(tmp_path, monkeypatch):
+    database = tmp_path / "refresh-api.sqlite3"
+    monkeypatch.setenv("OFFICIAL_DATA_DB_PATH", str(database))
+    refresh_official_data(
+        database,
+        fetch_records=lambda: [record()],
+        fetch_metadata=lambda: {},
+    )
+
+    client = TestClient(app)
+    latest = client.get("/connectivity/refresh/latest")
+    history = client.get("/connectivity/refresh/history?limit=1&offset=0")
+    assert latest.status_code == 200
+    assert latest.json()["latest_attempt"]["status"] == "success"
+    assert latest.json()["snapshot"]["status"] == "cached_local"
+    assert latest.json()["snapshot"]["is_live"] is False
+    assert history.status_code == 200
+    assert history.json()["total"] == 1
+    assert history.json()["items"][0]["reporting_period"] == "2025-Q1"
+    assert client.get("/connectivity/refresh/history?limit=101").status_code == 422
+
+
+def test_refresh_status_marks_stale_snapshot_as_cached_not_live(tmp_path):
+    database = tmp_path / "stale-refresh.sqlite3"
+    snapshot = refresh_official_data(
+        database,
+        fetch_records=lambda: [record()],
+        fetch_metadata=lambda: {},
+    )
+    stale_time = (datetime.now(UTC) - timedelta(days=31)).isoformat()
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE connectivity_batches SET retrieved_at_utc = ? WHERE batch_id = ?",
+            (stale_time, snapshot["batch"]["batch_id"]),
+        )
+
+    status = latest_refresh_status(database)
+    assert status["latest_attempt"]["status"] == "success"
+    assert status["snapshot"]["status"] == "stale_cached"
+    assert status["snapshot"]["stale"] is True
+    assert status["snapshot"]["is_live"] is False
+
+
 def test_dashboard_exposes_official_snapshot_without_synthetic_fallback(tmp_path, monkeypatch):
     from streamlit.testing.v1 import AppTest
 
@@ -335,6 +451,38 @@ def test_dashboard_labels_stale_empty_snapshot_and_keeps_metadata_downloads_avai
     assert any("not live data" in item.value for item in app_test.warning)
     assert any("contains no validated records" in item.value for item in app_test.info)
     assert len(app_test.get("download_button")) == 2
+
+
+def test_dashboard_shows_refresh_error_separately_from_stale_cached_data(tmp_path, monkeypatch):
+    from streamlit.testing.v1 import AppTest
+
+    database = tmp_path / "dashboard-refresh.sqlite3"
+    monkeypatch.setenv("OFFICIAL_DATA_DB_PATH", str(database))
+    snapshot = refresh_official_data(
+        database,
+        fetch_records=lambda: [record()],
+        fetch_metadata=lambda: {},
+    )
+
+    def offline():
+        raise SourceUnavailableError("offline")
+
+    refresh_official_data(database, fetch_records=lambda: [], fetch_metadata=offline)
+    stale_time = (datetime.now(UTC) - timedelta(days=31)).isoformat()
+    with sqlite3.connect(database) as connection:
+        connection.execute(
+            "UPDATE connectivity_batches SET retrieved_at_utc = ? WHERE batch_id = ?",
+            (stale_time, snapshot["batch"]["batch_id"]),
+        )
+    app_test = AppTest.from_string(
+        "from app.dashboard import _render_real_connectivity\n_render_real_connectivity()\n",
+        default_timeout=30,
+    ).run()
+    assert not app_test.exception
+    assert any("not live data" in item.value for item in app_test.warning)
+    assert any(
+        "Latest refresh error: SourceUnavailableError" in item.value for item in app_test.error
+    )
 
 
 def test_dashboard_refresh_runs_in_background_and_reports_completion(monkeypatch):

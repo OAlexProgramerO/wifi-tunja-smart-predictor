@@ -1,4 +1,4 @@
-# Official Connectivity Data (V7.1.0)
+# Official Connectivity Data (V7.2.0)
 
 ## What is integrated
 
@@ -29,6 +29,12 @@ No connectivity-pressure or saturation score is calculated. An increase in subsc
 The **Export official connectivity data** expander is available when a validated local snapshot can be read. CSV contains a metadata row followed by accepted records. Each record keeps the original source JSON in `raw_source_record_json` and puts normalized fields in separate `processed_*` columns. The JSON export separates `raw_records`, `processed_records`, aggregate `analysis`, source metadata, and batch provenance. Both exports include real-versus-synthetic classification, source institution/name/URL, dataset ID, retrieval/source-update timestamps, reporting periods, municipality granularity, record counts, and validation state where available.
 
 Raw values are preserved unchanged in the source JSON. Processed values normalize quarter and DIVIPOLA codes, clean text, and convert source speed-band values to numeric Mbps; these bands remain reported categories and are not measurements of user throughput. The analysis keeps the existing aggregation semantics, including marking repeated-quarter sums as such. Incomplete normalized rows are included with an explicit incomplete status; aggregate analysis is withheld if required fields are missing. Empty snapshots still produce metadata and empty analysis exports. If no valid local snapshot exists, downloads are unavailable until a refresh succeeds. A cached snapshot older than 30 days is marked `stale_local_snapshot` in JSON and in the CSV metadata row; exports describe locally retrieved data and never claim a live source connection.
+
+## Refresh history (V7.2.0)
+
+Every refresh attempt is appended to `connectivity_refresh_attempts` in the same local SQLite database. A successful snapshot and its success-history row are committed together. Failures store a sanitized error type and any known retrieved row count/reporting period; the last valid snapshot remains intact. A source check that confirms unchanged data is a successful attempt with validation result `unchanged_source` and zero newly retrieved rows.
+
+`GET /connectivity/refresh/latest` separates the latest attempt and latest successful attempt from the snapshot currently available locally. `GET /connectivity/refresh/history?limit=20&offset=0` provides newest-first pages, with a maximum page size of 100. The dashboard presents attempt errors separately from the data cache. Snapshot labels are `cached_local`, `stale_cached`, or `unavailable`; “cached” means the data were read from local persistence, not that the source was just contacted. A snapshot older than 30 days is marked stale. Older SQLite files without the history table remain readable; until a refresh attempt creates the table, the history endpoint returns an empty page while still reporting snapshot availability.
 
 ## Other official references checked
 

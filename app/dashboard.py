@@ -39,7 +39,12 @@ from wifi_tunja_smart_predictor.connectivity.exports import (
     build_connectivity_json,
     build_export_bundle,
 )
-from wifi_tunja_smart_predictor.connectivity.mintic import load_snapshot, refresh_official_data
+from wifi_tunja_smart_predictor.connectivity.mintic import (
+    get_refresh_history,
+    latest_refresh_status,
+    load_snapshot,
+    refresh_official_data,
+)
 from wifi_tunja_smart_predictor.data.loader import load_raw_dataset
 from wifi_tunja_smart_predictor.exceptions import DatasetNotFoundError, ModelNotFoundError
 from wifi_tunja_smart_predictor.reporting.service import (
@@ -97,6 +102,98 @@ def _render_official_connectivity_refresh_progress() -> None:
     st.session_state[OFFICIAL_CONNECTIVITY_REFRESH_RESULT_KEY] = future.result()
     st.session_state[OFFICIAL_CONNECTIVITY_REFRESH_FUTURE_KEY] = None
     st.rerun()
+
+
+def _render_official_refresh_history() -> None:
+    """Show refresh attempts independently from cached snapshot freshness."""
+    try:
+        status = latest_refresh_status()
+        offset = st.session_state.get("official_refresh_history_offset", 0)
+        history = get_refresh_history(limit=10, offset=offset)
+    except Exception as exc:
+        st.error(f"Official refresh history is unavailable ({type(exc).__name__}).")
+        return
+    maximum_offset = max(0, ((history["total"] - 1) // 10) * 10)
+    if offset > maximum_offset:
+        offset = maximum_offset
+        st.session_state["official_refresh_history_offset"] = offset
+        history = get_refresh_history(limit=10, offset=offset)
+
+    with st.expander("Official data refresh history"):
+        snapshot = status["snapshot"]
+        if snapshot["available"]:
+            st.caption(
+                f"Last available snapshot: {snapshot['retrieved_at_utc']} · "
+                f"Reporting period: {snapshot['reporting_period'] or 'not recorded'} · "
+                "Data are served from local cache, not a live connection."
+            )
+            if snapshot["stale"]:
+                st.warning("The available local snapshot is stale; it is not live data.")
+            else:
+                st.info(
+                    "A locally cached snapshot is available; source status changes only when refreshed."
+                )
+        else:
+            st.info("No validated local MinTIC snapshot is currently available.")
+
+        latest = status["latest_attempt"]
+        if latest:
+            st.markdown(f"**Latest refresh attempt: {latest['status'].title()}**")
+            st.caption(
+                f"Attempted: {latest['attempted_at_utc']} · Source: {latest['source_id']} · "
+                f"Records retrieved: {latest['records_retrieved'] if latest['records_retrieved'] is not None else 'unknown'} · "
+                f"Reporting period: {latest['reporting_period'] or 'unavailable'} · "
+                f"Validation: {latest['validation_result']}"
+            )
+            if latest["status"] == "failure":
+                st.error(
+                    f"Latest refresh error: {latest['error_summary'] or 'details unavailable'}"
+                )
+        else:
+            st.caption("No refresh attempts have been recorded yet.")
+
+        if history["items"]:
+            st.dataframe(
+                pd.DataFrame(history["items"])[
+                    [
+                        "attempted_at_utc",
+                        "source_id",
+                        "status",
+                        "records_retrieved",
+                        "reporting_period",
+                        "validation_result",
+                        "error_summary",
+                    ]
+                ],
+                hide_index=True,
+                width="stretch",
+                alt="Paginated history of official MinTIC refresh attempts, separate from the cached snapshot status.",
+            )
+            previous, page, next_page = st.columns([1, 2, 1])
+            previous.button(
+                "Previous",
+                key="previous_official_refresh_history",
+                disabled=offset == 0,
+                on_click=lambda: st.session_state.update(
+                    official_refresh_history_offset=max(
+                        0, st.session_state.get("official_refresh_history_offset", 0) - 10
+                    )
+                ),
+            )
+            page.caption(
+                f"Showing {offset + 1}–{offset + len(history['items'])} of {history['total']}"
+            )
+            next_page.button(
+                "Next",
+                key="next_official_refresh_history",
+                disabled=offset + 10 >= history["total"],
+                on_click=lambda: st.session_state.update(
+                    official_refresh_history_offset=st.session_state.get(
+                        "official_refresh_history_offset", 0
+                    )
+                    + 10
+                ),
+            )
 
 
 def _clear_experiment_history_filters() -> None:
@@ -2818,6 +2915,7 @@ def _render_real_connectivity() -> None:
             st.success("Official snapshot retrieved and validated.")
         st.session_state[OFFICIAL_CONNECTIVITY_REFRESH_RESULT_KEY] = None
     _render_official_connectivity_refresh_progress()
+    _render_official_refresh_history()
     try:
         snapshot = load_snapshot()
     except Exception as exc:

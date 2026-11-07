@@ -5,10 +5,15 @@ from __future__ import annotations
 import json
 import sqlite3
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 
 from wifi_tunja_smart_predictor.connectivity.analysis import analyze_tunja
-from wifi_tunja_smart_predictor.connectivity.mintic import SourceUnavailableError, load_snapshot
+from wifi_tunja_smart_predictor.connectivity.mintic import (
+    SourceUnavailableError,
+    get_refresh_history,
+    latest_refresh_status,
+    load_snapshot,
+)
 from wifi_tunja_smart_predictor.connectivity.sources import source_registry
 
 router = APIRouter(prefix="/connectivity", tags=["official-connectivity"])
@@ -76,3 +81,28 @@ def tunja_connectivity() -> dict:
         "refresh_error": "last_refresh_failed" if snapshot.get("refresh_error") else None,
         "saturation_ground_truth_available": False,
     }
+
+
+@router.get("/refresh/latest")
+def connectivity_refresh_latest() -> dict:
+    """Report latest refresh attempt separately from the locally cached snapshot."""
+    try:
+        return latest_refresh_status()
+    except (OSError, sqlite3.DatabaseError) as exc:
+        raise HTTPException(
+            status_code=503, detail="Connectivity refresh history is unavailable."
+        ) from exc
+
+
+@router.get("/refresh/history")
+def connectivity_refresh_history(
+    limit: int = Query(default=20, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+) -> dict:
+    """Return paginated refresh-attempt history, newest first."""
+    try:
+        return get_refresh_history(limit=limit, offset=offset)
+    except (OSError, sqlite3.DatabaseError) as exc:
+        raise HTTPException(
+            status_code=503, detail="Connectivity refresh history is unavailable."
+        ) from exc

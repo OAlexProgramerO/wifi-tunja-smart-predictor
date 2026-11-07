@@ -72,12 +72,14 @@ Start with `uvicorn assistant_api.main:app --reload --port 8001`; OpenAPI is at 
 
 See [Assistant](assistant.md), [Scenario Prediction](scenario_prediction.md), and [Limitations](limitations.md) for behavior and interpretation.
 
-## Official connectivity (V7.0.0)
+## Official connectivity (V7.2.0)
 
 - `GET /connectivity/sources` returns registered official sources and their integration status.
 - `GET /connectivity/tunja` returns the latest valid locally stored MinTIC snapshot's municipal analysis, freshness, period, and provenance. It returns 503 when no valid snapshot exists.
+- `GET /connectivity/refresh/latest` returns the latest attempt, latest successful attempt, and local snapshot state as separate fields. Snapshot state is always labeled `cached_local`, `stale_cached`, or `unavailable`; it is never a live-data claim.
+- `GET /connectivity/refresh/history?limit=20&offset=0` returns newest-first refresh attempts with total count and offset pagination (`limit` 1–100, `offset` 0 or greater). Each row includes timestamp, source, success/failure, retrieved row count when known, reporting period, validation result, sanitized error type, and associated snapshot batch ID.
 - Refresh is controlled by running `python scripts/refresh_official_data.py`; no public mutation endpoint was added.
 
-Only MinTIC fixed-access records from `hwrp-3su3` are integrated. See [official connectivity data](official-connectivity.md) for source methodology, limitations, and synthetic/real separation.
+Only MinTIC fixed-access records from `hwrp-3su3` are integrated. Refresh attempts are stored in an additive table in the existing local SQLite snapshot database; legacy databases without history return an empty history until a refresh is attempted. A failed refresh preserves the last valid snapshot. See [official connectivity data](official-connectivity.md) for source methodology, limitations, and synthetic/real separation.
 
 Both FastAPI applications reject request bodies larger than their documented service limit (256 KiB for the main API and 64 KiB for the assistant API), return sanitized validation errors, and add `X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`, and `Permissions-Policy`. CORS allows the local Streamlit origins by default; set `CORS_ALLOWED_ORIGINS` to a comma-separated list of explicit browser origins for another deployment. Credentials are disabled. See [Security](security.md) for the baseline and its limitations.

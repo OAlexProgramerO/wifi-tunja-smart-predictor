@@ -1,4 +1,4 @@
-# Datos oficiales de conectividad (V7.1.0)
+# Datos oficiales de conectividad (V7.2.0)
 
 ## Fuente integrada
 
@@ -29,6 +29,12 @@ No se calcula un puntaje de presión ni de saturación. Más suscripciones no pr
 El expander **Export official connectivity data** está disponible cuando se puede leer una instantánea local validada. El CSV incluye una fila de metadatos y luego registros aceptados. Cada registro conserva el JSON original de la fuente en `raw_source_record_json` y separa los campos normalizados en columnas `processed_*`. El JSON separa `raw_records`, `processed_records`, `analysis` agregada, metadatos de la fuente y procedencia del lote. Ambos formatos incluyen la distinción entre datos reales y sintéticos, institución, nombre y URL oficial, ID del conjunto, horas de recuperación/actualización, periodos, granularidad municipal, conteos y estado de validación cuando están disponibles.
 
 Los valores crudos se conservan sin cambios dentro del JSON de origen. Los valores procesados normalizan trimestre y códigos DIVIPOLA, limpian texto y convierten las bandas de velocidad informadas a números en Mbps; siguen siendo categorías reportadas, no mediciones de rendimiento por usuario. El análisis conserva la semántica de agregación existente, incluida la identificación de sumas repetidas por trimestre. Las filas normalizadas incompletas se exportan con estado explícito; se omite el análisis agregado si faltan campos necesarios. Las instantáneas vacías aún permiten exportar metadatos y análisis vacío. Sin una instantánea local válida, las descargas no están disponibles hasta completar una actualización. Si una caché supera 30 días, JSON y la fila de metadatos CSV la identifican como `stale_local_snapshot`; las exportaciones describen datos recuperados localmente y nunca afirman que la fuente está conectada en vivo.
+
+## Historial de actualizaciones (V7.2.0)
+
+Cada intento se agrega a `connectivity_refresh_attempts` en la misma base SQLite local. El snapshot exitoso y su fila de historial se confirman en una misma transacción. Los fallos guardan un tipo de error sanitizado y el conteo/periodo recuperados cuando se conocen; la instantánea válida anterior se conserva. Una consulta que confirma que la fuente no cambió cuenta como intento exitoso, con validación `unchanged_source` y cero filas nuevas descargadas.
+
+`GET /connectivity/refresh/latest` separa el último intento y el último intento exitoso de la instantánea disponible localmente. `GET /connectivity/refresh/history?limit=20&offset=0` pagina en orden descendente, con máximo de 100 filas por página. El dashboard muestra los errores del intento por separado del estado de caché. Los estados posibles son `cached_local`, `stale_cached` o `unavailable`; “cached” significa que los datos se leyeron del almacenamiento local, no que se haya consultado la fuente en ese momento. Una instantánea de más de 30 días se marca obsoleta. Las bases SQLite anteriores sin la tabla de historial siguen siendo legibles; antes de la primera actualización, la API devuelve historial vacío e informa por separado si hay una instantánea disponible.
 
 ## Otras referencias oficiales revisadas
 

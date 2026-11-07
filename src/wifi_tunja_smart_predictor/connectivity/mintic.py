@@ -20,6 +20,7 @@ import requests
 
 LOGGER = logging.getLogger(__name__)
 SOURCE_ID = "mintic_fixed_accesses"
+REFRESH_HISTORY_TABLE = "connectivity_refresh_attempts"
 DATASET_ID = "hwrp-3su3"
 API_URL = f"https://www.datos.gov.co/resource/{DATASET_ID}.json"
 METADATA_URL = f"https://www.datos.gov.co/api/views/{DATASET_ID}.json"
@@ -46,7 +47,7 @@ class SourceUnavailableError(RuntimeError):
 
 
 def _request_json(url: str, params: dict[str, Any] | None = None) -> Any:
-    headers = {"Accept": "application/json", "User-Agent": "wifi-tunja-smart-predictor/0.7.1"}
+    headers = {"Accept": "application/json", "User-Agent": "wifi-tunja-smart-predictor/0.7.2"}
     app_token = os.getenv("SOCRATA_APP_TOKEN")
     if app_token:
         headers["X-App-Token"] = app_token
@@ -174,10 +175,15 @@ def load_snapshot(path: Path | None = None) -> dict[str, Any] | None:
         return None
     with sqlite3.connect(database) as connection:
         connection.row_factory = sqlite3.Row
-        batch = connection.execute(
-            "SELECT * FROM connectivity_batches WHERE source_id = ? AND status = 'valid' ORDER BY retrieved_at_utc DESC LIMIT 1",
-            (SOURCE_ID,),
-        ).fetchone()
+        try:
+            batch = connection.execute(
+                "SELECT * FROM connectivity_batches WHERE source_id = ? AND status = 'valid' ORDER BY retrieved_at_utc DESC LIMIT 1",
+                (SOURCE_ID,),
+            ).fetchone()
+        except sqlite3.OperationalError as exc:
+            if "no such table" in str(exc).lower():
+                return None
+            raise
         if batch is None:
             return None
         records = [
@@ -194,6 +200,143 @@ def load_snapshot(path: Path | None = None) -> dict[str, Any] | None:
     }
 
 
+def _create_refresh_history_table(database: Path) -> None:
+    database.parent.mkdir(parents=True, exist_ok=True)
+    with sqlite3.connect(database, timeout=10) as connection:
+        connection.execute(f"""CREATE TABLE IF NOT EXISTS {REFRESH_HISTORY_TABLE} (
+                refresh_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                attempted_at_utc TEXT NOT NULL,
+                source_id TEXT NOT NULL,
+                status TEXT NOT NULL CHECK (status IN ('success', 'failure')),
+                records_retrieved INTEGER,
+                reporting_period TEXT,
+                validation_result TEXT NOT NULL,
+                error_summary TEXT,
+                snapshot_batch_id TEXT
+            )""")
+
+
+def _insert_refresh_attempt(
+    connection: sqlite3.Connection,
+    *,
+    attempted_at_utc: str,
+    status: str,
+    records_retrieved: int | None,
+    reporting_period: str | None,
+    validation_result: str,
+    error_summary: str | None = None,
+    snapshot_batch_id: str | None = None,
+) -> dict[str, Any]:
+    cursor = connection.execute(
+        f"""INSERT INTO {REFRESH_HISTORY_TABLE} (
+            attempted_at_utc, source_id, status, records_retrieved, reporting_period,
+            validation_result, error_summary, snapshot_batch_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            attempted_at_utc,
+            SOURCE_ID,
+            status,
+            records_retrieved,
+            reporting_period,
+            validation_result,
+            error_summary,
+            snapshot_batch_id,
+        ),
+    )
+    return {
+        "refresh_id": cursor.lastrowid,
+        "attempted_at_utc": attempted_at_utc,
+        "source_id": SOURCE_ID,
+        "status": status,
+        "records_retrieved": records_retrieved,
+        "reporting_period": reporting_period,
+        "validation_result": validation_result,
+        "error_summary": error_summary,
+        "snapshot_batch_id": snapshot_batch_id,
+    }
+
+
+def get_refresh_history(
+    limit: int = 20, offset: int = 0, path: Path | None = None
+) -> dict[str, Any]:
+    """Return newest refresh attempts with offset pagination."""
+    if not 1 <= limit <= 100 or offset < 0:
+        raise ValueError("limit must be between 1 and 100 and offset must not be negative")
+    database = _database_path(path)
+    if not database.is_file():
+        return {"items": [], "total": 0, "limit": limit, "offset": offset}
+    try:
+        with sqlite3.connect(database) as connection:
+            connection.row_factory = sqlite3.Row
+            total = connection.execute(f"SELECT COUNT(*) FROM {REFRESH_HISTORY_TABLE}").fetchone()[
+                0
+            ]
+            rows = connection.execute(
+                f"SELECT * FROM {REFRESH_HISTORY_TABLE} "
+                "ORDER BY attempted_at_utc DESC, refresh_id DESC LIMIT ? OFFSET ?",
+                (limit, offset),
+            ).fetchall()
+    except sqlite3.OperationalError as exc:
+        if "no such table" in str(exc).lower():
+            return {"items": [], "total": 0, "limit": limit, "offset": offset}
+        raise
+    return {"items": [dict(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+
+
+def latest_refresh_status(path: Path | None = None) -> dict[str, Any]:
+    """Summarize the latest attempt separately from the locally served snapshot."""
+    database = _database_path(path)
+    try:
+        snapshot = load_snapshot(database)
+    except (OSError, ValueError, sqlite3.DatabaseError):
+        snapshot = None
+    history = get_refresh_history(limit=100, offset=0, path=database)
+    latest_attempt = history["items"][0] if history["items"] else None
+    latest_success = next((item for item in history["items"] if item["status"] == "success"), None)
+    if latest_success is None and history["total"] > len(history["items"]):
+        try:
+            with sqlite3.connect(database) as connection:
+                connection.row_factory = sqlite3.Row
+                row = connection.execute(
+                    f"SELECT * FROM {REFRESH_HISTORY_TABLE} WHERE status = 'success' "
+                    "ORDER BY attempted_at_utc DESC, refresh_id DESC LIMIT 1"
+                ).fetchone()
+            latest_success = dict(row) if row else None
+        except sqlite3.OperationalError as exc:
+            if "no such table" not in str(exc).lower():
+                raise
+    if snapshot:
+        periods = [
+            record.get("period")
+            for record in snapshot["records"]
+            if isinstance(record, dict) and record.get("period")
+        ]
+        snapshot_state = {
+            "available": True,
+            "status": "stale_cached" if snapshot["stale"] else "cached_local",
+            "is_live": False,
+            "stale": snapshot["stale"],
+            "retrieved_at_utc": snapshot["batch"]["retrieved_at_utc"],
+            "reporting_period": max(periods) if periods else None,
+            "snapshot_batch_id": snapshot["batch"]["batch_id"],
+        }
+    else:
+        snapshot_state = {
+            "available": False,
+            "status": "unavailable",
+            "is_live": False,
+            "stale": None,
+            "retrieved_at_utc": None,
+            "reporting_period": None,
+            "snapshot_batch_id": None,
+        }
+    return {
+        "latest_attempt": latest_attempt,
+        "latest_successful_attempt": latest_success,
+        "snapshot": snapshot_state,
+    }
+
+
 def refresh_official_data(
     path: Path | None = None,
     *,
@@ -204,7 +347,11 @@ def refresh_official_data(
     database = _database_path(path)
     database.parent.mkdir(parents=True, exist_ok=True)
     retrieved_at = datetime.now(UTC).isoformat()
+    records_retrieved: int | None = None
+    reporting_period: str | None = None
+    validation_result = "not_run"
     try:
+        _create_refresh_history_table(database)
         metadata = fetch_metadata()
         cached = load_snapshot(database)
         source_update = metadata.get("source_updated_at_utc")
@@ -220,11 +367,35 @@ def refresh_official_data(
                         (cached["batch"]["batch_id"],),
                     ).fetchone()[0]
                 if raw_count == cached["batch"]["retrieved_count"]:
-                    return {**cached, "unchanged_source": True, "checked_at_utc": retrieved_at}
+                    periods = [
+                        record.get("period")
+                        for record in cached["records"]
+                        if isinstance(record, dict) and record.get("period")
+                    ]
+                    reporting_period = max(periods) if periods else None
+                    with sqlite3.connect(database, timeout=10) as connection:
+                        attempt = _insert_refresh_attempt(
+                            connection,
+                            attempted_at_utc=retrieved_at,
+                            status="success",
+                            records_retrieved=0,
+                            reporting_period=reporting_period,
+                            validation_result="unchanged_source",
+                            snapshot_batch_id=cached["batch"]["batch_id"],
+                        )
+                    return {
+                        **cached,
+                        "unchanged_source": True,
+                        "checked_at_utc": retrieved_at,
+                        "refresh_attempt": attempt,
+                    }
             except sqlite3.DatabaseError:
                 pass
         raw_records = fetch_records()
+        records_retrieved = len(raw_records)
+        validation_result = "in_progress"
         if not raw_records:
+            validation_result = "invalid"
             raise ValueError("The source returned no records; existing snapshot was kept.")
         normalized: list[dict[str, Any]] = []
         rejected = 0
@@ -244,7 +415,10 @@ def refresh_official_data(
                 reason = "record_outside_tunja" if str(exc) == "record_outside_tunja" else str(exc)
                 rejection_reasons[reason] += 1
         if not normalized:
+            validation_result = "invalid"
             raise ValueError("No valid Tunja records found; existing snapshot was kept.")
+        reporting_period = max(record["period"] for record in normalized)
+        validation_result = "valid"
         raw_bytes = json.dumps(raw_records, sort_keys=True, ensure_ascii=False).encode("utf-8")
         fingerprint = hashlib.sha256(raw_bytes).hexdigest()
         source_query = urlencode({"$where": f"codigo_dane_municipio = '{TUNJA_DANE_CODE}'"})
@@ -307,6 +481,15 @@ def refresh_official_data(
                         json.dumps(record, sort_keys=True, ensure_ascii=False),
                     ),
                 )
+            attempt = _insert_refresh_attempt(
+                connection,
+                attempted_at_utc=retrieved_at,
+                status="success",
+                records_retrieved=records_retrieved,
+                reporting_period=reporting_period,
+                validation_result=validation_result,
+                snapshot_batch_id=batch_id,
+            )
             connection.commit()
         except Exception:
             connection.rollback()
@@ -320,14 +503,38 @@ def refresh_official_data(
             len(normalized),
             rejected,
         )
-        return load_snapshot(database) or {}
+        return {**(load_snapshot(database) or {}), "refresh_attempt": attempt}
     except Exception as exc:
         cached = load_snapshot(database)
+        if validation_result == "in_progress":
+            validation_result = "invalid"
+        elif validation_result == "not_run" and isinstance(exc, (TypeError, ValueError)):
+            validation_result = "invalid"
+        try:
+            _create_refresh_history_table(database)
+            with sqlite3.connect(database, timeout=10) as connection:
+                attempt = _insert_refresh_attempt(
+                    connection,
+                    attempted_at_utc=retrieved_at,
+                    status="failure",
+                    records_retrieved=records_retrieved,
+                    reporting_period=reporting_period,
+                    validation_result=validation_result,
+                    error_summary=type(exc).__name__,
+                    snapshot_batch_id=(cached["batch"]["batch_id"] if cached else None),
+                )
+        except sqlite3.DatabaseError:
+            LOGGER.exception("Could not store official refresh failure history.")
+            attempt = None
         if cached:
             LOGGER.warning(
                 "MinTIC refresh failed; retaining valid local snapshot (%s)", type(exc).__name__
             )
-            return {**cached, "refresh_error": type(exc).__name__}
+            return {
+                **cached,
+                "refresh_error": type(exc).__name__,
+                "refresh_attempt": attempt,
+            }
         if isinstance(exc, (SourceUnavailableError, requests.RequestException)):
             raise SourceUnavailableError(
                 "MinTIC refresh failed and no valid local snapshot exists."

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — V7.2.0 Official Data Refresh History
+
+Records every MinTIC refresh attempt in the existing SQLite database, including status, source, retrieved row count when known, latest reporting period, validation result, sanitized error type, and snapshot batch. Adds latest-status and paginated-history read-only routes and a dashboard history view that distinguishes the refresh attempt from locally cached or stale data. Failed attempts do not replace the prior successful snapshot. No synthetic ML behavior changes.
+
+Registra cada intento de actualización MinTIC en la base SQLite existente, con estado, fuente, filas recuperadas cuando se conocen, último periodo informado, resultado de validación, tipo de error sanitizado y lote asociado. Agrega rutas de solo lectura para el último estado y el historial paginado, además de una vista en el dashboard que distingue el intento de los datos locales en caché u obsoletos. Los fallos no reemplazan la última instantánea válida. No cambia el comportamiento de ML sintético.
+
 ## V7.1.0 — Official Connectivity Data Exports — released 2026-11-06
 
 Adds CSV export of accepted official MinTIC records and JSON export of separated raw/processed records, aggregate analysis, and source/batch provenance from the existing validated local snapshot. Exports include source metadata, reporting periods, municipality granularity, validation and cache freshness status when available; stale cached data are explicitly identified and never presented as live. Missing or incomplete normalized fields remain visible with an incomplete status, while unavailable aggregate analysis is withheld. No model behavior, API contract, or synthetic workflow changes. Product V7.1.0 maps to Python package and Docker image `0.7.1`. Annotated tag [`v7.1.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.1.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.1.0) target `0ff5e340c30076ac472f74c8fba72eb2f40dfdef`. Pytest, Ruff, Black, compileall, Compose configuration, and `git diff --check` passed locally. See the [V7.1.0 validation record](docs/releases/v7.1.0.md).

@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V7.1.0
+# WiFi Tunja Smart Predictor — V7.2.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,9 +9,9 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V7.1.0 is published as [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.1.0), with annotated tag [`v7.1.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.1.0) at `0ff5e340c30076ac472f74c8fba72eb2f40dfdef`. Python package and Docker image: `0.7.1`. See the [official connectivity guide](docs/official-connectivity.md), [validation record](docs/releases/v7.1.0.md), and [release history](docs/release-history.md).
+**Release status:** V7.2.0 adds an auditable refresh-attempt history for official MinTIC connectivity data. Python package and Docker image: `0.7.2`. Publication is pending validation. See the [official connectivity guide](docs/official-connectivity.md), [API reference](docs/api.md), and [release history](docs/release-history.md).
 
-WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.1.0 adds provenance-rich CSV and JSON exports to the municipality-level Tunja connectivity experience.
+WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.2.0 adds transparent history for official data refresh attempts and local snapshot status.
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 
@@ -37,7 +37,7 @@ On its first run, the `runtime-init` service creates the synthetic dataset, trai
 
 The V5.3.0 verification record includes passing remote Docker build/startup, HTTP smoke, and persistence checks; this local machine did not have a running Docker engine. See the [V5.3.0 validation record](docs/releases/v5.3.0.md) for observed results and audit scope.
 
-V7.0.0 adds the optional official-data snapshot on a dedicated Compose volume. Refresh from the running dashboard container with `docker compose exec dashboard python scripts/refresh_official_data.py`; the main API reads that persisted snapshot and Compose restarts preserve it. V7.1.0 lets users download accepted records as CSV and the raw/processed data, analysis, and provenance as JSON. Cached snapshots are labeled with their retrieval time and stale status; exports never describe cached data as live.
+V7.0.0 adds the optional official-data snapshot on a dedicated Compose volume. Refresh from the running dashboard container with `docker compose exec dashboard python scripts/refresh_official_data.py`; the main API reads that persisted snapshot and Compose restarts preserve it. V7.1.0 added CSV/JSON exports. V7.2.0 records every attempt and shows attempt status separately from the last successful snapshot, identifying cached and stale data rather than calling them live.
 
 ## 1. Project overview
 
