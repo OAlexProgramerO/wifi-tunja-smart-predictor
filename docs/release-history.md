@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V7.2.0 — Official Data Refresh History — released 2026-11-07
+
+Adds append-only refresh attempt tracking for the official MinTIC snapshot, read-only latest-status and paginated-history API routes, and a dashboard status/history view. Failed attempts preserve the last valid local snapshot; cached/stale data are distinguished from refresh success and never called live. Package and Docker image version `0.7.2`. Annotated tag [`v7.2.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.2.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.2.0) target `785fa9d01fd4dd16b0b5356bedca79afe65e22a2`. Local pytest, Ruff, Black, compileall, Compose configuration, and `git diff --check` passed. See the [V7.2.0 validation record](releases/v7.2.0.md).
+
 ## V7.1.0 — Official Connectivity Data Exports — released 2026-11-06
 
 Adds CSV downloads of accepted MinTIC records and JSON downloads separating raw source rows, normalized rows, analysis, and provenance. Empty/incomplete records and stale cache are identified safely; no cached data are called live. Package and Docker image version `0.7.1`. Annotated tag [`v7.1.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.1.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.1.0) point to `0ff5e340c30076ac472f74c8fba72eb2f40dfdef`. Local pytest, Ruff, Black, compileall, Compose configuration, and `git diff --check` passed. Docker image build/runtime were not run in this release workflow. See the [V7.1.0 validation record](releases/v7.1.0.md).

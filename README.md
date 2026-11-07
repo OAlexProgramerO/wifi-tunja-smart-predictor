@@ -9,7 +9,7 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V7.2.0 adds an auditable refresh-attempt history for official MinTIC connectivity data. Python package and Docker image: `0.7.2`. Publication is pending validation. See the [official connectivity guide](docs/official-connectivity.md), [API reference](docs/api.md), and [release history](docs/release-history.md).
+**Release status:** V7.2.0 is published as [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.2.0), with annotated tag [`v7.2.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.2.0) at `785fa9d01fd4dd16b0b5356bedca79afe65e22a2`. Python package and Docker image: `0.7.2`. See the [official connectivity guide](docs/official-connectivity.md), [validation record](docs/releases/v7.2.0.md), and [release history](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.2.0 adds transparent history for official data refresh attempts and local snapshot status.
 
