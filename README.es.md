@@ -1,12 +1,12 @@
-# WiFi Tunja Smart Predictor — V7.2.0
+# WiFi Tunja Smart Predictor — V7.3.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V7.2.0 está publicado en [GitHub Releases](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.2.0), con la etiqueta anotada [`v7.2.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.2.0) en `785fa9d01fd4dd16b0b5356bedca79afe65e22a2`. Paquete Python e imagen Docker: `0.7.2`. Consulte la [guía de conectividad oficial](docs/official-connectivity.es.md), el [registro de validación](docs/releases/v7.2.0.md) y la [referencia API](docs/api.es.md).
+**Estado de publicación:** V7.3.0 agrega comparaciones entre periodos oficiales MinTIC disponibles. Paquete Python e imagen Docker: `0.7.3`. Publicación pendiente de validación. Consulte la [guía de conectividad oficial](docs/official-connectivity.es.md), la [referencia API](docs/api.es.md) y el [historial de versiones](docs/release-history.md).
 
-WiFi Tunja Smart Predictor combina su demostración sintética de clasificación horaria y estimación de conexiones con análisis descriptivos de un conjunto oficial MinTIC opcional. V7.2.0 agrega un historial transparente de intentos de actualización y del estado de las instantáneas locales.
+WiFi Tunja Smart Predictor combina su demostración sintética de clasificación horaria y estimación de conexiones con análisis descriptivos de un conjunto oficial MinTIC opcional. V7.3.0 compara periodos trimestrales disponibles sin rellenar huecos ni atribuir cambios en suscripciones al tráfico o a la saturación.
 
 Se conservan las verificaciones de huellas de artefactos de V4.3.0 y la trazabilidad de predicciones y validaciones de V4.2.0. Consulte el [diseño de diagnósticos V4.4.0](docs/model-diagnostics.md) para ver el esquema, las métricas, las ventanas temporales y la comprobación de procedencia.
 
@@ -34,7 +34,7 @@ En el primer inicio, `runtime-init` genera el dataset sintético, entrena los do
 
 El registro V5.3.0 incluye verificaciones remotas aprobadas de compilación y arranque de Docker, smoke HTTP y persistencia; esta máquina local no tenía un daemon Docker activo. Consulte el [registro de validación V5.3.0](docs/releases/v5.3.0.md) para ver los resultados y el alcance de la auditoría.
 
-V7.0.0 agrega la instantánea oficial opcional en un volumen Compose dedicado. Actualícela desde el contenedor del dashboard con `docker compose exec dashboard python scripts/refresh_official_data.py`; la API principal lee esa instantánea persistida y Compose la conserva al reiniciar. V7.1.0 agregó exportaciones CSV/JSON. V7.2.0 registra cada intento y muestra su estado por separado de la última instantánea válida, identificando los datos en caché y obsoletos sin presentarlos como datos en vivo.
+V7.0.0 agrega la instantánea oficial opcional en un volumen Compose dedicado. Actualícela desde el contenedor del dashboard con `docker compose exec dashboard python scripts/refresh_official_data.py`; la API principal lee esa instantánea persistida y Compose la conserva al reiniciar. V7.1.0 agregó exportaciones CSV/JSON y V7.2.0 el historial de actualizaciones. V7.3.0 compara accesos informados, proveedores, tecnologías y bandas de velocidad entre dos trimestres disponibles. No interpola periodos y omite el cambio porcentual cuando la base es cero.
 
 ## 1. Descripción del proyecto
 

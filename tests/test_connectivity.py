@@ -14,7 +14,11 @@ from fastapi.testclient import TestClient
 from api.main import app
 from wifi_tunja_smart_predictor.assistant.schemas import ChatRequest
 from wifi_tunja_smart_predictor.assistant.service import AssistantService
-from wifi_tunja_smart_predictor.connectivity.analysis import analyze_tunja
+from wifi_tunja_smart_predictor.connectivity.analysis import (
+    analyze_tunja,
+    available_tunja_periods,
+    compare_tunja_periods,
+)
 from wifi_tunja_smart_predictor.connectivity.exports import (
     build_connectivity_csv,
     build_connectivity_json,
@@ -52,6 +56,28 @@ def record(**updates):
     base.update(updates)
     assert REQUIRED_FIELDS <= base.keys()
     return base
+
+
+def normalized_record(
+    period: str,
+    accesses: int,
+    *,
+    provider: str = "Provider A",
+    technology: str = "FTTH",
+    downstream: int = 100,
+    upstream: int = 50,
+):
+    year, quarter = period.split("-Q")
+    return {
+        "period": period,
+        "year": int(year),
+        "quarter": int(quarter),
+        "reported_accesses": accesses,
+        "provider": provider,
+        "technology": technology,
+        "downstream_mbps": downstream,
+        "upstream_mbps": upstream,
+    }
 
 
 def test_official_refresh_preserves_raw_provenance_and_separates_tunja_rows(tmp_path):
@@ -167,6 +193,75 @@ def test_normalization_preserves_decimal_speed_values_and_rejects_fractional_cou
     assert normalized["upstream_mbps"] == 3.5
     with pytest.raises(ValueError, match="accesos_fijos_internet"):
         _normalize(record(accesos_fijos_internet="1.5"))
+
+
+def test_period_comparison_calculates_absolute_and_percentage_differences():
+    records = [
+        normalized_record("2025-Q1", 10, provider="A", downstream=100),
+        normalized_record("2025-Q1", 0, provider="B", downstream=200),
+        normalized_record("2025-Q2", 15, provider="A", downstream=100),
+        normalized_record("2025-Q2", 7, provider="C", downstream=300),
+    ]
+
+    result = compare_tunja_periods(records, "2025-Q1", "2025-Q2")
+    total = result["indicators"]["reported_accesses_total"]
+    provider_a = next(
+        item
+        for item in result["indicators"]["provider_reported_accesses"]
+        if item["category"] == "A"
+    )
+    missing_provider = next(
+        item
+        for item in result["indicators"]["provider_reported_accesses"]
+        if item["category"] == "B"
+    )
+    assert result["status"] == "available"
+    assert available_tunja_periods(records) == ["2025-Q1", "2025-Q2"]
+    assert total["baseline_value"] == 10
+    assert total["comparison_value"] == 22
+    assert total["absolute_difference"] == 12
+    assert total["percentage_difference"] == 120.0
+    assert provider_a["absolute_difference"] == 5
+    assert provider_a["percentage_difference"] == 50.0
+    assert missing_provider["baseline_value"] == 0
+    assert missing_provider["comparison_value"] is None
+    assert missing_provider["absolute_difference"] is None
+    assert missing_provider["status"] == "missing_in_comparison"
+    downstream = result["indicators"]["downstream_band_reported_accesses"]
+    assert any(item["status"] == "missing_in_baseline" for item in downstream)
+    assert "not measure" in result["interpretation"]
+
+
+def test_period_comparison_zero_baseline_has_no_percentage_and_missing_period_is_safe():
+    zero_baseline = compare_tunja_periods(
+        [normalized_record("2025-Q1", 0), normalized_record("2025-Q2", 5)],
+        "2025-Q1",
+        "2025-Q2",
+    )
+    total = zero_baseline["indicators"]["reported_accesses_total"]
+    assert total["absolute_difference"] == 5
+    assert total["percentage_difference"] is None
+    assert total["percentage_status"] == "undefined_zero_baseline"
+
+    missing = compare_tunja_periods([normalized_record("2025-Q1", 10)], "2025-Q1", "2025-Q3")
+    assert missing["status"] == "period_unavailable"
+    assert missing["periods_available"] == {"2025-Q1": True, "2025-Q3": False}
+    assert missing["indicators"] == {}
+    assert "No values were interpolated" in missing["message"]
+
+
+def test_period_comparison_ignores_incomplete_invalid_and_negative_records():
+    records = [
+        normalized_record("2025-Q1", 5),
+        normalized_record("2025-Q2", 10),
+        {"period": "2025-Q2", "reported_accesses": 100},
+        normalized_record("2025-Q2", -3),
+        normalized_record("2025-Q9", 20),
+    ]
+    result = compare_tunja_periods(records, "2025-Q1", "2025-Q2")
+    assert result["status"] == "available"
+    assert result["invalid_records_ignored"] == 3
+    assert result["indicators"]["reported_accesses_total"]["absolute_difference"] == 5
 
 
 def test_failed_refresh_uses_latest_valid_snapshot_and_marks_failure(tmp_path):
@@ -349,6 +444,12 @@ def test_connectivity_api_returns_503_without_cache(tmp_path, monkeypatch):
     monkeypatch.setenv("OFFICIAL_DATA_DB_PATH", str(tmp_path / "missing.sqlite3"))
     client = TestClient(app)
     assert client.get("/connectivity/tunja").status_code == 503
+    assert (
+        client.get(
+            "/connectivity/tunja/compare?baseline_period=2025-Q1&comparison_period=2025-Q2"
+        ).status_code
+        == 503
+    )
     sources = client.get("/connectivity/sources")
     assert sources.status_code == 200
     registered = {source["source_id"]: source for source in sources.json()["sources"]}
@@ -371,6 +472,48 @@ def test_connectivity_api_exposes_tunja_analysis_from_snapshot(tmp_path, monkeyp
     assert payload["analysis"]["geographic_granularity"] == "municipality"
     assert payload["saturation_ground_truth_available"] is False
     assert payload["provenance"]["transformation_version"] == "mintic-tunja-fixed-access-v1"
+
+
+def test_connectivity_period_comparison_api_returns_deltas_and_provenance(tmp_path, monkeypatch):
+    database = tmp_path / "period-comparison-api.sqlite3"
+    monkeypatch.setenv("OFFICIAL_DATA_DB_PATH", str(database))
+    refresh_official_data(
+        database,
+        fetch_records=lambda: [
+            record(anno="2025", trimestre="1", accesos_fijos_internet="10"),
+            record(anno="2025", trimestre="2", accesos_fijos_internet="15"),
+        ],
+        fetch_metadata=lambda: {},
+    )
+
+    client = TestClient(app)
+    response = client.get(
+        "/connectivity/tunja/compare?baseline_period=2025-Q1&comparison_period=2025-Q2"
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["comparison"]["status"] == "available"
+    assert (
+        payload["comparison"]["indicators"]["reported_accesses_total"]["absolute_difference"] == 5
+    )
+    assert (
+        payload["comparison"]["indicators"]["reported_accesses_total"]["percentage_difference"]
+        == 50.0
+    )
+    assert payload["provenance"]["dataset_id"] == "hwrp-3su3"
+    assert payload["source"]["geographic_granularity"].startswith("Municipality")
+
+    missing = client.get(
+        "/connectivity/tunja/compare?baseline_period=2025-Q1&comparison_period=2024-Q1"
+    )
+    assert missing.status_code == 200
+    assert missing.json()["comparison"]["status"] == "period_unavailable"
+    assert (
+        client.get(
+            "/connectivity/tunja/compare?baseline_period=2025-Q9&comparison_period=2025-Q2"
+        ).status_code
+        == 422
+    )
 
 
 def test_connectivity_refresh_api_exposes_latest_and_paginated_history(tmp_path, monkeypatch):
@@ -543,7 +686,16 @@ def test_dashboard_renders_verified_latest_period_not_all_period_sum(tmp_path, m
         metric.label == "Reported accesses · 2025-Q2" and metric.value == "5"
         for metric in app_test.metric
     )
-    assert len(app_test.get("plotly_chart")) == 3
+    assert len(app_test.get("plotly_chart")) == 4
+    assert [selector.label for selector in app_test.selectbox] == [
+        "Baseline period",
+        "Comparison period",
+    ]
+    assert all(selector.options == ["2025-Q1", "2025-Q2"] for selector in app_test.selectbox)
+    assert any(
+        metric.label == "Reported fixed-access total · comparison period"
+        for metric in app_test.metric
+    )
     assert [button.label for button in app_test.get("download_button")] == [
         "Download validated records (CSV)",
         "Download analysis and provenance (JSON)",

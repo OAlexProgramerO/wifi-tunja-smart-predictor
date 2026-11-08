@@ -72,12 +72,13 @@ Start with `uvicorn assistant_api.main:app --reload --port 8001`; OpenAPI is at 
 
 See [Assistant](assistant.md), [Scenario Prediction](scenario_prediction.md), and [Limitations](limitations.md) for behavior and interpretation.
 
-## Official connectivity (V7.2.0)
+## Official connectivity (V7.3.0)
 
 - `GET /connectivity/sources` returns registered official sources and their integration status.
 - `GET /connectivity/tunja` returns the latest valid locally stored MinTIC snapshot's municipal analysis, freshness, period, and provenance. It returns 503 when no valid snapshot exists.
 - `GET /connectivity/refresh/latest` returns the latest attempt, latest successful attempt, and local snapshot state as separate fields. Snapshot state is always labeled `cached_local`, `stale_cached`, or `unavailable`; it is never a live-data claim.
 - `GET /connectivity/refresh/history?limit=20&offset=0` returns newest-first refresh attempts with total count and offset pagination (`limit` 1–100, `offset` 0 or greater). Each row includes timestamp, source, success/failure, retrieved row count when known, reporting period, validation result, sanitized error type, and associated snapshot batch ID.
+- `GET /connectivity/tunja/compare?baseline_period=2025-Q1&comparison_period=2026-Q1` compares two periods present in the validated snapshot. Its result includes reported-access total, provider and technology totals, and downstream/upstream band categories with absolute and mathematically valid percentage differences. Missing periods return `period_unavailable`; missing categories are not zero-filled and zero baselines have no percentage difference. The response includes the snapshot freshness and source provenance.
 - Refresh is controlled by running `python scripts/refresh_official_data.py`; no public mutation endpoint was added.
 
 Only MinTIC fixed-access records from `hwrp-3su3` are integrated. Refresh attempts are stored in an additive table in the existing local SQLite snapshot database; legacy databases without history return an empty history until a refresh is attempted. A failed refresh preserves the last valid snapshot. See [official connectivity data](official-connectivity.md) for source methodology, limitations, and synthetic/real separation.

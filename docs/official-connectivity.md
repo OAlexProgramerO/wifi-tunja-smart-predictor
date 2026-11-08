@@ -1,4 +1,4 @@
-# Official Connectivity Data (V7.2.0)
+# Official Connectivity Data (V7.3.0)
 
 ## What is integrated
 
@@ -35,6 +35,12 @@ Raw values are preserved unchanged in the source JSON. Processed values normaliz
 Every refresh attempt is appended to `connectivity_refresh_attempts` in the same local SQLite database. A successful snapshot and its success-history row are committed together. Failures store a sanitized error type and any known retrieved row count/reporting period; the last valid snapshot remains intact. A source check that confirms unchanged data is a successful attempt with validation result `unchanged_source` and zero newly retrieved rows.
 
 `GET /connectivity/refresh/latest` separates the latest attempt and latest successful attempt from the snapshot currently available locally. `GET /connectivity/refresh/history?limit=20&offset=0` provides newest-first pages, with a maximum page size of 100. The dashboard presents attempt errors separately from the data cache. Snapshot labels are `cached_local`, `stale_cached`, or `unavailable`; “cached” means the data were read from local persistence, not that the source was just contacted. A snapshot older than 30 days is marked stale. Older SQLite files without the history table remain readable; until a refresh attempt creates the table, the history endpoint returns an empty page while still reporting snapshot availability.
+
+## Comparing official reporting periods (V7.3.0)
+
+The dashboard period selectors and `GET /connectivity/tunja/compare` use only complete normalized rows from the current validated local snapshot. Select two periods that actually exist in the snapshot; the API returns `period_unavailable` if either is absent. There is no interpolation or historical reconstruction. The comparison reports source access-count totals and grouped counts by provider, technology, and reported downstream/upstream bandwidth category. Absolute differences are comparison minus baseline. Percentage change is `difference / baseline × 100` only when the baseline is nonzero. Categories absent in one period remain unavailable rather than being interpreted as zero; incomplete or invalid rows are skipped and counted.
+
+These are changes in municipal fixed-internet access aggregates, not unique subscribers or WiFi traffic. Subscription changes do not measure congestion or saturation. No real-data model or prediction is introduced; the existing models remain synthetic.
 
 ## Other official references checked
 

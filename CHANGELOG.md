@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — V7.3.0 Official Connectivity Period Comparison
+
+Adds a comparison of available MinTIC Tunja reporting periods to the dashboard and a read-only API route. The existing snapshot is compared across reported access totals, providers, technologies, and downstream/upstream bandwidth categories. Absolute and valid percentage differences are exposed; zero baselines and categories absent from a period are explicitly marked rather than treated as zero. Incomplete rows are ignored and counted, and missing periods are not interpolated. Official municipal data remains separate from synthetic ML inputs and predictions.
+
+Agrega al dashboard y a una ruta API de solo lectura la comparación de periodos MinTIC disponibles para Tunja. Compara totales de accesos informados, proveedores, tecnologías y bandas de bajada/subida. Expone diferencias absolutas y porcentuales cuando son válidas; las bases en cero y categorías ausentes se marcan explícitamente en lugar de tratarlas como cero. Las filas incompletas se omiten y cuentan; los periodos faltantes no se interpolan. Los datos municipales oficiales siguen separados de las entradas y predicciones de ML sintéticas.
+
 ## V7.2.0 — Official Data Refresh History — released 2026-11-07
 
 Records every MinTIC refresh attempt in the existing SQLite database, including status, source, retrieved row count when known, latest reporting period, validation result, sanitized error type, and snapshot batch. Adds latest-status and paginated-history read-only routes and a dashboard history view that distinguishes the refresh attempt from locally cached or stale data. Failed attempts do not replace the prior successful snapshot. No synthetic ML behavior changes. Product V7.2.0 maps to Python package and Docker image `0.7.2`. Annotated tag [`v7.2.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.2.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.2.0) target `785fa9d01fd4dd16b0b5356bedca79afe65e22a2`. Pytest, Ruff, Black, compileall, Compose configuration, and `git diff --check` passed locally. See the [V7.2.0 validation record](docs/releases/v7.2.0.md).

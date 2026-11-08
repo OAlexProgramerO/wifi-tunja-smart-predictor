@@ -7,6 +7,7 @@ import logging
 import re
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlencode
 
 import pandas as pd
@@ -33,6 +34,10 @@ from wifi_tunja_smart_predictor.config import (
     SELECTED_MODEL_METRICS_PATH,
     SYNTHETIC_DATA_DISCLAIMER,
     TARGET_COLUMN,
+)
+from wifi_tunja_smart_predictor.connectivity.analysis import (
+    available_tunja_periods,
+    compare_tunja_periods,
 )
 from wifi_tunja_smart_predictor.connectivity.exports import (
     build_connectivity_csv,
@@ -194,6 +199,99 @@ def _render_official_refresh_history() -> None:
                     + 10
                 ),
             )
+
+
+def _render_tunja_period_comparison(records: list[dict[str, Any]]) -> None:
+    """Render selected-period changes from complete, source-reported municipal rows."""
+    periods = available_tunja_periods(records)
+    with st.expander("Compare official reporting periods"):
+        st.caption(
+            "Official MinTIC fixed-access aggregates only. Changes in subscriptions do not measure "
+            "WiFi traffic, congestion, or saturation; synthetic predictions remain separate."
+        )
+        if len(periods) < 2:
+            st.info("At least two complete official reporting periods are required for comparison.")
+            return
+        baseline_column, comparison_column = st.columns(2)
+        baseline_period = baseline_column.selectbox(
+            "Baseline period",
+            options=periods,
+            index=len(periods) - 2,
+            key="connectivity_comparison_baseline",
+        )
+        comparison_period = comparison_column.selectbox(
+            "Comparison period",
+            options=periods,
+            index=len(periods) - 1,
+            key="connectivity_comparison_period",
+        )
+        result = compare_tunja_periods(records, baseline_period, comparison_period)
+        if result["status"] != "available":
+            st.info(result["message"])
+            return
+
+        total = result["indicators"]["reported_accesses_total"]
+        delta = f"{total['absolute_difference']:+,}"
+        if total["percentage_difference"] is None:
+            delta += " · percentage unavailable (zero baseline)"
+        else:
+            delta += f" · {total['percentage_difference']:+.1f}%"
+        st.metric(
+            "Reported fixed-access total · comparison period",
+            f"{total['comparison_value']:,}",
+            delta=f"vs baseline: {delta}",
+        )
+        trend = pd.DataFrame(
+            [
+                {"reporting_period": baseline_period, "reported_accesses": total["baseline_value"]},
+                {
+                    "reporting_period": comparison_period,
+                    "reported_accesses": total["comparison_value"],
+                },
+            ]
+        )
+        st.plotly_chart(
+            px.bar(
+                trend,
+                x="reporting_period",
+                y="reported_accesses",
+                title="Reported accesses in selected periods",
+            ),
+            width="stretch",
+            alt="Comparison of MinTIC reported fixed-access totals for the two selected municipal quarters.",
+        )
+
+        indicator_labels = {
+            "provider_reported_accesses": "Provider",
+            "technology_reported_accesses": "Technology",
+            "downstream_band_reported_accesses": "Downstream band (Mbps)",
+            "upstream_band_reported_accesses": "Upstream band (Mbps)",
+        }
+        changes = []
+        for indicator, label in indicator_labels.items():
+            for item in result["indicators"][indicator]:
+                changes.append(
+                    {
+                        "Indicator": label,
+                        "Category": item["category"],
+                        "Baseline": item["baseline_value"],
+                        "Comparison": item["comparison_value"],
+                        "Absolute difference": item["absolute_difference"],
+                        "Percentage difference": item["percentage_difference"],
+                        "Status": item["status"],
+                    }
+                )
+        if changes:
+            st.dataframe(
+                pd.DataFrame(changes),
+                hide_index=True,
+                width="stretch",
+                alt="Provider, technology, and reported bandwidth category changes; absent categories are marked unavailable, not zero-filled.",
+            )
+        st.caption(
+            "Percentage change is undefined when the baseline is zero. A category absent from either "
+            "period is marked missing; its value is not inferred. No period is interpolated."
+        )
 
 
 def _clear_experiment_history_filters() -> None:
@@ -2973,6 +3071,7 @@ def _render_real_connectivity() -> None:
             "JSON separates raw records, normalized records, and aggregate analysis. Source bandwidth values "
             "are kept in Mbps; municipality codes and quarter labels are normalized."
         )
+    _render_tunja_period_comparison(snapshot.get("records") or [])
     if export_bundle["record_count"] == 0:
         st.info(
             "The local snapshot contains no validated records. The downloads include source metadata and empty analysis."

@@ -604,7 +604,7 @@ def test_experiment_analytics_cover_all_filtered_records_and_group_in_utc(
                     "dataset_fingerprint_algorithm": "sha256-canonical-v1",
                     "models": [
                         {
-                            "application_version": "0.7.2",
+                            "application_version": "0.7.3",
                             "classifier": model_reference,
                             "regressor": model_reference,
                         }

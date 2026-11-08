@@ -7,7 +7,7 @@ import sqlite3
 
 from fastapi import APIRouter, HTTPException, Query
 
-from wifi_tunja_smart_predictor.connectivity.analysis import analyze_tunja
+from wifi_tunja_smart_predictor.connectivity.analysis import analyze_tunja, compare_tunja_periods
 from wifi_tunja_smart_predictor.connectivity.mintic import (
     SourceUnavailableError,
     get_refresh_history,
@@ -79,6 +79,49 @@ def tunja_connectivity() -> dict:
         "reporting_periods": sorted({record["period"] for record in snapshot["records"]}),
         "analysis": analyze_tunja(snapshot["records"]),
         "refresh_error": "last_refresh_failed" if snapshot.get("refresh_error") else None,
+        "saturation_ground_truth_available": False,
+    }
+
+
+@router.get("/tunja/compare")
+def compare_tunja_connectivity_periods(
+    baseline_period: str = Query(..., min_length=7, max_length=7, pattern=r"^\d{4}-Q[1-4]$"),
+    comparison_period: str = Query(..., min_length=7, max_length=7, pattern=r"^\d{4}-Q[1-4]$"),
+) -> dict:
+    """Compare available official reporting periods without inferring missing values."""
+    try:
+        snapshot = load_snapshot()
+    except (OSError, ValueError, sqlite3.DatabaseError, SourceUnavailableError) as exc:
+        raise HTTPException(
+            status_code=503, detail="Official connectivity snapshot is unavailable."
+        ) from exc
+    if snapshot is None:
+        raise HTTPException(
+            status_code=503, detail="No official connectivity snapshot is available."
+        )
+    batch = snapshot["batch"]
+    return {
+        "source": source_registry(
+            {
+                batch["source_id"]: {
+                    "last_successful_retrieval_utc": batch["retrieved_at_utc"],
+                    "last_source_update_utc": batch["source_updated_at_utc"],
+                    "status": "stale_local_cache" if snapshot["stale"] else "available_locally",
+                }
+            }
+        )[0],
+        "retrieved_at_utc": batch["retrieved_at_utc"],
+        "source_updated_at_utc": batch["source_updated_at_utc"],
+        "stale": snapshot["stale"],
+        "provenance": {
+            "dataset_id": batch["dataset_id"],
+            "content_sha256": batch["content_sha256"],
+            "validation_status": batch["validation_status"],
+            "transformation_version": batch["transformation_version"],
+        },
+        "comparison": compare_tunja_periods(
+            snapshot["records"], baseline_period, comparison_period
+        ),
         "saturation_ground_truth_available": False,
     }
 

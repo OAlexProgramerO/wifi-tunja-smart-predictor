@@ -1,4 +1,4 @@
-# Datos oficiales de conectividad (V7.2.0)
+# Datos oficiales de conectividad (V7.3.0)
 
 ## Fuente integrada
 
@@ -35,6 +35,12 @@ Los valores crudos se conservan sin cambios dentro del JSON de origen. Los valor
 Cada intento se agrega a `connectivity_refresh_attempts` en la misma base SQLite local. El snapshot exitoso y su fila de historial se confirman en una misma transacción. Los fallos guardan un tipo de error sanitizado y el conteo/periodo recuperados cuando se conocen; la instantánea válida anterior se conserva. Una consulta que confirma que la fuente no cambió cuenta como intento exitoso, con validación `unchanged_source` y cero filas nuevas descargadas.
 
 `GET /connectivity/refresh/latest` separa el último intento y el último intento exitoso de la instantánea disponible localmente. `GET /connectivity/refresh/history?limit=20&offset=0` pagina en orden descendente, con máximo de 100 filas por página. El dashboard muestra los errores del intento por separado del estado de caché. Los estados posibles son `cached_local`, `stale_cached` o `unavailable`; “cached” significa que los datos se leyeron del almacenamiento local, no que se haya consultado la fuente en ese momento. Una instantánea de más de 30 días se marca obsoleta. Las bases SQLite anteriores sin la tabla de historial siguen siendo legibles; antes de la primera actualización, la API devuelve historial vacío e informa por separado si hay una instantánea disponible.
+
+## Comparar periodos oficiales (V7.3.0)
+
+Los selectores del dashboard y `GET /connectivity/tunja/compare` usan solo filas normalizadas completas de la instantánea local validada. Elija dos periodos realmente disponibles; la API devuelve `period_unavailable` si falta alguno. No interpola ni reconstruye historia. Compara totales de accesos informados y conteos agrupados por proveedor, tecnología y banda de velocidad informada de bajada/subida. La diferencia absoluta es comparación menos base. El cambio porcentual es `diferencia / base × 100` solo cuando la base no es cero. Una categoría ausente en un periodo permanece no disponible, no se interpreta como cero; las filas incompletas o inválidas se omiten y cuentan.
+
+Son cambios de agregados municipales de accesos fijos, no de suscriptores únicos ni tráfico WiFi. Los cambios en suscripciones no miden congestión ni saturación. No se introduce un modelo o predicción con datos reales; los modelos existentes siguen siendo sintéticos.
 
 ## Otras referencias oficiales revisadas
 
