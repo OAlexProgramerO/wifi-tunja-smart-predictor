@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V7.3.0 — Official Connectivity Period Comparison — released 2026-11-08
+
+Adds dashboard period selectors and a read-only API comparison for available official MinTIC Tunja periods. Reports access-count aggregates by provider, technology, and bandwidth category with absolute and valid percentage differences; missing periods/categories are not interpolated or zero-filled, and a zero baseline has no percentage result. Municipal subscriptions do not measure WiFi traffic, congestion, or saturation; ML remains synthetic. Product V7.3.0 maps to Python package and Docker image `0.7.3`. Annotated tag [`v7.3.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.3.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.3.0) target `aa4fb65eb7072c8b4396e034966c646555eedb18`. Local pytest, Ruff, Black, and `git diff --check` passed. Docker build and live runtime were not run. See the [V7.3.0 validation record](releases/v7.3.0.md).
+
 ## V7.2.0 — Official Data Refresh History — released 2026-11-07
 
 Adds append-only refresh attempt tracking for the official MinTIC snapshot, read-only latest-status and paginated-history API routes, and a dashboard status/history view. Failed attempts preserve the last valid local snapshot; cached/stale data are distinguished from refresh success and never called live. Package and Docker image version `0.7.2`. Annotated tag [`v7.2.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.2.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.2.0) target `785fa9d01fd4dd16b0b5356bedca79afe65e22a2`. Local pytest, Ruff, Black, compileall, Compose configuration, and `git diff --check` passed. See the [V7.2.0 validation record](releases/v7.2.0.md).

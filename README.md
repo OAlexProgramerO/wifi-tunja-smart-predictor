@@ -9,7 +9,7 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V7.3.0 adds comparisons between available official MinTIC reporting periods. Python package and Docker image: `0.7.3`. Publication is pending validation. See the [official connectivity guide](docs/official-connectivity.md), [API reference](docs/api.md), and [release history](docs/release-history.md).
+**Release status:** V7.3.0 is published as [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.3.0), with annotated tag [`v7.3.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.3.0) at `aa4fb65eb7072c8b4396e034966c646555eedb18`. Python package and Docker image: `0.7.3`. See the [official connectivity guide](docs/official-connectivity.md), [API reference](docs/api.md), [V7.3.0 validation record](docs/releases/v7.3.0.md), and [release history](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.3.0 compares the dataset's available quarterly periods without filling gaps or attributing subscription changes to traffic or saturation.
 

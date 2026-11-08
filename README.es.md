@@ -4,7 +4,7 @@
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V7.3.0 agrega comparaciones entre periodos oficiales MinTIC disponibles. Paquete Python e imagen Docker: `0.7.3`. Publicación pendiente de validación. Consulte la [guía de conectividad oficial](docs/official-connectivity.es.md), la [referencia API](docs/api.es.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V7.3.0 está publicado en [GitHub Releases](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.3.0), con la etiqueta anotada [`v7.3.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.3.0) en `aa4fb65eb7072c8b4396e034966c646555eedb18`. Paquete Python e imagen Docker: `0.7.3`. Consulte la [guía de conectividad oficial](docs/official-connectivity.es.md), la [referencia API](docs/api.es.md), el [registro de validación V7.3.0](docs/releases/v7.3.0.md) y el [historial de versiones](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combina su demostración sintética de clasificación horaria y estimación de conexiones con análisis descriptivos de un conjunto oficial MinTIC opcional. V7.3.0 compara periodos trimestrales disponibles sin rellenar huecos ni atribuir cambios en suscripciones al tráfico o a la saturación.
 
