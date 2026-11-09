@@ -1,10 +1,10 @@
 # Changelog
 
-## Unreleased — V7.4.0 Official Data Quality & Coverage
+## V7.4.0 — Official Data Quality & Coverage — released 2026-11-09
 
-Adds a provenance-aware quality report for official MinTIC source rows, including missing required fields, exact duplicates, observed period coverage, incomplete-period indicator availability, and validation status. The dashboard and read-only API expose the report; source records are not modified, missing values are not treated as zero, and synthetic ML data remains separate.
+Adds a provenance-aware quality report for official MinTIC source rows, including missing required fields, exact duplicates, observed period coverage, incomplete-period indicator availability, and validation status. The dashboard and read-only API expose the report; source records are not modified, missing values are not treated as zero, and synthetic ML data remains separate. Product V7.4.0 maps to Python package and Docker image `0.7.4`. Annotated tag [`v7.4.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.4.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.4.0) target `46cfed52a54d6c6248531069b8e2d1dea4e77c25`. Pytest, Ruff, Black, and `git diff --check` passed locally. See the [V7.4.0 validation record](docs/releases/v7.4.0.md).
 
-Agrega un informe de calidad con procedencia para filas MinTIC oficiales: campos requeridos ausentes, duplicados exactos, cobertura de periodos observados, disponibilidad de indicadores por periodo incompleto y estado de validación. El dashboard y la API de solo lectura exponen el informe; no se modifican filas, los valores faltantes no se tratan como cero y los datos ML sintéticos permanecen separados.
+Agrega un informe de calidad con procedencia para filas MinTIC oficiales: campos requeridos ausentes, duplicados exactos, cobertura de periodos observados, disponibilidad de indicadores por periodo incompleto y estado de validación. El dashboard y la API de solo lectura exponen el informe; no se modifican filas, los valores faltantes no se tratan como cero y los datos ML sintéticos permanecen separados. El producto V7.4.0 corresponde al paquete Python y a la imagen Docker `0.7.4`. La etiqueta anotada [`v7.4.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.4.0) y el [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.4.0) apuntan a `46cfed52a54d6c6248531069b8e2d1dea4e77c25`. Pytest, Ruff, Black y `git diff --check` pasaron localmente. Consulte el [registro de validación V7.4.0](docs/releases/v7.4.0.md).
 
 ## V7.3.0 — Official Connectivity Period Comparison — released 2026-11-08
 

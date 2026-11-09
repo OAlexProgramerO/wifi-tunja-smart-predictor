@@ -4,7 +4,7 @@
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V7.4.0 agrega un informe de calidad y cobertura de registros MinTIC oficiales. Paquete Python e imagen Docker: `0.7.4`. Publicación pendiente. Consulte la [guía de conectividad oficial](docs/official-connectivity.es.md), la [referencia API](docs/api.es.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V7.4.0 está publicado en [GitHub Releases](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.4.0), con la etiqueta anotada [`v7.4.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.4.0) en `46cfed52a54d6c6248531069b8e2d1dea4e77c25`. Paquete Python e imagen Docker: `0.7.4`. Consulte la [guía de conectividad oficial](docs/official-connectivity.es.md), la [referencia API](docs/api.es.md), el [registro de validación V7.4.0](docs/releases/v7.4.0.md) y el [historial de versiones](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combina su demostración sintética de clasificación horaria y estimación de conexiones con análisis descriptivos de un conjunto oficial MinTIC opcional. V7.4.0 informa la calidad de filas de origen, duplicados, campos requeridos ausentes y cobertura de periodos observados sin modificar ni completar datos originales.
 
