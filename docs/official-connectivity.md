@@ -1,4 +1,4 @@
-# Official Connectivity Data (V7.3.0)
+# Official Connectivity Data (V7.4.0)
 
 ## What is integrated
 
@@ -41,6 +41,12 @@ Every refresh attempt is appended to `connectivity_refresh_attempts` in the same
 The dashboard period selectors and `GET /connectivity/tunja/compare` use only complete normalized rows from the current validated local snapshot. Select two periods that actually exist in the snapshot; the API returns `period_unavailable` if either is absent. There is no interpolation or historical reconstruction. The comparison reports source access-count totals and grouped counts by provider, technology, and reported downstream/upstream bandwidth category. Absolute differences are comparison minus baseline. Percentage change is `difference / baseline × 100` only when the baseline is nonzero. Categories absent in one period remain unavailable rather than being interpreted as zero; incomplete or invalid rows are skipped and counted.
 
 These are changes in municipal fixed-internet access aggregates, not unique subscribers or WiFi traffic. Subscription changes do not measure congestion or saturation. No real-data model or prediction is introduced; the existing models remain synthetic.
+
+## Data quality and coverage (V7.4.0)
+
+The **Official data quality and coverage** dashboard expander and `GET /connectivity/tunja/quality` inspect the raw rows preserved for the current validated local snapshot. The report gives retrieved and accepted row counts, rejected count and reasons, missing required source fields, exact duplicate rows (including duplicate source rows excluded during ingestion), observed reporting periods, per-period completeness, and availability of access, provider, technology, and downstream/upstream band indicators. Provenance includes the MinTIC dataset ID, source URL, retrieval/source-update timestamps, content fingerprint, validation state, transformation version, and whether the snapshot is locally cached or stale.
+
+The required fields follow the current MinTIC source schema. A field is missing when absent, null, or blank; numeric zero remains a valid observed value. A period is marked incomplete when an observed source row for it has missing required fields. The report identifies affected indicators for those periods and does not infer absent quarters. Rows without a valid source year/quarter cannot be assigned to a period. Rows are never repaired or changed. Rejected rows are preserved for quality inspection even though aggregate analyses use accepted normalized rows. When an older snapshot has no raw source table, quality inspection falls back to its accepted raw rows and cannot count rejected or duplicate source rows that were not preserved. Empty snapshots show unavailable indicators, not zero measurements. ML models and predictions remain synthetic and separate from official records.
 
 ## Other official references checked
 

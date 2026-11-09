@@ -37,6 +37,7 @@ from wifi_tunja_smart_predictor.config import (
 )
 from wifi_tunja_smart_predictor.connectivity.analysis import (
     available_tunja_periods,
+    build_tunja_quality_report,
     compare_tunja_periods,
 )
 from wifi_tunja_smart_predictor.connectivity.exports import (
@@ -291,6 +292,93 @@ def _render_tunja_period_comparison(records: list[dict[str, Any]]) -> None:
         st.caption(
             "Percentage change is undefined when the baseline is zero. A category absent from either "
             "period is marked missing; its value is not inferred. No period is interpolated."
+        )
+
+
+def _render_official_data_quality(snapshot: dict[str, Any]) -> None:
+    """Show source completeness and period coverage without imputing unavailable values."""
+    batch = snapshot.get("batch") or {}
+    try:
+        rejection_reasons = json.loads(batch.get("error_summary") or "{}")
+    except (TypeError, ValueError):
+        rejection_reasons = {}
+    provenance = {
+        "accepted_count": batch.get("accepted_count", len(snapshot.get("records") or [])),
+        "rejected_count": batch.get("rejected_count", 0),
+        "rejection_reasons": rejection_reasons,
+        "validation_status": batch.get("validation_status", "unknown"),
+    }
+    report = build_tunja_quality_report(
+        snapshot.get("records") or [], snapshot.get("raw_records"), provenance
+    )
+    with st.expander("Official data quality and coverage"):
+        cache_label = "stale cached snapshot" if snapshot.get("stale") else "local snapshot"
+        st.caption(
+            f"{cache_label} · validation: {report['validation_status']} · "
+            f"quality: {report['quality_status']}. This describes official municipal records; "
+            "synthetic ML data and predictions are separate."
+        )
+        count_columns = st.columns(4)
+        count_columns[0].metric("Source records", f"{report['source_record_count']:,}")
+        count_columns[1].metric("Accepted records", f"{report['accepted_record_count']:,}")
+        count_columns[2].metric("Duplicate records", f"{report['duplicate_record_count']:,}")
+        count_columns[3].metric("Incomplete periods", len(report["incomplete_periods"]))
+
+        missing = [
+            {"Source field": field, "Records missing": count}
+            for field, count in report["missing_fields"].items()
+            if count
+        ]
+        if missing:
+            st.dataframe(
+                pd.DataFrame(missing),
+                hide_index=True,
+                width="stretch",
+                alt="Counts of source records missing each official MinTIC field.",
+            )
+        elif report["source_record_count"]:
+            st.caption("No missing required source fields were found in retrieved rows.")
+        else:
+            st.info("No source records are available to assess; unavailable fields are not zeros.")
+
+        periods = report["periods"]
+        if periods:
+            st.dataframe(
+                pd.DataFrame(
+                    [
+                        {
+                            "Reporting period": item["period"],
+                            "Source records": item["record_count"],
+                            "Status": "incomplete" if item["incomplete"] else "complete",
+                            "Missing fields": ", ".join(sorted(item["missing_fields"])) or "None",
+                            "Unavailable indicators": ", ".join(item["unavailable_indicators"])
+                            or "None",
+                        }
+                        for item in periods
+                    ]
+                ),
+                hide_index=True,
+                width="stretch",
+                alt="Observed reporting periods with completeness and indicator availability.",
+            )
+        else:
+            st.caption(
+                "No reporting periods could be identified from source year and quarter fields."
+            )
+        if report["unassigned_period_record_count"]:
+            st.caption(
+                f"{report['unassigned_period_record_count']:,} source rows could not be assigned "
+                "to a reporting period because a valid year/quarter was unavailable."
+            )
+
+        if report["rejected_record_count"]:
+            st.caption(
+                f"Rejected records: {report['rejected_record_count']:,}. "
+                f"Validation reasons: {rejection_reasons or 'not supplied'}."
+            )
+        st.caption(
+            "Missing values remain unavailable and are never treated as numeric zero. "
+            "No source records are changed or completed."
         )
 
 
@@ -3015,7 +3103,7 @@ def _render_real_connectivity() -> None:
     _render_official_connectivity_refresh_progress()
     _render_official_refresh_history()
     try:
-        snapshot = load_snapshot()
+        snapshot = load_snapshot(include_source_records=True)
     except Exception as exc:
         snapshot = None
         st.error(f"Local official-data cache could not be read ({type(exc).__name__}).")
@@ -3071,6 +3159,7 @@ def _render_real_connectivity() -> None:
             "JSON separates raw records, normalized records, and aggregate analysis. Source bandwidth values "
             "are kept in Mbps; municipality codes and quarter labels are normalized."
         )
+    _render_official_data_quality(snapshot)
     _render_tunja_period_comparison(snapshot.get("records") or [])
     if export_bundle["record_count"] == 0:
         st.info(

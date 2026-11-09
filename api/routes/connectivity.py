@@ -7,7 +7,11 @@ import sqlite3
 
 from fastapi import APIRouter, HTTPException, Query
 
-from wifi_tunja_smart_predictor.connectivity.analysis import analyze_tunja, compare_tunja_periods
+from wifi_tunja_smart_predictor.connectivity.analysis import (
+    analyze_tunja,
+    build_tunja_quality_report,
+    compare_tunja_periods,
+)
 from wifi_tunja_smart_predictor.connectivity.mintic import (
     SourceUnavailableError,
     get_refresh_history,
@@ -123,6 +127,52 @@ def compare_tunja_connectivity_periods(
             snapshot["records"], baseline_period, comparison_period
         ),
         "saturation_ground_truth_available": False,
+    }
+
+
+@router.get("/tunja/quality")
+def tunja_connectivity_quality() -> dict:
+    """Report completeness, duplicates and period coverage for the validated snapshot."""
+    try:
+        snapshot = load_snapshot(include_source_records=True)
+    except (OSError, ValueError, sqlite3.DatabaseError, SourceUnavailableError) as exc:
+        raise HTTPException(
+            status_code=503, detail="Official connectivity snapshot is unavailable."
+        ) from exc
+    if snapshot is None:
+        raise HTTPException(
+            status_code=503, detail="No official connectivity snapshot is available."
+        )
+    batch = snapshot["batch"]
+    provenance = {
+        "dataset_id": batch.get("dataset_id"),
+        "original_url": batch.get("original_url"),
+        "retrieved_at_utc": batch.get("retrieved_at_utc"),
+        "source_updated_at_utc": batch.get("source_updated_at_utc"),
+        "content_sha256": batch.get("content_sha256"),
+        "retrieved_count": batch.get("retrieved_count"),
+        "accepted_count": batch.get("accepted_count"),
+        "rejected_count": batch.get("rejected_count"),
+        "rejection_reasons": json.loads(batch.get("error_summary") or "{}"),
+        "validation_status": batch.get("validation_status", "unknown"),
+        "transformation_version": batch.get("transformation_version"),
+        "snapshot_status": "stale_cached" if snapshot["stale"] else "cached_local",
+    }
+    return {
+        "source": source_registry(
+            {
+                batch["source_id"]: {
+                    "last_successful_retrieval_utc": batch["retrieved_at_utc"],
+                    "last_source_update_utc": batch["source_updated_at_utc"],
+                    "status": "stale_local_cache" if snapshot["stale"] else "available_locally",
+                }
+            }
+        )[0],
+        "provenance": provenance,
+        "stale": snapshot["stale"],
+        "quality": build_tunja_quality_report(
+            snapshot["records"], snapshot.get("raw_records"), provenance
+        ),
     }
 
 

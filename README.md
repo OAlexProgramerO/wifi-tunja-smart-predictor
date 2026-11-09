@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V7.3.0
+# WiFi Tunja Smart Predictor — V7.4.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,9 +9,9 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V7.3.0 is published as [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.3.0), with annotated tag [`v7.3.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.3.0) at `aa4fb65eb7072c8b4396e034966c646555eedb18`. Python package and Docker image: `0.7.3`. See the [official connectivity guide](docs/official-connectivity.md), [API reference](docs/api.md), [V7.3.0 validation record](docs/releases/v7.3.0.md), and [release history](docs/release-history.md).
+**Release status:** V7.4.0 adds a quality and coverage report for official MinTIC records. Python package and Docker image: `0.7.4`. Publication pending. See the [official connectivity guide](docs/official-connectivity.md), [API reference](docs/api.md), and [release history](docs/release-history.md).
 
-WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.3.0 compares the dataset's available quarterly periods without filling gaps or attributing subscription changes to traffic or saturation.
+WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.4.0 reports source-row quality, duplicate records, missing required fields, and observed period coverage without editing or filling source data.
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 
@@ -37,7 +37,7 @@ On its first run, the `runtime-init` service creates the synthetic dataset, trai
 
 The V5.3.0 verification record includes passing remote Docker build/startup, HTTP smoke, and persistence checks; this local machine did not have a running Docker engine. See the [V5.3.0 validation record](docs/releases/v5.3.0.md) for observed results and audit scope.
 
-V7.0.0 adds the optional official-data snapshot on a dedicated Compose volume. Refresh from the running dashboard container with `docker compose exec dashboard python scripts/refresh_official_data.py`; the main API reads that persisted snapshot and Compose restarts preserve it. V7.1.0 added CSV/JSON exports; V7.2.0 added refresh history. V7.3.0 compares reported access totals, providers, technologies, and bandwidth categories for two selected available quarters. It never interpolates periods, and percentage change is withheld for a zero baseline.
+V7.0.0 adds the optional official-data snapshot on a dedicated Compose volume. Refresh from the running dashboard container with `docker compose exec dashboard python scripts/refresh_official_data.py`; the main API reads that persisted snapshot and Compose restarts preserve it. V7.1.0 added CSV/JSON exports; V7.2.0 added refresh history; V7.3.0 compares available periods without interpolation. V7.4.0 adds data quality and coverage status, preserving missing information as unavailable rather than treating it as zero.
 
 ## 1. Project overview
 

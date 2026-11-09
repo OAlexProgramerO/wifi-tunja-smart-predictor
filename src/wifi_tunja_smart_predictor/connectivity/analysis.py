@@ -2,9 +2,154 @@
 
 from __future__ import annotations
 
+import json
 import math
 from collections import defaultdict
 from typing import Any
+
+from wifi_tunja_smart_predictor.connectivity.mintic import REQUIRED_FIELDS
+
+QUALITY_INDICATOR_FIELDS = {
+    "reported_accesses": {"accesos_fijos_internet"},
+    "provider_accesses": {"proveedor", "accesos_fijos_internet"},
+    "technology_accesses": {"tecnologia", "accesos_fijos_internet"},
+    "downstream_band_accesses": {"velocidad_bajada", "accesos_fijos_internet"},
+    "upstream_band_accesses": {"velocidad_subida", "accesos_fijos_internet"},
+}
+
+
+def build_tunja_quality_report(
+    records: list[dict[str, Any]],
+    raw_records: list[dict[str, Any]] | None = None,
+    provenance: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Summarize field completeness and exact duplicates without changing source rows."""
+    provenance = provenance or {}
+    source_rows = raw_records
+    if source_rows is None:
+        source_rows = [
+            record.get("raw", record) if isinstance(record, dict) else record for record in records
+        ]
+
+    missing_counts = {field: 0 for field in sorted(REQUIRED_FIELDS)}
+    duplicate_count = 0
+    seen_rows: set[str] = set()
+    periods: dict[str, dict[str, Any]] = {}
+    invalid_source_rows = 0
+    unassigned_period_records = 0
+    for row in source_rows:
+        if not isinstance(row, dict):
+            invalid_source_rows += 1
+            unassigned_period_records += 1
+            continue
+        missing = {
+            field
+            for field in REQUIRED_FIELDS
+            if field not in row or row[field] is None or not str(row[field]).strip()
+        }
+        for field in missing:
+            missing_counts[field] += 1
+        serialized = json.dumps(row, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+        is_duplicate = serialized in seen_rows
+        if is_duplicate:
+            duplicate_count += 1
+        else:
+            seen_rows.add(serialized)
+
+        period = _source_reporting_period(row)
+        if not period:
+            unassigned_period_records += 1
+            continue
+        period_report = periods.setdefault(
+            period,
+            {"record_count": 0, "missing_fields": {}, "duplicate_records": 0},
+        )
+        period_report["record_count"] += 1
+        period_report["duplicate_records"] += int(is_duplicate)
+        for field in missing:
+            period_report["missing_fields"][field] = (
+                period_report["missing_fields"].get(field, 0) + 1
+            )
+
+    period_reports = []
+    for period, report in sorted(periods.items()):
+        missing = set(report["missing_fields"])
+        unavailable = {
+            indicator: sorted(fields & missing)
+            for indicator, fields in QUALITY_INDICATOR_FIELDS.items()
+            if fields & missing
+        }
+        report["incomplete"] = bool(missing)
+        report["unavailable_indicators"] = unavailable
+        period_reports.append({"period": period, **report})
+
+    indicator_availability = {}
+    for indicator, required_fields in QUALITY_INDICATOR_FIELDS.items():
+        absent = sorted(field for field in required_fields if missing_counts[field])
+        indicator_availability[indicator] = {
+            "available": bool(source_rows) and not absent and not invalid_source_rows,
+            "status": (
+                "available"
+                if source_rows and not absent and not invalid_source_rows
+                else "unavailable"
+            ),
+            "missing_fields": absent,
+            "invalid_source_record_count": invalid_source_rows,
+        }
+
+    accepted_count = provenance.get("accepted_count", len(records))
+    rejected_count = provenance.get("rejected_count", max(0, len(source_rows) - len(records)))
+    if not source_rows:
+        quality_status = "empty"
+    elif (
+        any(missing_counts.values())
+        or duplicate_count
+        or rejected_count
+        or invalid_source_rows
+        or provenance.get("validation_status", "unknown") not in {"valid", "unchanged_source"}
+    ):
+        quality_status = "issues_found"
+    else:
+        quality_status = "passed"
+    return {
+        "methodology_version": "mintic-data-quality-v1",
+        "municipality": "Tunja",
+        "municipality_code": "15001",
+        "geographic_granularity": "municipality",
+        "source_record_count": len(source_rows),
+        "accepted_record_count": accepted_count,
+        "rejected_record_count": rejected_count,
+        "invalid_source_record_count": invalid_source_rows,
+        "unassigned_period_record_count": unassigned_period_records,
+        "duplicate_record_count": duplicate_count,
+        "missing_fields": missing_counts,
+        "available_reporting_periods": [report["period"] for report in period_reports],
+        "periods": period_reports,
+        "incomplete_periods": [
+            report["period"] for report in period_reports if report["incomplete"]
+        ],
+        "indicator_availability": indicator_availability,
+        "validation_status": provenance.get("validation_status", "unknown"),
+        "quality_status": quality_status,
+        "source_rejection_reasons": provenance.get("rejection_reasons", {}),
+        "interpretation": (
+            "The report inspects official MinTIC source rows and local validation metadata without "
+            "editing or filling records. Missing values are unavailable, not numeric zero. Period "
+            "indicators affected by missing required fields are not calculable. Official access "
+            "records are separate from synthetic ML datasets and predictions."
+        ),
+    }
+
+
+def _source_reporting_period(row: dict[str, Any]) -> str | None:
+    try:
+        year = int(row["anno"])
+        quarter = int(row["trimestre"])
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return None
+    if year < 1 or quarter not in {1, 2, 3, 4}:
+        return None
+    return f"{year}-Q{quarter}"
 
 
 def analyze_tunja(records: list[dict[str, Any]]) -> dict[str, Any]:

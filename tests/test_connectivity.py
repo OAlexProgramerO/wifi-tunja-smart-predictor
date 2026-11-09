@@ -17,6 +17,7 @@ from wifi_tunja_smart_predictor.assistant.service import AssistantService
 from wifi_tunja_smart_predictor.connectivity.analysis import (
     analyze_tunja,
     available_tunja_periods,
+    build_tunja_quality_report,
     compare_tunja_periods,
 )
 from wifi_tunja_smart_predictor.connectivity.exports import (
@@ -264,6 +265,59 @@ def test_period_comparison_ignores_incomplete_invalid_and_negative_records():
     assert result["indicators"]["reported_accesses_total"]["absolute_difference"] == 5
 
 
+def test_quality_report_counts_missing_fields_without_confusing_zero_with_missing():
+    incomplete = record(velocidad_bajada="")
+    rows = [record(accesos_fijos_internet="0"), incomplete]
+    report = build_tunja_quality_report(
+        [normalized_record("2025-Q1", 0)],
+        rows,
+        {"accepted_count": 1, "rejected_count": 1, "validation_status": "valid"},
+    )
+
+    assert report["source_record_count"] == 2
+    assert report["missing_fields"]["velocidad_bajada"] == 1
+    assert report["missing_fields"]["accesos_fijos_internet"] == 0
+    assert report["periods"][0]["period"] == "2025-Q1"
+    assert report["periods"][0]["incomplete"] is True
+    assert report["periods"][0]["unavailable_indicators"] == {
+        "downstream_band_accesses": ["velocidad_bajada"]
+    }
+    assert report["indicator_availability"]["reported_accesses"]["available"] is True
+    assert report["quality_status"] == "issues_found"
+
+
+def test_quality_report_counts_exact_duplicates_from_preserved_source_rows():
+    duplicated = record()
+    report = build_tunja_quality_report(
+        [normalized_record("2025-Q1", 12)],
+        [duplicated, duplicated.copy()],
+        {
+            "accepted_count": 1,
+            "rejected_count": 1,
+            "rejection_reasons": {"duplicate_source_row": 1},
+            "validation_status": "valid",
+        },
+    )
+
+    assert report["source_record_count"] == 2
+    assert report["accepted_record_count"] == 1
+    assert report["duplicate_record_count"] == 1
+    assert report["periods"][0]["duplicate_records"] == 1
+    assert report["source_rejection_reasons"] == {"duplicate_source_row": 1}
+
+
+def test_quality_report_handles_empty_snapshot_with_unavailable_indicators():
+    report = build_tunja_quality_report([], [], {"validation_status": "unknown"})
+
+    assert report["source_record_count"] == 0
+    assert report["missing_fields"]
+    assert set(report["missing_fields"].values()) == {0}
+    assert report["available_reporting_periods"] == []
+    assert report["incomplete_periods"] == []
+    assert report["quality_status"] == "empty"
+    assert all(not item["available"] for item in report["indicator_availability"].values())
+
+
 def test_failed_refresh_uses_latest_valid_snapshot_and_marks_failure(tmp_path):
     database = tmp_path / "offline.sqlite3"
     original = refresh_official_data(
@@ -450,6 +504,7 @@ def test_connectivity_api_returns_503_without_cache(tmp_path, monkeypatch):
         ).status_code
         == 503
     )
+    assert client.get("/connectivity/tunja/quality").status_code == 503
     sources = client.get("/connectivity/sources")
     assert sources.status_code == 200
     registered = {source["source_id"]: source for source in sources.json()["sources"]}
@@ -516,6 +571,39 @@ def test_connectivity_period_comparison_api_returns_deltas_and_provenance(tmp_pa
     )
 
 
+def test_connectivity_quality_api_reports_duplicates_coverage_and_provenance(tmp_path, monkeypatch):
+    database = tmp_path / "quality-api.sqlite3"
+    monkeypatch.setenv("OFFICIAL_DATA_DB_PATH", str(database))
+    duplicated = record()
+    refresh_official_data(
+        database,
+        fetch_records=lambda: [
+            duplicated,
+            duplicated.copy(),
+            record(trimestre="2", velocidad_bajada=""),
+        ],
+        fetch_metadata=lambda: {},
+    )
+
+    response = TestClient(app).get("/connectivity/tunja/quality")
+    assert response.status_code == 200
+    payload = response.json()
+    quality = payload["quality"]
+    assert quality["source_record_count"] == 3
+    assert quality["accepted_record_count"] == 1
+    assert quality["duplicate_record_count"] == 1
+    assert quality["missing_fields"]["velocidad_bajada"] == 1
+    assert quality["available_reporting_periods"] == ["2025-Q1", "2025-Q2"]
+    assert quality["incomplete_periods"] == ["2025-Q2"]
+    assert quality["periods"][1]["unavailable_indicators"] == {
+        "downstream_band_accesses": ["velocidad_bajada"]
+    }
+    assert quality["validation_status"] == "valid"
+    assert payload["provenance"]["dataset_id"] == "hwrp-3su3"
+    assert payload["provenance"]["snapshot_status"] == "cached_local"
+    assert payload["stale"] is False
+
+
 def test_connectivity_refresh_api_exposes_latest_and_paginated_history(tmp_path, monkeypatch):
     database = tmp_path / "refresh-api.sqlite3"
     monkeypatch.setenv("OFFICIAL_DATA_DB_PATH", str(database))
@@ -580,7 +668,7 @@ def test_dashboard_labels_stale_empty_snapshot_and_keeps_metadata_downloads_avai
     monkeypatch.setattr(
         dashboard,
         "load_snapshot",
-        lambda: {
+        lambda **kwargs: {
             "batch": {"source_id": "mintic_fixed_accesses", "validation_status": "valid"},
             "records": [],
             "stale": True,
@@ -695,6 +783,12 @@ def test_dashboard_renders_verified_latest_period_not_all_period_sum(tmp_path, m
     assert any(
         metric.label == "Reported fixed-access total · comparison period"
         for metric in app_test.metric
+    )
+    assert any(
+        metric.label == "Source records" and metric.value == "2" for metric in app_test.metric
+    )
+    assert any(
+        metric.label == "Duplicate records" and metric.value == "0" for metric in app_test.metric
     )
     assert [button.label for button in app_test.get("download_button")] == [
         "Download validated records (CSV)",

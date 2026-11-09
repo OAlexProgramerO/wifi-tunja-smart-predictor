@@ -1,4 +1,4 @@
-# Datos oficiales de conectividad (V7.3.0)
+# Datos oficiales de conectividad (V7.4.0)
 
 ## Fuente integrada
 
@@ -41,6 +41,12 @@ Cada intento se agrega a `connectivity_refresh_attempts` en la misma base SQLite
 Los selectores del dashboard y `GET /connectivity/tunja/compare` usan solo filas normalizadas completas de la instantánea local validada. Elija dos periodos realmente disponibles; la API devuelve `period_unavailable` si falta alguno. No interpola ni reconstruye historia. Compara totales de accesos informados y conteos agrupados por proveedor, tecnología y banda de velocidad informada de bajada/subida. La diferencia absoluta es comparación menos base. El cambio porcentual es `diferencia / base × 100` solo cuando la base no es cero. Una categoría ausente en un periodo permanece no disponible, no se interpreta como cero; las filas incompletas o inválidas se omiten y cuentan.
 
 Son cambios de agregados municipales de accesos fijos, no de suscriptores únicos ni tráfico WiFi. Los cambios en suscripciones no miden congestión ni saturación. No se introduce un modelo o predicción con datos reales; los modelos existentes siguen siendo sintéticos.
+
+## Calidad y cobertura de datos (V7.4.0)
+
+El expander **Official data quality and coverage** del dashboard y `GET /connectivity/tunja/quality` inspeccionan las filas originales conservadas para la instantánea local validada. El informe muestra filas recuperadas y aceptadas, rechazadas y sus motivos, campos requeridos ausentes, duplicados exactos (incluidas filas fuente duplicadas excluidas durante la ingestión), periodos observados, integridad por periodo y disponibilidad de indicadores de accesos, proveedor, tecnología y bandas de bajada/subida. La procedencia incluye ID y URL del conjunto MinTIC, fechas de recuperación/actualización de la fuente, huella de contenido, estado de validación, versión de transformación y si la instantánea está en caché local u obsoleta.
+
+Los campos requeridos corresponden al esquema actual de la fuente MinTIC. Un campo está ausente si no existe, es nulo o está vacío; el cero numérico sigue siendo un valor observado válido. Un periodo se marca incompleto si alguna fila fuente observada para él tiene campos requeridos ausentes. El informe identifica los indicadores afectados y no infiere trimestres faltantes. Las filas sin año/trimestre válido no se pueden asignar a un periodo. Las filas no se reparan ni modifican. Las filas rechazadas se conservan para inspección de calidad, aunque los análisis agregados usan filas normalizadas aceptadas. Si una instantánea antigua no tiene tabla de filas fuente, la inspección usa las filas crudas aceptadas y no puede contar filas rechazadas o duplicadas que no se conservaron. Una instantánea vacía muestra indicadores no disponibles, no mediciones en cero. Los modelos y predicciones de ML siguen siendo sintéticos y separados de los registros oficiales.
 
 ## Otras referencias oficiales revisadas
 

@@ -47,7 +47,7 @@ class SourceUnavailableError(RuntimeError):
 
 
 def _request_json(url: str, params: dict[str, Any] | None = None) -> Any:
-    headers = {"Accept": "application/json", "User-Agent": "wifi-tunja-smart-predictor/0.7.3"}
+    headers = {"Accept": "application/json", "User-Agent": "wifi-tunja-smart-predictor/0.7.4"}
     app_token = os.getenv("SOCRATA_APP_TOKEN")
     if app_token:
         headers["X-App-Token"] = app_token
@@ -169,7 +169,9 @@ def _database_path(path: Path | None = None) -> Path:
     )
 
 
-def load_snapshot(path: Path | None = None) -> dict[str, Any] | None:
+def load_snapshot(
+    path: Path | None = None, *, include_source_records: bool = False
+) -> dict[str, Any] | None:
     database = _database_path(path)
     if not database.is_file():
         return None
@@ -193,11 +195,30 @@ def load_snapshot(path: Path | None = None) -> dict[str, Any] | None:
                 (batch["batch_id"],),
             )
         ]
-    return {
+        raw_records = None
+        if include_source_records:
+            try:
+                raw_records = [
+                    json.loads(row[0])
+                    for row in connection.execute(
+                        "SELECT raw_json FROM connectivity_source_raw WHERE batch_id = ? ORDER BY row_number",
+                        (batch["batch_id"],),
+                    )
+                ]
+            except sqlite3.OperationalError as exc:
+                if "no such table" not in str(exc).lower():
+                    raise
+                raw_records = [record.get("raw", {}) for record in records]
+            if not raw_records and records:
+                raw_records = [record.get("raw", {}) for record in records]
+    snapshot = {
         "batch": dict(batch),
         "records": records,
         "stale": (datetime.now(UTC) - datetime.fromisoformat(batch["retrieved_at_utc"])).days >= 30,
     }
+    if include_source_records:
+        snapshot["raw_records"] = raw_records
+    return snapshot
 
 
 def _create_refresh_history_table(database: Path) -> None:

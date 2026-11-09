@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — V7.4.0 Official Data Quality & Coverage
+
+Adds a provenance-aware quality report for official MinTIC source rows, including missing required fields, exact duplicates, observed period coverage, incomplete-period indicator availability, and validation status. The dashboard and read-only API expose the report; source records are not modified, missing values are not treated as zero, and synthetic ML data remains separate.
+
+Agrega un informe de calidad con procedencia para filas MinTIC oficiales: campos requeridos ausentes, duplicados exactos, cobertura de periodos observados, disponibilidad de indicadores por periodo incompleto y estado de validación. El dashboard y la API de solo lectura exponen el informe; no se modifican filas, los valores faltantes no se tratan como cero y los datos ML sintéticos permanecen separados.
+
 ## V7.3.0 — Official Connectivity Period Comparison — released 2026-11-08
 
 Adds dashboard selectors and a read-only API route to compare available MinTIC Tunja reporting periods. The existing snapshot is compared across reported access totals, providers, technologies, and downstream/upstream bandwidth categories. Absolute and valid percentage differences are exposed; zero baselines and categories absent from a period are explicitly marked rather than treated as zero. Incomplete rows are ignored and counted, and missing periods are not interpolated. Official municipal data remains separate from synthetic ML inputs and predictions. Product V7.3.0 maps to Python package and Docker image `0.7.3`. Annotated tag [`v7.3.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.3.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.3.0) target `aa4fb65eb7072c8b4396e034966c646555eedb18`. Pytest, Ruff, Black, and `git diff --check` passed locally. See the [V7.3.0 validation record](docs/releases/v7.3.0.md).
