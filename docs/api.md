@@ -72,7 +72,7 @@ Start with `uvicorn assistant_api.main:app --reload --port 8001`; OpenAPI is at 
 
 See [Assistant](assistant.md), [Scenario Prediction](scenario_prediction.md), and [Limitations](limitations.md) for behavior and interpretation.
 
-## Official connectivity (V7.4.0)
+## Official connectivity (V7.5.0)
 
 - `GET /connectivity/sources` returns registered official sources and their integration status.
 - `GET /connectivity/tunja` returns the latest valid locally stored MinTIC snapshot's municipal analysis, freshness, period, and provenance. It returns 503 when no valid snapshot exists.
@@ -80,6 +80,7 @@ See [Assistant](assistant.md), [Scenario Prediction](scenario_prediction.md), an
 - `GET /connectivity/refresh/history?limit=20&offset=0` returns newest-first refresh attempts with total count and offset pagination (`limit` 1–100, `offset` 0 or greater). Each row includes timestamp, source, success/failure, retrieved row count when known, reporting period, validation result, sanitized error type, and associated snapshot batch ID.
 - `GET /connectivity/tunja/compare?baseline_period=2025-Q1&comparison_period=2026-Q1` compares two periods present in the validated snapshot. Its result includes reported-access total, provider and technology totals, and downstream/upstream band categories with absolute and mathematically valid percentage differences. Missing periods return `period_unavailable`; missing categories are not zero-filled and zero baselines have no percentage difference. The response includes the snapshot freshness and source provenance.
 - `GET /connectivity/tunja/quality` reports retrieved and accepted row counts, missing required source fields, exact duplicate rows, observed reporting-period coverage, incomplete periods, per-indicator availability, ingestion validation status, and source provenance. Empty values are reported as missing rather than zero; an unavailable snapshot returns 503. Snapshot/cache status is included and is never represented as a live source check.
+- `GET /connectivity/tunja/concentration?reporting_period=2025-Q1` reports provider shares, leading provider and share, provider count, and the 0–10,000 HHI for one available period. It uses preserved unique MinTIC source rows, includes snapshot provenance, and returns explicit unavailable states for incomplete/invalid or zero-total inputs. The measure describes fixed-internet subscription counts only.
 - Refresh is controlled by running `python scripts/refresh_official_data.py`; no public mutation endpoint was added.
 
 Only MinTIC fixed-access records from `hwrp-3su3` are integrated. Refresh attempts are stored in an additive table in the existing local SQLite snapshot database; legacy databases without history return an empty history until a refresh is attempted. A failed refresh preserves the last valid snapshot. See [official connectivity data](official-connectivity.md) for source methodology, limitations, and synthetic/real separation.

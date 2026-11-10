@@ -1,4 +1,4 @@
-# Datos oficiales de conectividad (V7.4.0)
+# Datos oficiales de conectividad (V7.5.0)
 
 ## Fuente integrada
 
@@ -47,6 +47,12 @@ Son cambios de agregados municipales de accesos fijos, no de suscriptores único
 El expander **Official data quality and coverage** del dashboard y `GET /connectivity/tunja/quality` inspeccionan las filas originales conservadas para la instantánea local validada. El informe muestra filas recuperadas y aceptadas, rechazadas y sus motivos, campos requeridos ausentes, duplicados exactos (incluidas filas fuente duplicadas excluidas durante la ingestión), periodos observados, integridad por periodo y disponibilidad de indicadores de accesos, proveedor, tecnología y bandas de bajada/subida. La procedencia incluye ID y URL del conjunto MinTIC, fechas de recuperación/actualización de la fuente, huella de contenido, estado de validación, versión de transformación y si la instantánea está en caché local u obsoleta.
 
 Los campos requeridos corresponden al esquema actual de la fuente MinTIC. Un campo está ausente si no existe, es nulo o está vacío; el cero numérico sigue siendo un valor observado válido. Un periodo se marca incompleto si alguna fila fuente observada para él tiene campos requeridos ausentes. El informe identifica los indicadores afectados y no infiere trimestres faltantes. Las filas sin año/trimestre válido no se pueden asignar a un periodo. Las filas no se reparan ni modifican. Las filas rechazadas se conservan para inspección de calidad, aunque los análisis agregados usan filas normalizadas aceptadas. Si una instantánea antigua no tiene tabla de filas fuente, la inspección usa las filas crudas aceptadas y no puede contar filas rechazadas o duplicadas que no se conservaron. Una instantánea vacía muestra indicadores no disponibles, no mediciones en cero. Los modelos y predicciones de ML siguen siendo sintéticos y separados de los registros oficiales.
+
+## Concentración por proveedor (V7.5.0)
+
+El expander del dashboard **Provider concentration · fixed-internet subscriptions** y `GET /connectivity/tunja/concentration?reporting_period=YYYY-Qn` calculan participaciones para un trimestre disponible. El esquema MinTIC observado contiene una fila por combinación informada de trimestre, proveedor, segmento, tecnología, velocidad de bajada y velocidad de subida. El cálculo suma los accesos informados de categorías distintas por proveedor dentro del trimestre seleccionado, elimina filas fuente exactamente duplicadas antes de agregarlas y no suma varios trimestres.
+
+Para cada proveedor, participación = sus accesos informados sumados / total del periodo × 100. HHI es la suma de participaciones porcentuales al cuadrado (rango 0–10 000). El informe incluye periodo, proveedor líder y su participación, cantidad de proveedores, participaciones, conteos de filas y procedencia de la instantánea local. Si hay campos incompletos o inválidos, el periodo se marca no disponible en lugar de calcular con un denominador parcial; si el total es cero, las participaciones y HHI no están definidos. No se completan valores ausentes. HHI es una estadística descriptiva de concentración para registros municipales de suscripciones fijas. No mide tráfico WiFi, congestión, cobertura, calidad del servicio ni saturación, y no demuestra conducta ni resultados de competencia de mercado. Los datos y predicciones ML existentes siguen siendo sintéticos.
 
 ## Otras referencias oficiales revisadas
 

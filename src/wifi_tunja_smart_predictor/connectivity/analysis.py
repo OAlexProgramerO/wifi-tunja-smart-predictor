@@ -4,7 +4,9 @@ from __future__ import annotations
 
 import json
 import math
+import unicodedata
 from collections import defaultdict
+from decimal import Decimal, InvalidOperation
 from typing import Any
 
 from wifi_tunja_smart_predictor.connectivity.mintic import REQUIRED_FIELDS
@@ -150,6 +152,186 @@ def _source_reporting_period(row: dict[str, Any]) -> str | None:
     if year < 1 or quarter not in {1, 2, 3, 4}:
         return None
     return f"{year}-Q{quarter}"
+
+
+def analyze_provider_concentration(
+    records: list[dict[str, Any]], reporting_period: str
+) -> dict[str, Any]:
+    """Calculate concentration from unique, complete provider rows for one quarter."""
+    if not isinstance(reporting_period, str) or _valid_period(reporting_period) is None:
+        return _unavailable_provider_concentration(
+            reporting_period, "invalid_reporting_period", "Select a valid YYYY-Qn period."
+        )
+
+    selected: dict[str, int] = {}
+    seen: set[str] = set()
+    invalid_records = 0
+    duplicate_records = 0
+    incomplete_records = 0
+    source_period_records = 0
+    for record in records:
+        row = record.get("raw", record) if isinstance(record, dict) else record
+        if not isinstance(row, dict):
+            invalid_records += 1
+            continue
+        if _source_reporting_period(row) != reporting_period:
+            continue
+        source_period_records += 1
+        missing = any(
+            field not in row or row[field] is None or not str(row[field]).strip()
+            for field in REQUIRED_FIELDS
+        )
+        if missing:
+            incomplete_records += 1
+            continue
+        try:
+            count_decimal = Decimal(str(row["accesos_fijos_internet"]))
+        except (InvalidOperation, TypeError, ValueError):
+            invalid_records += 1
+            continue
+        if (
+            not count_decimal.is_finite()
+            or count_decimal < 0
+            or count_decimal != count_decimal.to_integral_value()
+        ):
+            invalid_records += 1
+            continue
+        provider = unicodedata.normalize("NFC", " ".join(str(row["proveedor"]).split()))
+        if not provider:
+            incomplete_records += 1
+            continue
+        serialized = json.dumps(row, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+        if serialized in seen:
+            duplicate_records += 1
+            continue
+        seen.add(serialized)
+        selected[provider] = selected.get(provider, 0) + int(count_decimal)
+
+    base = {
+        "methodology_version": "mintic-provider-concentration-v1",
+        "reporting_period": reporting_period,
+        "geographic_granularity": "municipality",
+        "data_classification": "official_fixed_internet_subscription_statistics",
+        "records_included": len(seen),
+        "source_record_count": source_period_records,
+        "duplicate_records_ignored": duplicate_records,
+        "invalid_records_ignored": invalid_records,
+        "incomplete_records_excluded": incomplete_records,
+        "interpretation": (
+            "Provider shares describe reported fixed-internet subscription/access counts in this "
+            "municipal reporting period. HHI is the sum of squared provider shares on a 0-10,000 "
+            "scale; higher values mean subscriptions are more concentrated among fewer providers, "
+            "while lower values mean they are more distributed. It is descriptive only and does not "
+            "measure WiFi traffic, network congestion, coverage, quality, or saturation."
+        ),
+    }
+    if invalid_records or incomplete_records:
+        return {
+            **base,
+            "status": "incomplete_data",
+            "total_reported_subscriptions": None,
+            "provider_count": None,
+            "leading_provider": None,
+            "leading_provider_share_percent": None,
+            "hhi": None,
+            "providers": [],
+            "message": (
+                "Concentration is unavailable because the selected period contains invalid or "
+                "incomplete source records. No values were inferred."
+            ),
+        }
+    total = sum(selected.values())
+    if not selected:
+        return {
+            **base,
+            "status": "period_unavailable",
+            "total_reported_subscriptions": None,
+            "provider_count": 0,
+            "leading_provider": None,
+            "leading_provider_share_percent": None,
+            "hhi": None,
+            "providers": [],
+            "message": "No complete provider records are available for this reporting period.",
+        }
+    if total == 0:
+        return {
+            **base,
+            "status": "zero_total",
+            "total_reported_subscriptions": 0,
+            "provider_count": len(selected),
+            "leading_provider": None,
+            "leading_provider_share_percent": None,
+            "hhi": None,
+            "providers": [
+                {"provider": name, "reported_subscriptions": count, "share_percent": None}
+                for name, count in sorted(selected.items())
+            ],
+            "message": "The reported total is zero, so provider shares and HHI are undefined.",
+        }
+
+    provider_shares = [
+        {
+            "provider": name,
+            "reported_subscriptions": count,
+            "share_percent": count / total * 100,
+        }
+        for name, count in sorted(selected.items())
+    ]
+    leading = min(
+        provider_shares, key=lambda item: (-item["reported_subscriptions"], item["provider"])
+    )
+    hhi = sum(item["share_percent"] ** 2 for item in provider_shares)
+    return {
+        **base,
+        "status": "available",
+        "total_reported_subscriptions": total,
+        "provider_count": len(selected),
+        "leading_provider": leading["provider"],
+        "leading_provider_share_percent": round(leading["share_percent"], 4),
+        "hhi": round(hhi, 4),
+        "hhi_scale": "0-10,000 (percentage shares squared)",
+        "providers": provider_shares,
+        "message": (
+            f"Ignored {duplicate_records} exact duplicate source record(s) before aggregation."
+            if duplicate_records
+            else "All unique source records for the selected period were complete and valid."
+        ),
+    }
+
+
+def _valid_period(value: str) -> tuple[int, int] | None:
+    if len(value) != 7 or value[4:6] != "-Q":
+        return None
+    try:
+        year = int(value[:4])
+        quarter = int(value[6:])
+    except ValueError:
+        return None
+    return (year, quarter) if year > 0 and quarter in {1, 2, 3, 4} else None
+
+
+def _unavailable_provider_concentration(
+    reporting_period: str, status: str, message: str
+) -> dict[str, Any]:
+    return {
+        "methodology_version": "mintic-provider-concentration-v1",
+        "reporting_period": reporting_period,
+        "geographic_granularity": "municipality",
+        "data_classification": "official_fixed_internet_subscription_statistics",
+        "status": status,
+        "total_reported_subscriptions": None,
+        "provider_count": None,
+        "leading_provider": None,
+        "leading_provider_share_percent": None,
+        "hhi": None,
+        "providers": [],
+        "message": message,
+        "interpretation": (
+            "This descriptive fixed-internet subscription indicator does not measure WiFi traffic, "
+            "network congestion, coverage, quality, or saturation. A higher HHI indicates more "
+            "concentration among providers; lower values indicate more distributed shares."
+        ),
+    }
 
 
 def analyze_tunja(records: list[dict[str, Any]]) -> dict[str, Any]:

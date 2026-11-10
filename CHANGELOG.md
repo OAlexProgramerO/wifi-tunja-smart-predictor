@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — V7.5.0 Provider Concentration Analysis
+
+Adds a deterministic selected-period provider share and HHI indicator for official MinTIC fixed-internet subscription records. Exact duplicate source rows are ignored; incomplete, invalid, zero-total, or unavailable-period calculations are clearly marked unavailable/undefined. The statistic is descriptive and does not measure WiFi traffic or network performance.
+
+Agrega participaciones deterministas por proveedor e indicador HHI para un periodo seleccionado de registros oficiales MinTIC de suscripciones fijas. Se ignoran filas fuente exactamente duplicadas; los cálculos incompletos, inválidos, con total cero o periodo no disponible se identifican como no disponibles/no definidos. La estadística es descriptiva y no mide tráfico WiFi ni desempeño de red.
+
 ## V7.4.0 — Official Data Quality & Coverage — released 2026-11-09
 
 Adds a provenance-aware quality report for official MinTIC source rows, including missing required fields, exact duplicates, observed period coverage, incomplete-period indicator availability, and validation status. The dashboard and read-only API expose the report; source records are not modified, missing values are not treated as zero, and synthetic ML data remains separate. Product V7.4.0 maps to Python package and Docker image `0.7.4`. Annotated tag [`v7.4.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.4.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.4.0) target `46cfed52a54d6c6248531069b8e2d1dea4e77c25`. Pytest, Ruff, Black, and `git diff --check` passed locally. See the [V7.4.0 validation record](docs/releases/v7.4.0.md).

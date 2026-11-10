@@ -8,6 +8,7 @@ import sqlite3
 from fastapi import APIRouter, HTTPException, Query
 
 from wifi_tunja_smart_predictor.connectivity.analysis import (
+    analyze_provider_concentration,
     analyze_tunja,
     build_tunja_quality_report,
     compare_tunja_periods,
@@ -172,6 +173,48 @@ def tunja_connectivity_quality() -> dict:
         "stale": snapshot["stale"],
         "quality": build_tunja_quality_report(
             snapshot["records"], snapshot.get("raw_records"), provenance
+        ),
+    }
+
+
+@router.get("/tunja/concentration")
+def tunja_provider_concentration(
+    reporting_period: str = Query(..., min_length=7, max_length=7, pattern=r"^\d{4}-Q[1-4]$"),
+) -> dict:
+    """Report period-specific provider shares and HHI from source-level snapshot rows."""
+    try:
+        snapshot = load_snapshot(include_source_records=True)
+    except (OSError, ValueError, sqlite3.DatabaseError, SourceUnavailableError) as exc:
+        raise HTTPException(
+            status_code=503, detail="Official connectivity snapshot is unavailable."
+        ) from exc
+    if snapshot is None:
+        raise HTTPException(
+            status_code=503, detail="No official connectivity snapshot is available."
+        )
+    batch = snapshot["batch"]
+    return {
+        "source": source_registry(
+            {
+                batch["source_id"]: {
+                    "last_successful_retrieval_utc": batch["retrieved_at_utc"],
+                    "last_source_update_utc": batch["source_updated_at_utc"],
+                    "status": "stale_local_cache" if snapshot["stale"] else "available_locally",
+                }
+            }
+        )[0],
+        "retrieved_at_utc": batch.get("retrieved_at_utc"),
+        "stale": snapshot["stale"],
+        "provenance": {
+            "dataset_id": batch.get("dataset_id"),
+            "original_url": batch.get("original_url"),
+            "content_sha256": batch.get("content_sha256"),
+            "validation_status": batch.get("validation_status"),
+            "transformation_version": batch.get("transformation_version"),
+            "snapshot_status": "stale_cached" if snapshot["stale"] else "cached_local",
+        },
+        "concentration": analyze_provider_concentration(
+            snapshot.get("raw_records") or [], reporting_period
         ),
     }
 

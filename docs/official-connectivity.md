@@ -1,4 +1,4 @@
-# Official Connectivity Data (V7.4.0)
+# Official Connectivity Data (V7.5.0)
 
 ## What is integrated
 
@@ -47,6 +47,12 @@ These are changes in municipal fixed-internet access aggregates, not unique subs
 The **Official data quality and coverage** dashboard expander and `GET /connectivity/tunja/quality` inspect the raw rows preserved for the current validated local snapshot. The report gives retrieved and accepted row counts, rejected count and reasons, missing required source fields, exact duplicate rows (including duplicate source rows excluded during ingestion), observed reporting periods, per-period completeness, and availability of access, provider, technology, and downstream/upstream band indicators. Provenance includes the MinTIC dataset ID, source URL, retrieval/source-update timestamps, content fingerprint, validation state, transformation version, and whether the snapshot is locally cached or stale.
 
 The required fields follow the current MinTIC source schema. A field is missing when absent, null, or blank; numeric zero remains a valid observed value. A period is marked incomplete when an observed source row for it has missing required fields. The report identifies affected indicators for those periods and does not infer absent quarters. Rows without a valid source year/quarter cannot be assigned to a period. Rows are never repaired or changed. Rejected rows are preserved for quality inspection even though aggregate analyses use accepted normalized rows. When an older snapshot has no raw source table, quality inspection falls back to its accepted raw rows and cannot count rejected or duplicate source rows that were not preserved. Empty snapshots show unavailable indicators, not zero measurements. ML models and predictions remain synthetic and separate from official records.
+
+## Provider concentration (V7.5.0)
+
+The **Provider concentration · fixed-internet subscriptions** dashboard expander and `GET /connectivity/tunja/concentration?reporting_period=YYYY-Qn` calculate subscription shares for one selected available quarter. The source contains one row per reported combination of quarter, provider, segment, technology, downstream speed, and upstream speed; these dimension fields were verified against the MinTIC schema. The calculation sums the reported access count across those distinct categories by provider for that quarter. It removes exact duplicate source rows before aggregation and does not sum across quarters.
+
+For provider *i*, share is its summed reported access count divided by the selected period's total, multiplied by 100. HHI is the sum of squared percentage shares (range 0–10,000). The report includes the period, leading provider/share, number of providers, provider shares, record counts, and local snapshot provenance. A period with incomplete or invalid source fields is reported unavailable rather than calculated from a partial denominator; a zero total has undefined shares/HHI. No absent values are filled. The HHI is a descriptive concentration statistic for fixed-internet municipal subscription records. It is not a measure of WiFi traffic, congestion, coverage, service quality, or saturation, and it does not establish market conduct or competition outcomes. Existing ML data and predictions remain synthetic.
 
 ## Other official references checked
 

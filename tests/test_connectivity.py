@@ -15,6 +15,7 @@ from api.main import app
 from wifi_tunja_smart_predictor.assistant.schemas import ChatRequest
 from wifi_tunja_smart_predictor.assistant.service import AssistantService
 from wifi_tunja_smart_predictor.connectivity.analysis import (
+    analyze_provider_concentration,
     analyze_tunja,
     available_tunja_periods,
     build_tunja_quality_report,
@@ -318,6 +319,103 @@ def test_quality_report_handles_empty_snapshot_with_unavailable_indicators():
     assert all(not item["available"] for item in report["indicator_availability"].values())
 
 
+def test_provider_concentration_calculates_deterministic_shares_and_hhi():
+    rows = [
+        record(proveedor="Provider A", accesos_fijos_internet="75", tecnologia="FTTH"),
+        record(proveedor="Provider A", accesos_fijos_internet="25", tecnologia="HFC"),
+        record(proveedor="Provider B", accesos_fijos_internet="100"),
+    ]
+    result = analyze_provider_concentration(rows, "2025-Q1")
+
+    assert result["status"] == "available"
+    assert result["reporting_period"] == "2025-Q1"
+    assert result["total_reported_subscriptions"] == 200
+    assert result["provider_count"] == 2
+    assert result["leading_provider"] == "Provider A"
+    assert result["leading_provider_share_percent"] == 50
+    assert result["hhi"] == 5000
+    assert result["records_included"] == 3
+    assert result["data_classification"] == "official_fixed_internet_subscription_statistics"
+    assert "does not measure WiFi traffic" in result["interpretation"]
+
+
+def test_provider_concentration_ignores_exact_duplicate_rows_without_double_counting():
+    provider_a = record(proveedor="A", accesos_fijos_internet="60")
+    rows = [provider_a, provider_a.copy(), record(proveedor="B", accesos_fijos_internet="40")]
+    result = analyze_provider_concentration(rows, "2025-Q1")
+
+    assert result["status"] == "available"
+    assert result["source_record_count"] == 3
+    assert result["records_included"] == 2
+    assert result["duplicate_records_ignored"] == 1
+    assert result["total_reported_subscriptions"] == 100
+    assert result["hhi"] == 5200
+
+
+def test_provider_concentration_marks_zero_total_and_unavailable_period_safely():
+    zero = analyze_provider_concentration(
+        [record(proveedor="A", accesos_fijos_internet="0")], "2025-Q1"
+    )
+    assert zero["status"] == "zero_total"
+    assert zero["total_reported_subscriptions"] == 0
+    assert zero["provider_count"] == 1
+    assert zero["hhi"] is None
+    assert zero["leading_provider_share_percent"] is None
+
+    missing_period = analyze_provider_concentration([record(anno="2025", trimestre="2")], "2025-Q1")
+    assert missing_period["status"] == "period_unavailable"
+    assert missing_period["total_reported_subscriptions"] is None
+
+
+@pytest.mark.parametrize(
+    "row, expected_status",
+    [
+        (record(proveedor="", accesos_fijos_internet="12"), "incomplete_data"),
+        (record(velocidad_bajada="", accesos_fijos_internet="12"), "incomplete_data"),
+        (record(accesos_fijos_internet="not-a-number"), "incomplete_data"),
+        (record(accesos_fijos_internet="-5"), "incomplete_data"),
+    ],
+)
+def test_provider_concentration_rejects_missing_or_invalid_provider_rows(row, expected_status):
+    result = analyze_provider_concentration([row], "2025-Q1")
+
+    assert result["status"] == expected_status
+    assert result["hhi"] is None
+    assert result["total_reported_subscriptions"] is None
+
+
+def test_provider_concentration_dashboard_shows_selected_period_summary():
+    from streamlit.testing.v1 import AppTest
+
+    snapshot = {
+        "records": [
+            normalized_record("2025-Q1", 70, provider="A"),
+            normalized_record("2025-Q1", 30, provider="B"),
+        ],
+        "raw_records": [
+            record(proveedor="A", accesos_fijos_internet="70"),
+            record(proveedor="B", accesos_fijos_internet="30"),
+        ],
+    }
+    app_test = AppTest.from_string(
+        "from app.dashboard import _render_provider_concentration\n"
+        f"snapshot = {snapshot!r}\n"
+        "_render_provider_concentration(snapshot)\n",
+        default_timeout=30,
+    ).run()
+
+    assert not app_test.exception
+    assert app_test.selectbox[0].label == "Reporting period"
+    assert app_test.selectbox[0].options == ["2025-Q1"]
+    assert any(
+        metric.label == "Leading provider" and metric.value == "A" for metric in app_test.metric
+    )
+    assert any(
+        metric.label == "Providers included" and metric.value == "2" for metric in app_test.metric
+    )
+    assert any("5800.00 / 10,000" in metric.value for metric in app_test.metric)
+
+
 def test_failed_refresh_uses_latest_valid_snapshot_and_marks_failure(tmp_path):
     database = tmp_path / "offline.sqlite3"
     original = refresh_official_data(
@@ -505,6 +603,9 @@ def test_connectivity_api_returns_503_without_cache(tmp_path, monkeypatch):
         == 503
     )
     assert client.get("/connectivity/tunja/quality").status_code == 503
+    assert (
+        client.get("/connectivity/tunja/concentration?reporting_period=2025-Q1").status_code == 503
+    )
     sources = client.get("/connectivity/sources")
     assert sources.status_code == 200
     registered = {source["source_id"]: source for source in sources.json()["sources"]}
@@ -602,6 +703,34 @@ def test_connectivity_quality_api_reports_duplicates_coverage_and_provenance(tmp
     assert payload["provenance"]["dataset_id"] == "hwrp-3su3"
     assert payload["provenance"]["snapshot_status"] == "cached_local"
     assert payload["stale"] is False
+
+
+def test_provider_concentration_api_includes_period_and_provenance(tmp_path, monkeypatch):
+    database = tmp_path / "concentration-api.sqlite3"
+    monkeypatch.setenv("OFFICIAL_DATA_DB_PATH", str(database))
+    refresh_official_data(
+        database,
+        fetch_records=lambda: [
+            record(proveedor="Provider A", accesos_fijos_internet="30"),
+            record(proveedor="Provider B", accesos_fijos_internet="70"),
+        ],
+        fetch_metadata=lambda: {},
+    )
+
+    client = TestClient(app)
+    response = client.get("/connectivity/tunja/concentration?reporting_period=2025-Q1")
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["concentration"]["reporting_period"] == "2025-Q1"
+    assert payload["concentration"]["provider_count"] == 2
+    assert payload["concentration"]["leading_provider"] == "Provider B"
+    assert payload["concentration"]["leading_provider_share_percent"] == 70
+    assert payload["provenance"]["dataset_id"] == "hwrp-3su3"
+    assert payload["provenance"]["snapshot_status"] == "cached_local"
+    assert payload["stale"] is False
+    assert (
+        client.get("/connectivity/tunja/concentration?reporting_period=2025-Q8").status_code == 422
+    )
 
 
 def test_connectivity_refresh_api_exposes_latest_and_paginated_history(tmp_path, monkeypatch):
@@ -778,6 +907,7 @@ def test_dashboard_renders_verified_latest_period_not_all_period_sum(tmp_path, m
     assert [selector.label for selector in app_test.selectbox] == [
         "Baseline period",
         "Comparison period",
+        "Reporting period",
     ]
     assert all(selector.options == ["2025-Q1", "2025-Q2"] for selector in app_test.selectbox)
     assert any(

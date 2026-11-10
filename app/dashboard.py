@@ -36,6 +36,7 @@ from wifi_tunja_smart_predictor.config import (
     TARGET_COLUMN,
 )
 from wifi_tunja_smart_predictor.connectivity.analysis import (
+    analyze_provider_concentration,
     available_tunja_periods,
     build_tunja_quality_report,
     compare_tunja_periods,
@@ -274,7 +275,7 @@ def _render_tunja_period_comparison(records: list[dict[str, Any]]) -> None:
                 changes.append(
                     {
                         "Indicator": label,
-                        "Category": item["category"],
+                        "Category": str(item["category"]),
                         "Baseline": item["baseline_value"],
                         "Comparison": item["comparison_value"],
                         "Absolute difference": item["absolute_difference"],
@@ -380,6 +381,49 @@ def _render_official_data_quality(snapshot: dict[str, Any]) -> None:
             "Missing values remain unavailable and are never treated as numeric zero. "
             "No source records are changed or completed."
         )
+
+
+def _render_provider_concentration(snapshot: dict[str, Any]) -> None:
+    """Present provider shares and HHI for a selected official reporting period."""
+    periods = available_tunja_periods(snapshot.get("records") or [])
+    with st.expander("Provider concentration · fixed-internet subscriptions"):
+        st.caption(
+            "Descriptive municipal subscription statistics only. This indicator does not measure "
+            "WiFi traffic, congestion, coverage, service quality, or saturation."
+        )
+        if not periods:
+            st.info("No complete official reporting periods are available for this calculation.")
+            return
+        reporting_period = st.selectbox(
+            "Reporting period",
+            options=periods,
+            index=len(periods) - 1,
+            key="connectivity_provider_concentration_period",
+        )
+        result = analyze_provider_concentration(snapshot.get("raw_records") or [], reporting_period)
+        if result["status"] != "available":
+            st.info(result["message"])
+            return
+        st.caption(f"Period: {result['reporting_period']} · municipal granularity")
+        columns = st.columns(3)
+        columns[0].metric("Leading provider", result["leading_provider"])
+        columns[1].metric(
+            "Leading provider share", f"{result['leading_provider_share_percent']:.2f}%"
+        )
+        columns[2].metric("Providers included", result["provider_count"])
+        st.metric("Herfindahl-Hirschman Index (HHI)", f"{result['hhi']:.2f} / 10,000")
+        st.caption(
+            "HHI is the sum of squared provider percentage shares (0–10,000). Higher values mean "
+            "reported subscriptions are more concentrated among fewer providers; lower values mean "
+            "they are more distributed. It is not a WiFi network-performance measure."
+        )
+        st.dataframe(
+            pd.DataFrame(result["providers"]),
+            hide_index=True,
+            width="stretch",
+            alt="Official fixed-internet reported subscription counts and percentage shares by provider.",
+        )
+        st.caption(result["message"])
 
 
 def _clear_experiment_history_filters() -> None:
@@ -3161,6 +3205,7 @@ def _render_real_connectivity() -> None:
         )
     _render_official_data_quality(snapshot)
     _render_tunja_period_comparison(snapshot.get("records") or [])
+    _render_provider_concentration(snapshot)
     if export_bundle["record_count"] == 0:
         st.info(
             "The local snapshot contains no validated records. The downloads include source metadata and empty analysis."
