@@ -1,10 +1,10 @@
 # Changelog
 
-## Unreleased — V7.5.0 Provider Concentration Analysis
+## V7.5.0 — Provider Concentration Analysis — released 2026-11-10
 
-Adds a deterministic selected-period provider share and HHI indicator for official MinTIC fixed-internet subscription records. Exact duplicate source rows are ignored; incomplete, invalid, zero-total, or unavailable-period calculations are clearly marked unavailable/undefined. The statistic is descriptive and does not measure WiFi traffic or network performance.
+Adds a deterministic selected-period provider share and HHI indicator for official MinTIC fixed-internet subscription records. Exact duplicate source rows are ignored; incomplete, invalid, zero-total, or unavailable-period calculations are clearly marked unavailable/undefined. The statistic is descriptive and does not measure WiFi traffic or network performance. Product V7.5.0 maps to Python package and Docker image `0.7.5`. Annotated tag [`v7.5.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.5.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.5.0) target `e85b2471afe6b88ced6345161c2f4c28e4a4441c`. Pytest, Ruff, Black, `git diff --check`, and Compose configuration passed locally. See the [V7.5.0 validation record](docs/releases/v7.5.0.md).
 
-Agrega participaciones deterministas por proveedor e indicador HHI para un periodo seleccionado de registros oficiales MinTIC de suscripciones fijas. Se ignoran filas fuente exactamente duplicadas; los cálculos incompletos, inválidos, con total cero o periodo no disponible se identifican como no disponibles/no definidos. La estadística es descriptiva y no mide tráfico WiFi ni desempeño de red.
+Agrega participaciones deterministas por proveedor e indicador HHI para un periodo seleccionado de registros oficiales MinTIC de suscripciones fijas. Se ignoran filas fuente exactamente duplicadas; los cálculos incompletos, inválidos, con total cero o periodo no disponible se identifican como no disponibles/no definidos. La estadística es descriptiva y no mide tráfico WiFi ni desempeño de red. El producto V7.5.0 corresponde al paquete Python y a la imagen Docker `0.7.5`. La etiqueta anotada [`v7.5.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.5.0) y el [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.5.0) apuntan a `e85b2471afe6b88ced6345161c2f4c28e4a4441c`. Pytest, Ruff, Black, `git diff --check` y la configuración de Compose pasaron localmente. Consulte el [registro de validación V7.5.0](docs/releases/v7.5.0.md).
 
 ## V7.4.0 — Official Data Quality & Coverage — released 2026-11-09
 

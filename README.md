@@ -9,7 +9,7 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V7.5.0 adds descriptive provider shares and an HHI concentration indicator for selected official MinTIC reporting periods. Python package and Docker image: `0.7.5`. Publication pending. See the [official connectivity guide](docs/official-connectivity.md), [API reference](docs/api.md), and [release history](docs/release-history.md).
+**Release status:** V7.5.0 is published as [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.5.0), with annotated tag [`v7.5.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.5.0) at `e85b2471afe6b88ced6345161c2f4c28e4a4441c`. Python package and Docker image: `0.7.5`. See the [official connectivity guide](docs/official-connectivity.md), [API reference](docs/api.md), [V7.5.0 validation record](docs/releases/v7.5.0.md), and [release history](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.5.0 summarizes provider concentration from reported municipal fixed-internet subscriptions; it does not characterize WiFi traffic or service performance.
 

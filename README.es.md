@@ -4,7 +4,7 @@
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V7.5.0 agrega participaciones descriptivas de proveedores y un indicador de concentración HHI para periodos MinTIC seleccionados. Paquete Python e imagen Docker: `0.7.5`. Publicación pendiente. Consulte la [guía de conectividad oficial](docs/official-connectivity.es.md), la [referencia API](docs/api.es.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V7.5.0 está publicado en [GitHub Releases](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.5.0), con la etiqueta anotada [`v7.5.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.5.0) en `e85b2471afe6b88ced6345161c2f4c28e4a4441c`. Paquete Python e imagen Docker: `0.7.5`. Consulte la [guía de conectividad oficial](docs/official-connectivity.es.md), la [referencia API](docs/api.es.md), el [registro de validación V7.5.0](docs/releases/v7.5.0.md) y el [historial de versiones](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combina su demostración sintética de clasificación horaria y estimación de conexiones con análisis descriptivos de un conjunto oficial MinTIC opcional. V7.5.0 resume la concentración de proveedores a partir de suscripciones fijas municipales informadas; no describe tráfico WiFi ni desempeño del servicio.
 
