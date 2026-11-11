@@ -21,6 +21,51 @@ def test_dashboard_overview_renders_with_v3_navigation(mini_frame, tmp_path, mon
     assert any(metric.label == "Synthetic access points" for metric in app.metric)
 
 
+def test_architecture_diagnostics_dashboard_handles_unavailable_api(monkeypatch):
+    from app import dashboard
+
+    monkeypatch.setattr(
+        dashboard,
+        "main_api_request",
+        lambda _path: (_ for _ in ()).throw(dashboard.ApiClientError("unavailable")),
+    )
+    app = AppTest.from_string(
+        "from app.dashboard import _render_architecture_diagnostics\n"
+        "_render_architecture_diagnostics()\n",
+        default_timeout=30,
+    ).run()
+    assert not app.exception
+    assert any("diagnostics are unavailable" in item.value for item in app.info)
+
+
+def test_architecture_diagnostics_dashboard_renders_component_statuses(monkeypatch):
+    from app import dashboard
+
+    monkeypatch.setattr(
+        dashboard,
+        "main_api_request",
+        lambda _path: {
+            "components": [
+                {
+                    "id": "assistant_api",
+                    "name": "Assistant API",
+                    "responsibility": "Provides deterministic chat.",
+                    "status": "unknown",
+                    "check_status": "unavailable",
+                    "message": "Readiness check unavailable.",
+                }
+            ]
+        },
+    )
+    app = AppTest.from_string(
+        "from app.dashboard import _render_architecture_diagnostics\n"
+        "_render_architecture_diagnostics()\n",
+        default_timeout=30,
+    ).run()
+    assert not app.exception
+    assert any("Status check unavailable" in item.value for item in app.caption)
+
+
 def test_temporal_evaluation_controls_render_without_running_evaluation():
     app = AppTest.from_string(
         "from app.dashboard import _render_temporal_evaluation_lab\n"

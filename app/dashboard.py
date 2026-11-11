@@ -2810,6 +2810,8 @@ def _render_page(title: str, kind: str) -> None:
         else "synthetic decision-support prototype"
     )
     st.caption(f"WiFi Tunja Smart Predictor · v{PROJECT_VERSION} · {product_scope}")
+    if kind == "About":
+        _render_architecture_diagnostics()
     if kind == "Overview":
         frame = _load_frame()
         render_overview(frame)
@@ -3109,6 +3111,31 @@ def _render_page(title: str, kind: str) -> None:
         st.markdown(
             "This prototype uses synthetic access points, coordinates, contexts, and outcomes. It has no live telemetry or real-time provider. Classification predicts `demand_level`; regression estimates `connections_next_hour`. The conformal interval is calibrated on validation residuals. Feature sensitivity does not establish causation. See `docs/` for methodology, API, privacy, and limitations."
         )
+
+
+def _render_architecture_diagnostics() -> None:
+    """Show sanitized, read-only component diagnostics on the existing About page."""
+    st.subheader("Architecture and system diagnostics")
+    st.caption("Statuses appear only when a reliable check is available.")
+    try:
+        report = main_api_request("/architecture/diagnostics")
+    except ApiClientError:
+        st.info("System diagnostics are unavailable because the main API could not be checked.")
+        return
+
+    for component in report.get("components", []):
+        label = f"{component.get('name', 'Component')}: {component.get('status', 'unknown')}"
+        with st.expander(label):
+            st.write(component.get("responsibility", ""))
+            st.caption(component.get("message", "Status details are unavailable."))
+            if component.get("check_status") == "unavailable":
+                st.caption("Status check unavailable; this is not a verified component failure.")
+            if component.get("stores"):
+                for store_name, store in component["stores"].items():
+                    st.write(
+                        f"{store_name.replace('_', ' ').title()}: {store.get('status', 'unknown')}"
+                    )
+                    st.caption(store.get("message", "Status details are unavailable."))
 
 
 def _render_real_connectivity() -> None:
