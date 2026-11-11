@@ -2,6 +2,8 @@
 
 La API principal corre en el puerto 8000; Swagger está disponible en `/docs`.
 
+- `GET /architecture/diagnostics` devuelve responsabilidades de componentes y comprobaciones de estado sanitizadas. Distingue servicios sin verificar/datos no disponibles de fallos confirmados. No inspecciona el estado del daemon Docker; consulte la [guía de arquitectura](architecture.md).
+
 ## Evaluación temporal V6.3.0
 
 `POST /evaluation/temporal` ajusta copias de los pipelines de clasificación y regresión en 2–5 ventanas cronológicas expansivas, con un mínimo de 100 filas de entrenamiento y 20 de prueba por defecto. La solicitud puede definir `min_train_rows` (2–50.000), `min_test_rows` (2–10.000) y entre 1 y 12 variables de entrada. La respuesta JSON versionada incluye límites, métricas, comparaciones de distribución sintética, huellas SHA-256 del dataset y artefactos y limitaciones. Use `POST /evaluation/temporal?report_format=markdown` para un resumen legible. Solo son datos sintéticos; las diferencias no prueban deterioro ni deriva real. Consulte la [guía de evaluación temporal](temporal-evaluation.es.md).

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — V7.6.0 Architecture and System Diagnostics
+
+Adds a read-only `GET /architecture/diagnostics` endpoint and an existing-dashboard About section showing project components, responsibilities, and only reliably checked status. Unconfigured/unreachable dependencies are distinguished from verified failures; Docker daemon status, secrets, environment values, and internal paths are not exposed. Adds the Mermaid architecture and data-flow guide. Synthetic ML resources remain separate from official MinTIC descriptive records. Planned product release V7.6.0 maps to Python package and Docker image `0.7.6`; publication is pending validation and GitHub release.
+
+Agrega el endpoint de solo lectura `GET /architecture/diagnostics` y una sección en About del dashboard existente con componentes, responsabilidades y estados únicamente cuando hay comprobaciones confiables. Dependencias sin configurar/inalcanzables se distinguen de fallos verificados; no se exponen estado del daemon Docker, secretos, variables de entorno ni rutas internas. Agrega la guía Mermaid de arquitectura y flujos de datos. Los recursos de ML sintético siguen separados de los registros descriptivos oficiales MinTIC. La versión prevista V7.6.0 corresponde al paquete Python y la imagen Docker `0.7.6`; su publicación queda pendiente de validación y GitHub Release.
+
 ## V7.5.0 — Provider Concentration Analysis — released 2026-11-10
 
 Adds a deterministic selected-period provider share and HHI indicator for official MinTIC fixed-internet subscription records. Exact duplicate source rows are ignored; incomplete, invalid, zero-total, or unavailable-period calculations are clearly marked unavailable/undefined. The statistic is descriptive and does not measure WiFi traffic or network performance. Product V7.5.0 maps to Python package and Docker image `0.7.5`. Annotated tag [`v7.5.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.5.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.5.0) target `e85b2471afe6b88ced6345161c2f4c28e4a4441c`. Pytest, Ruff, Black, `git diff --check`, and Compose configuration passed locally. See the [V7.5.0 validation record](docs/releases/v7.5.0.md).

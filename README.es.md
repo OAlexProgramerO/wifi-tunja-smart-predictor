@@ -1,12 +1,12 @@
-# WiFi Tunja Smart Predictor — V7.5.0
+# WiFi Tunja Smart Predictor — V7.6.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V7.5.0 está publicado en [GitHub Releases](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.5.0), con la etiqueta anotada [`v7.5.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.5.0) en `e85b2471afe6b88ced6345161c2f4c28e4a4441c`. Paquete Python e imagen Docker: `0.7.5`. Consulte la [guía de conectividad oficial](docs/official-connectivity.es.md), la [referencia API](docs/api.es.md), el [registro de validación V7.5.0](docs/releases/v7.5.0.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V7.6.0 agrega diagnósticos de arquitectura de solo lectura. Paquete Python e imagen Docker: `0.7.6`. Consulte la [guía de arquitectura](docs/architecture.md), la [guía de conectividad oficial](docs/official-connectivity.es.md), la [referencia API](docs/api.es.md), el [registro de validación V7.5.0](docs/releases/v7.5.0.md) y el [historial de versiones](docs/release-history.md).
 
-WiFi Tunja Smart Predictor combina su demostración sintética de clasificación horaria y estimación de conexiones con análisis descriptivos de un conjunto oficial MinTIC opcional. V7.5.0 resume la concentración de proveedores a partir de suscripciones fijas municipales informadas; no describe tráfico WiFi ni desempeño del servicio.
+WiFi Tunja Smart Predictor combina su demostración sintética de clasificación horaria y estimación de conexiones con análisis descriptivos de un conjunto oficial MinTIC opcional. V7.5.0 resume la concentración de proveedores a partir de suscripciones fijas municipales informadas; no describe tráfico WiFi ni desempeño del servicio. V7.6.0 documenta la arquitectura y agrega diagnósticos sanitizados de solo lectura en la página About y la API principal.
 
 Se conservan las verificaciones de huellas de artefactos de V4.3.0 y la trazabilidad de predicciones y validaciones de V4.2.0. Consulte el [diseño de diagnósticos V4.4.0](docs/model-diagnostics.md) para ver el esquema, las métricas, las ventanas temporales y la comprobación de procedencia.
 
