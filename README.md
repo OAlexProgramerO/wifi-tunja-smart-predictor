@@ -15,6 +15,8 @@ WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descri
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 
+See the [system architecture guide](docs/architecture.md) for the component map, request/data flows, Compose services, and separation between synthetic ML and official MinTIC records.
+
 The existing ML models and scenarios continue to use synthetic data only; their metrics do not establish predictive performance for real public WiFi demand or municipal infrastructure in Tunja. Official subscriptions and bandwidth categories are descriptive records, not evidence of traffic, congestion, or saturation. See the [official connectivity guide](docs/official-connectivity.md), [methodology](docs/methodology.md), [limitations](docs/limitations.md), [API guide](docs/api.md), and [assistant guide](docs/assistant.md).
 
 **Security boundary:** API protections are a practical baseline. Authentication, authorization, production rate limiting, WAF protection, and penetration-tested deployment are not provided.

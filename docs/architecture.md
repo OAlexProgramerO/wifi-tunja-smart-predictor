@@ -1,4 +1,58 @@
-# Architecture
+# System architecture
+
+## Components
+
+```mermaid
+flowchart LR
+    User[User] --> UI[Streamlit dashboard]
+    UI -->|HTTP JSON| Main[Main FastAPI service]
+    UI -->|HTTP JSON| Assistant[Assistant FastAPI service]
+    Main --> Synthetic[ Synthetic ML pipeline ]
+    Synthetic --> Data[(Synthetic dataset volume)]
+    Synthetic --> Models[(Persisted classifier and regressor)]
+    Main --> Experiments[(SQLite experiment history)]
+    Assistant --> Data
+    Assistant --> Models
+    UI -->|local refresh command| Ingestion[MinTIC ingestion script]
+    Ingestion --> Source[Official MinTIC Socrata dataset]
+    Ingestion --> Snapshot[(Official connectivity SQLite snapshot)]
+    Main -->|read-only snapshot| Snapshot
+    Assistant -->|read-only snapshot| Snapshot
+    Init[runtime-init Compose service] --> Data
+    Init --> Models
+    Init --> Experiments
+    Init --> Snapshot
+```
+
+The diagram shows data and request responsibilities, not current process health. Docker Compose starts `runtime-init` once, then starts the main API and assistant API after initialization completes. The dashboard waits for both APIs to pass their configured `/ready` health checks. Named volumes preserve generated datasets, model artifacts, reports, experiments, and the optional official-data snapshot.
+
+## Responsibilities
+
+- **Streamlit dashboard:** Presents the synthetic prediction and analysis workflows, saved experiments, assistant interface, and the optional Real Connectivity Intelligence section. It calls both FastAPI services over HTTP.
+- **Main FastAPI service:** Serves synthetic predictions, model metadata, experiments, and read-only MinTIC analytics. Its `/ready` check verifies required runtime data/model assets are usable.
+- **Assistant API:** Provides deterministic, tool-grounded chat and allowlisted dataset queries. It does not use an LLM. Its `/ready` check verifies its required synthetic data and model artifacts.
+- **Synthetic ML pipeline:** Creates synthetic WiFi-demand data, prepares features, trains/evaluates the classifier and regressor, and persists their artifacts and diagnostics. Prediction APIs load those persisted models; they do not train models per request.
+- **Official MinTIC ingestion:** `scripts/refresh_official_data.py` obtains the official fixed-internet dataset, validates/normalizes the municipality records, records provenance, and stores a local SQLite snapshot. Refresh is explicit/on demand; the source is not polled continuously.
+- **SQLite persistence:** The experiment database stores saved synthetic scenario runs. A separate SQLite database stores raw and normalized MinTIC source records, validation, batch provenance, and refresh history. These datasets are not joined into ML training or predictions.
+- **Docker Compose:** `runtime-init`, `main-api`, `assistant-api`, and `dashboard` are separate services. The three long-running services have HTTP health checks; Compose dependencies gate startup on runtime initialization and API readiness.
+
+## Main data flows
+
+1. **Synthetic prediction:** `runtime-init` creates the synthetic dataset and persisted model/report assets. The dashboard sends a scenario to the main API, which loads the persisted models and returns a prediction with traceability. Synthetic predictions and evaluation metrics do not validate real WiFi demand in Tunja.
+2. **Assistant request:** The dashboard sends a chat or structured query to the assistant API. The deterministic assistant routes the request through existing tools and reads synthetic dataset/model resources as needed.
+3. **Official connectivity:** An operator explicitly runs the refresh script. Validated source rows and provenance are persisted locally. The dashboard and both APIs read the local snapshot for municipal descriptive analysis, exports, period comparison, quality diagnostics, and provider concentration. Cached/stale snapshots are identified separately from live source access.
+
+## API communication and health
+
+The dashboard uses `MAIN_API_URL` (default `http://127.0.0.1:8000`) and `ASSISTANT_API_URL` (default `http://127.0.0.1:8001`) to communicate with the APIs. In Compose, service DNS names are used for these URLs. `/health` indicates that an API process responds; `/ready` checks required runtime assets. A health response alone does not establish model quality or real-world validity.
+
+V7.6.0 adds `GET /architecture/diagnostics` to the main API. The endpoint reports component responsibilities with the result and scope of each available check. It does not inspect a Docker daemon. Unconfigured or unreachable dependencies are shown as unverified/unavailable, separate from a verified not-ready or failed check. It omits filesystem paths, credentials, and environment-variable values. The dashboard marks its own status only while its diagnostics section is rendering.
+
+## Data boundaries
+
+Synthetic access points, locations, demand observations, model features, training labels, fitted model artifacts, predictions, and scenario results remain synthetic. MinTIC records are official descriptive fixed-internet subscription/access counts at Tunja municipal and quarterly granularity. They are persisted separately and are not inputs to the synthetic ML training or predictions. The official source does not measure public WiFi traffic, coverage, service quality, congestion, or saturation.
+
+## Historical architecture and implementation notes
 
 V6.1 adds a pure integer allocation optimizer to the existing scenario workbench. The main API orchestration obtains fixed regressor predictions and records allocation results in the current SQLite experiment JSON; no new service, database, table, model fit, or model artifact change is introduced. Shared JSON/Markdown reports expose schema 1.3 and tolerate historical records without optimization metadata. The Streamlit workbench offers comparison and optimization flows in the same section. Product release V6.1.0 is published as tag `v6.1.0`; package and Docker image versions are `0.6.1`. See the [optimization guide](optimization.md), [API reference](api.md), and [V6.1 validation record](releases/v6.1.0.md).
 
