@@ -9,7 +9,7 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V7.6.0 adds read-only architecture diagnostics. Python package and Docker image: `0.7.6`. See the [architecture guide](docs/architecture.md), [official connectivity guide](docs/official-connectivity.md), [API reference](docs/api.md), [V7.5.0 validation record](docs/releases/v7.5.0.md), and [release history](docs/release-history.md).
+**Release status:** V7.6.0 is published as [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.6.0), with annotated tag [`v7.6.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.6.0) at `2749659ff79bf3a063314c7581660f9ce361c77b`. Python package and Docker image: `0.7.6`. See the [architecture guide](docs/architecture.md), [API reference](docs/api.md), [V7.6.0 validation record](docs/releases/v7.6.0.md), and [release history](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.5.0 summarizes provider concentration from reported municipal fixed-internet subscriptions; it does not characterize WiFi traffic or service performance. V7.6.0 adds sanitized architecture diagnostics in the About page and main API.
 

@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V7.6.0 — Architecture and system diagnostics — released 2026-11-11
+
+Adds read-only `GET /architecture/diagnostics` and an About-page component status view. Only reliable checks are marked verified; unavailable checks are distinct from verified errors. Docker daemon state and sensitive configuration are not exposed. The system architecture guide describes service responsibilities, flows, Compose relationships, and the separation of synthetic ML resources from official MinTIC records. Product V7.6.0 maps to Python package and Docker image `0.7.6`. Annotated tag [`v7.6.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.6.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.6.0) target `2749659ff79bf3a063314c7581660f9ce361c77b`. Pytest, Ruff, Black, and Compose configuration passed; Docker image build/runtime was not executed.
+
 ## V7.5.0 — Provider concentration analysis — released 2026-11-10
 
 Adds selected-period provider shares, leading provider, provider count, and HHI for MinTIC fixed-internet access records. Exact duplicate source rows are excluded; selected-period incomplete or invalid fields and zero denominators result in unavailable/undefined metrics rather than imputation. This describes municipal subscription statistics only and does not measure WiFi traffic or network performance. Product V7.5.0 maps to Python package and Docker image `0.7.5`. Annotated tag [`v7.5.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.5.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.5.0) target `e85b2471afe6b88ced6345161c2f4c28e4a4441c`. Local pytest, Ruff, Black, Compose configuration, and `git diff --check` passed. See the [V7.5.0 validation record](releases/v7.5.0.md).

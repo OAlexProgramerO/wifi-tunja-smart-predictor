@@ -4,7 +4,7 @@
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V7.6.0 agrega diagnósticos de arquitectura de solo lectura. Paquete Python e imagen Docker: `0.7.6`. Consulte la [guía de arquitectura](docs/architecture.md), la [guía de conectividad oficial](docs/official-connectivity.es.md), la [referencia API](docs/api.es.md), el [registro de validación V7.5.0](docs/releases/v7.5.0.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V7.6.0 está publicado en [GitHub Releases](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.6.0), con la etiqueta anotada [`v7.6.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.6.0) en `2749659ff79bf3a063314c7581660f9ce361c77b`. Paquete Python e imagen Docker: `0.7.6`. Consulte la [guía de arquitectura](docs/architecture.md), la [referencia API](docs/api.es.md), el [registro de validación V7.6.0](docs/releases/v7.6.0.md) y el [historial de versiones](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combina su demostración sintética de clasificación horaria y estimación de conexiones con análisis descriptivos de un conjunto oficial MinTIC opcional. V7.5.0 resume la concentración de proveedores a partir de suscripciones fijas municipales informadas; no describe tráfico WiFi ni desempeño del servicio. V7.6.0 documenta la arquitectura y agrega diagnósticos sanitizados de solo lectura en la página About y la API principal.
 
