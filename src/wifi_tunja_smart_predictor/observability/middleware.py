@@ -14,6 +14,7 @@ from wifi_tunja_smart_predictor.observability.logging import (
     configure_structured_logging,
     emit_event,
 )
+from wifi_tunja_smart_predictor.observability.metrics import request_metrics
 
 _REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
 _request_id: ContextVar[str | None] = ContextVar("wifi_predictor_request_id", default=None)
@@ -78,6 +79,13 @@ class RequestObservabilityMiddleware:
             await self.app(scope, receive, send_correlated)
         finally:
             duration_ms = (time.perf_counter() - started) * 1000
+            route = _route_identifier(scope)
+            request_metrics.record(
+                service=self.service,
+                route=route,
+                status_code=status_code,
+                duration_ms=duration_ms,
+            )
             outcome = (
                 "success"
                 if status_code < 400
@@ -90,7 +98,7 @@ class RequestObservabilityMiddleware:
                 request_id=request_id,
                 service=self.service,
                 method=scope.get("method", "UNKNOWN"),
-                route=_route_identifier(scope),
+                route=route,
                 status_code=status_code,
                 duration_ms=round(duration_ms, 3),
                 outcome=outcome,

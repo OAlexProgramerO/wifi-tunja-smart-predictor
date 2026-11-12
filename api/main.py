@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse
 from api.routes.architecture import router as architecture_router
 from api.routes.connectivity import router as connectivity_router
 from api.routes.experiments import router as experiments_router
+from api.routes.observability import router as observability_router
 from api.routes.prediction import router as prediction_router
 from api.security import install_api_security
 from wifi_tunja_smart_predictor.config import (
@@ -78,3 +79,4 @@ app.include_router(prediction_router)
 app.include_router(experiments_router)
 app.include_router(connectivity_router)
 app.include_router(architecture_router)
+app.include_router(observability_router)

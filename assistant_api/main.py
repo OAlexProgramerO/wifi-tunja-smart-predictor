@@ -11,6 +11,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from api.security import install_api_security
+from assistant_api.observability_routes import router as observability_router
 from wifi_tunja_smart_predictor import deployment
 from wifi_tunja_smart_predictor.assistant.queries import DatasetQuery
 from wifi_tunja_smart_predictor.assistant.schemas import ChatRequest, ChatResponse
@@ -38,6 +39,7 @@ app = FastAPI(
     ),
 )
 install_api_security(app, max_body_bytes=64 * 1024, service="assistant_api")
+app.include_router(observability_router)
 
 
 @app.exception_handler(RequestValidationError)
