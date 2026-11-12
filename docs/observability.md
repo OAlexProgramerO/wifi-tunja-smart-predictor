@@ -1,4 +1,4 @@
-# Observability (V3.7)
+# Observability (V3.7, extended in V7.7.0)
 
 V3.7 adds lightweight request correlation and structured application diagnostics to the main API and assistant API. The implementation uses the Python logging and contextvars standard-library facilities; it adds no external logging or monitoring service.
 
@@ -11,6 +11,8 @@ The event taxonomy is deliberately small:
 - `http.request.completed`: one completion record per HTTP request from shared middleware. It records the safe route template (or `unmatched`), response status, duration, and outcome.
 - `prediction.standard.completed` / `.failed` and `prediction.scenario.completed` / `.failed`: API prediction operations. These include model version and selected model identifier when available, never input features or coordinates.
 - `assistant.chat.completed`, `assistant.scenario.completed`, `assistant.historical_query.completed`, `assistant.dataset_query.completed`, plus `.failed` or `.rejected` outcomes: deterministic assistant operations. They contain the parsed intent category and allowlisted query metric/grouping metadata where relevant.
+
+V7.7.0 adds bounded, process-local HTTP counters alongside these structured logs. The registry groups requests by registered route template and HTTP status, counts errors, and aggregates monotonic duration count/total/maximum per route. No raw URL, query string, body, chat text, credentials, or request headers enter the metrics. Route and status dimensions have explicit caps; excess route templates share an `other` bucket.
 
 The API route or assistant service owns the operation event; middleware owns the HTTP completion event. Uvicorn access lines are disabled because they include client IPs; the correlated lifecycle record replaces that access log. A request can therefore be searched by its request ID to connect the request lifecycle with the operation result, without duplicate lifecycle events.
 
@@ -28,4 +30,4 @@ To investigate a request, copy the response `X-Request-ID` value and search the 
 
 ## Limits
 
-Logs use the configured local runtime destination. This release does not add rotation, retention, durable audit storage, a log aggregator, a metrics endpoint, distributed tracing, or monitoring alerts. Operators are responsible for their runtime's log destination and retention policy. These application logs are useful diagnostics, not a complete observability platform.
+Logs use the configured local runtime destination. The V7.7.0 metrics endpoint returns in-memory counters that reset on process restart; it is not durable storage. This release does not add rotation, retention, a log aggregator, distributed tracing, or monitoring alerts. Operators are responsible for their runtime's log destination and retention policy. These application logs and counters are useful diagnostics, not a complete observability platform.

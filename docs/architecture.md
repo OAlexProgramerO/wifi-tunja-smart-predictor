@@ -7,6 +7,10 @@ flowchart LR
     User[User] --> UI[Streamlit dashboard]
     UI -->|HTTP JSON| Main[Main FastAPI service]
     UI -->|HTTP JSON| Assistant[Assistant FastAPI service]
+    Main -->|bounded request metrics| MainMetrics[(In-process metrics)]
+    Assistant -->|bounded request metrics| AssistantMetrics[(In-process metrics)]
+    UI -->|read-only operational summary| Main
+    Main -->|health and metrics check| Assistant
     Main --> Synthetic[ Synthetic ML pipeline ]
     Synthetic --> Data[(Synthetic dataset volume)]
     Synthetic --> Models[(Persisted classifier and regressor)]
@@ -35,6 +39,7 @@ The diagram shows data and request responsibilities, not current process health.
 - **Official MinTIC ingestion:** `scripts/refresh_official_data.py` obtains the official fixed-internet dataset, validates/normalizes the municipality records, records provenance, and stores a local SQLite snapshot. Refresh is explicit/on demand; the source is not polled continuously.
 - **SQLite persistence:** The experiment database stores saved synthetic scenario runs. A separate SQLite database stores raw and normalized MinTIC source records, validation, batch provenance, and refresh history. These datasets are not joined into ML training or predictions.
 - **Docker Compose:** `runtime-init`, `main-api`, `assistant-api`, and `dashboard` are separate services. The three long-running services have HTTP health checks; Compose dependencies gate startup on runtime initialization and API readiness.
+- **Operational observability:** Shared API middleware records bounded per-service request counts, HTTP response statuses, error counts, and monotonic durations in process memory. It stores no request content or sensitive headers. The dashboard reads a diagnostics summary through the main API, which probes the assistant using its health and metrics routes.
 
 ## Main data flows
 
@@ -47,6 +52,8 @@ The diagram shows data and request responsibilities, not current process health.
 The dashboard uses `MAIN_API_URL` (default `http://127.0.0.1:8000`) and `ASSISTANT_API_URL` (default `http://127.0.0.1:8001`) to communicate with the APIs. In Compose, service DNS names are used for these URLs. `/health` indicates that an API process responds; `/ready` checks required runtime assets. A health response alone does not establish model quality or real-world validity.
 
 V7.6.0 adds `GET /architecture/diagnostics` to the main API. The endpoint reports component responsibilities with the result and scope of each available check. It does not inspect a Docker daemon. Unconfigured or unreachable dependencies are shown as unverified/unavailable, separate from a verified not-ready or failed check. It omits filesystem paths, credentials, and environment-variable values. The dashboard marks its own status only while its diagnostics section is rendering.
+
+V7.7.0 operational observability flow: each API's shared middleware records its route-template, status, error count, and duration in a bounded in-process registry. `GET /observability/diagnostics` returns the main API metrics and checks assistant availability/readiness without exposing its URL. The existing dashboard presents a compact summary and labels an unavailable probe as unknown. Counters reset when a service restarts; they are not durable monitoring or an alerting system. Synthetic ML records and official MinTIC analytics remain separate.
 
 ## Data boundaries
 
