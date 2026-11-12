@@ -2812,6 +2812,7 @@ def _render_page(title: str, kind: str) -> None:
     st.caption(f"WiFi Tunja Smart Predictor · v{PROJECT_VERSION} · {product_scope}")
     if kind == "About":
         _render_architecture_diagnostics()
+        _render_operational_observability()
     if kind == "Overview":
         frame = _load_frame()
         render_overview(frame)
@@ -3136,6 +3137,35 @@ def _render_architecture_diagnostics() -> None:
                         f"{store_name.replace('_', ' ').title()}: {store.get('status', 'unknown')}"
                     )
                     st.caption(store.get("message", "Status details are unavailable."))
+
+
+def _render_operational_observability() -> None:
+    """Present bounded service metrics without reading or persisting request data."""
+    st.subheader("Operational summary")
+    try:
+        report = main_api_request("/observability/diagnostics")
+    except ApiClientError:
+        st.info(
+            "Operational diagnostics are unavailable because the main API could not be checked."
+        )
+        return
+
+    services = report.get("services", {})
+    columns = st.columns(2)
+    for column, service_id, label in zip(
+        columns, ("main_api", "assistant_api"), ("Main API", "Assistant API")
+    ):
+        service = services.get(service_id, {})
+        availability = service.get("availability", "unknown")
+        readiness = service.get("readiness", "unknown")
+        metrics = service.get("metrics") or {}
+        with column:
+            st.caption(f"{label}: {availability} · readiness: {readiness}")
+            if availability == "available":
+                st.metric("Requests since process start", metrics.get("requests_total", 0))
+                st.caption(f"HTTP errors: {metrics.get('errors_total', 0)}")
+            else:
+                st.warning(service.get("message", "Service status could not be verified."))
 
 
 def _render_real_connectivity() -> None:
