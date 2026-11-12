@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — V7.7.0 Operational Observability
+
+Adds bounded in-process API request and response-status counters, error totals, monotonic duration aggregates, a read-only diagnostics endpoint with verified/unavailable service checks, and a compact dashboard summary. Metrics use registered route templates and retain no request bodies, chat messages, credentials, personal data, or sensitive headers. They reset on process restart and are not durable monitoring. Synthetic ML data and official MinTIC analytics remain separate. Planned product V7.7.0 maps to Python package and Docker image `0.7.7`.
+
+Agrega contadores acotados en memoria de solicitudes y respuestas API, errores y duraciones monotónicas; un endpoint de diagnósticos de solo lectura con comprobaciones verificadas/no disponibles; y un resumen compacto en el dashboard. Las métricas usan plantillas de rutas registradas y no conservan cuerpos, mensajes del chat, credenciales, datos personales ni cabeceras sensibles. Se reinician al reiniciar el proceso y no son monitoreo duradero. Los datos ML sintéticos siguen separados del análisis MinTIC oficial. La versión prevista V7.7.0 corresponde al paquete Python y a la imagen Docker `0.7.7`.
+
 ## V7.6.0 — Architecture and System Diagnostics — released 2026-11-11
 
 Adds a read-only `GET /architecture/diagnostics` endpoint and an existing-dashboard About section showing project components, responsibilities, and only reliably checked status. Unconfigured/unreachable dependencies are distinguished from verified failures; Docker daemon status, secrets, environment values, and internal paths are not exposed. Adds the Mermaid architecture and data-flow guide. Synthetic ML resources remain separate from official MinTIC descriptive records. Product V7.6.0 maps to Python package and Docker image `0.7.6`. Annotated tag [`v7.6.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.6.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.6.0) target `2749659ff79bf3a063314c7581660f9ce361c77b`. Pytest, Ruff, Black, Compose configuration, and `git diff --check` passed locally. Docker image build and live-container status were not checked.

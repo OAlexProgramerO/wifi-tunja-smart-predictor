@@ -3,6 +3,7 @@
 La API principal corre en el puerto 8000; Swagger está disponible en `/docs`.
 
 - `GET /architecture/diagnostics` devuelve responsabilidades de componentes y comprobaciones de estado sanitizadas. Distingue servicios sin verificar/datos no disponibles de fallos confirmados. No inspecciona el estado del daemon Docker; consulte la [guía de arquitectura](architecture.md).
+- `GET /observability/diagnostics` devuelve totales locales del proceso de solicitudes/errores de la API principal, estados HTTP y duraciones por ruta, y comprueba disponibilidad/preparación del asistente; si responde, incluye sus métricas agregadas. La API del asistente expone `GET /observability/metrics` para esa comprobación interna. Los contadores se reinician cuando reinicia cada proceso; no se guardan cuerpos ni cabeceras sensibles. Consulte [Observabilidad](observability.md).
 
 ## Evaluación temporal V6.3.0
 

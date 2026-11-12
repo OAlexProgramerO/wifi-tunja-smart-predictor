@@ -53,7 +53,7 @@ The dashboard uses `MAIN_API_URL` (default `http://127.0.0.1:8000`) and `ASSISTA
 
 V7.6.0 adds `GET /architecture/diagnostics` to the main API. The endpoint reports component responsibilities with the result and scope of each available check. It does not inspect a Docker daemon. Unconfigured or unreachable dependencies are shown as unverified/unavailable, separate from a verified not-ready or failed check. It omits filesystem paths, credentials, and environment-variable values. The dashboard marks its own status only while its diagnostics section is rendering.
 
-V7.7.0 operational observability flow: each API's shared middleware records its route-template, status, error count, and duration in a bounded in-process registry. `GET /observability/diagnostics` returns the main API metrics and checks assistant availability/readiness without exposing its URL. The existing dashboard presents a compact summary and labels an unavailable probe as unknown. Counters reset when a service restarts; they are not durable monitoring or an alerting system. Synthetic ML records and official MinTIC analytics remain separate.
+V7.7.0 operational observability flow: each API's shared middleware records its route-template, status, error count, and duration in a bounded in-process registry. Main API `GET /observability/diagnostics` returns its metrics and probes assistant `GET /observability/metrics` for availability, readiness, and metrics without exposing the configured URL. The existing dashboard presents a compact summary and labels an unavailable probe as unknown. Counters reset when a service restarts; they are not durable monitoring or an alerting system. Synthetic ML records and official MinTIC analytics remain separate.
 
 ## Data boundaries
 
