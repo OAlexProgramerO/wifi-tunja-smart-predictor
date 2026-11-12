@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V7.7.0 — Operational observability — released 2026-11-12
+
+Adds bounded process-local API request, response-status, error, and duration aggregates, plus read-only diagnostics and a compact dashboard summary. The main API checks the assistant metrics/readiness route and distinguishes unavailable checks from verified not-ready/failure states. No request content or sensitive headers are retained. Metrics reset on process restart and are not durable monitoring. Synthetic ML inputs and official MinTIC descriptive analytics remain separate. Product V7.7.0 maps to Python package and Docker image `0.7.7`. Annotated tag [`v7.7.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.7.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.7.0) target `e57c7d321f3302b7228228425d52b3e65d3719dd`. Pytest, Ruff, Black, Compose configuration, and `git diff --check` passed locally.
+
 ## V7.6.0 — Architecture and system diagnostics — released 2026-11-11
 
 Adds read-only `GET /architecture/diagnostics` and an About-page component status view. Only reliable checks are marked verified; unavailable checks are distinct from verified errors. Docker daemon state and sensitive configuration are not exposed. The system architecture guide describes service responsibilities, flows, Compose relationships, and the separation of synthetic ML resources from official MinTIC records. Product V7.6.0 maps to Python package and Docker image `0.7.6`. Annotated tag [`v7.6.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.6.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.6.0) target `2749659ff79bf3a063314c7581660f9ce361c77b`. Pytest, Ruff, Black, and Compose configuration passed; Docker image build/runtime was not executed.
