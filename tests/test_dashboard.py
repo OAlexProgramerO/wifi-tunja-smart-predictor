@@ -66,6 +66,38 @@ def test_architecture_diagnostics_dashboard_renders_component_statuses(monkeypat
     assert any("Status check unavailable" in item.value for item in app.caption)
 
 
+def test_operational_observability_dashboard_shows_counts_and_unavailable_status(monkeypatch):
+    from app import dashboard
+
+    monkeypatch.setattr(
+        dashboard,
+        "main_api_request",
+        lambda _path: {
+            "services": {
+                "main_api": {
+                    "availability": "available",
+                    "readiness": "ready",
+                    "metrics": {"requests_total": 12, "errors_total": 2},
+                },
+                "assistant_api": {
+                    "availability": "unknown",
+                    "readiness": "unknown",
+                    "metrics": None,
+                    "message": "Assistant check unavailable.",
+                },
+            }
+        },
+    )
+    app = AppTest.from_string(
+        "from app.dashboard import _render_operational_observability\n"
+        "_render_operational_observability()\n",
+        default_timeout=30,
+    ).run()
+    assert not app.exception
+    assert any(metric.value == "12" for metric in app.metric)
+    assert any("Assistant check unavailable" in item.value for item in app.warning)
+
+
 def test_temporal_evaluation_controls_render_without_running_evaluation():
     app = AppTest.from_string(
         "from app.dashboard import _render_temporal_evaluation_lab\n"
