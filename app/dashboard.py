@@ -2813,6 +2813,7 @@ def _render_page(title: str, kind: str) -> None:
     if kind == "About":
         _render_architecture_diagnostics()
         _render_operational_observability()
+        _render_model_artifact_inventory()
     if kind == "Overview":
         frame = _load_frame()
         render_overview(frame)
@@ -3166,6 +3167,70 @@ def _render_operational_observability() -> None:
                 st.caption(f"HTTP errors: {metrics.get('errors_total', 0)}")
             else:
                 st.warning(service.get("message", "Service status could not be verified."))
+
+
+def _render_model_artifact_inventory() -> None:
+    """Show sanitized status and actionable reasons for persisted synthetic models."""
+    st.subheader("ML artifact inventory")
+    try:
+        report = main_api_request("/model-artifacts/inventory")
+    except ApiClientError:
+        st.info(
+            "Model artifact inventory is unavailable because the main API could not be checked."
+        )
+        return
+
+    status = report.get("status", "INCOMPLETE")
+    message = {
+        "READY": "Model files and recorded compatibility checks are ready.",
+        "MISSING": "A required model artifact is missing.",
+        "INCOMPLETE": "Artifact metadata or evaluation evidence is incomplete or stale.",
+        "RETRAINING_REQUIRED": "Recorded data or integrity fingerprints conflict; review the model lineage before use.",
+    }.get(status, "Artifact status could not be verified.")
+    if status == "READY":
+        st.success(message)
+    else:
+        st.warning(f"{status}: {message}")
+    if status != "READY" and report.get("next_action"):
+        st.info(report["next_action"])
+    st.caption("Read-only inventory · synthetic ML assets only · no automatic retraining.")
+
+    for artifact in report.get("artifacts", []):
+        name = artifact.get("artifact_name", artifact.get("role", "Model artifact"))
+        artifact_status = artifact.get("status", "INCOMPLETE")
+        with st.expander(f"{name} · {artifact_status}"):
+            st.write(artifact.get("message", "Artifact details are unavailable."))
+            if artifact.get("next_action"):
+                st.caption(f"Next step: {artifact['next_action']}")
+            metadata = artifact.get("training_metadata", {})
+            if metadata:
+                st.caption(
+                    f"Model version: {metadata.get('project_version', 'Unknown')} · "
+                    f"Estimator: {metadata.get('selected_model', 'Unknown')} · "
+                    f"Dataset: {metadata.get('dataset_version', 'Unknown')}"
+                )
+                for field in ("train_period", "validation_period", "test_period"):
+                    if metadata.get(field):
+                        st.write(f"{field.replace('_', ' ').title()}: {metadata[field]}")
+                for field in ("validation_metrics", "test_metrics"):
+                    if metadata.get(field):
+                        st.write(f"{field.replace('_', ' ').title()}: {metadata[field]}")
+            fingerprints = artifact.get("fingerprints", {})
+            digest = fingerprints.get("sha256")
+            if digest:
+                st.caption(f"Current SHA-256: {digest}")
+            if fingerprints.get("metadata_match") is False:
+                st.error("Current artifact bytes do not match their recorded metadata fingerprint.")
+
+    evaluation = report.get("evaluation", {})
+    if evaluation:
+        st.caption(
+            f"Evaluation metadata: {evaluation.get('status', 'INCOMPLETE')} · "
+            f"{evaluation.get('message', 'Status unavailable.') }"
+        )
+        if evaluation.get("next_action"):
+            st.caption(f"Evaluation next step: {evaluation['next_action']}")
+    st.caption(report.get("disclaimer", "Model evaluation information is synthetic."))
 
 
 def _render_real_connectivity() -> None:
