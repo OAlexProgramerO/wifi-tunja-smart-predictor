@@ -11,6 +11,10 @@ flowchart LR
     Assistant -->|bounded request metrics| AssistantMetrics[(In-process metrics)]
     UI -->|read-only operational summary| Main
     Main -->|health and metrics check| Assistant
+    UI -->|read-only artifact inventory| Main
+    Main --> Inventory[ML artifact inventory]
+    Inventory --> Models[(Persisted classifier and regressor)]
+    Inventory --> Metadata[(Training and evaluation metadata)]
     Main --> Synthetic[ Synthetic ML pipeline ]
     Synthetic --> Data[(Synthetic dataset volume)]
     Synthetic --> Models[(Persisted classifier and regressor)]
@@ -54,6 +58,8 @@ The dashboard uses `MAIN_API_URL` (default `http://127.0.0.1:8000`) and `ASSISTA
 V7.6.0 adds `GET /architecture/diagnostics` to the main API. The endpoint reports component responsibilities with the result and scope of each available check. It does not inspect a Docker daemon. Unconfigured or unreachable dependencies are shown as unverified/unavailable, separate from a verified not-ready or failed check. It omits filesystem paths, credentials, and environment-variable values. The dashboard marks its own status only while its diagnostics section is rendering.
 
 V7.7.0 operational observability flow: each API's shared middleware records its route-template, status, error count, and duration in a bounded in-process registry. Main API `GET /observability/diagnostics` returns its metrics and probes assistant `GET /observability/metrics` for availability, readiness, and metrics without exposing the configured URL. The existing dashboard presents a compact summary and labels an unavailable probe as unknown. Counters reset when a service restarts; they are not durable monitoring or an alerting system. Synthetic ML records and official MinTIC analytics remain separate.
+
+V7.8.0 adds a read-only ML artifact inventory route and dashboard summary. It compares classifier/regressor files with validated training metadata and the saved evaluation report, reports missing/incomplete/stale compatibility states, and never loads a training command or changes model files. See the [model artifact inventory guide](model-artifact-inventory.md). This inventory covers only synthetic ML assets; official MinTIC records and snapshots are outside its scope.
 
 ## Data boundaries
 
