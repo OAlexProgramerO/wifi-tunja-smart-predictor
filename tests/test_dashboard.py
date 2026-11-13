@@ -98,6 +98,48 @@ def test_operational_observability_dashboard_shows_counts_and_unavailable_status
     assert any("Assistant check unavailable" in item.value for item in app.warning)
 
 
+def test_model_artifact_inventory_dashboard_shows_status_and_actionable_details(monkeypatch):
+    from app import dashboard
+
+    monkeypatch.setattr(
+        dashboard,
+        "main_api_request",
+        lambda _path: {
+            "status": "INCOMPLETE",
+            "artifacts": [
+                {
+                    "role": "classifier",
+                    "artifact_name": "WiFi demand classifier",
+                    "status": "READY",
+                    "message": "Artifact and metadata checks passed.",
+                    "training_metadata": {
+                        "project_version": "0.3.0",
+                        "selected_model": "random_forest",
+                        "dataset_version": "synthetic_seed_42_v1",
+                        "test_metrics": {"f1": 0.9},
+                    },
+                    "fingerprints": {"sha256": "a" * 64, "metadata_match": True},
+                }
+            ],
+            "evaluation": {
+                "status": "INCOMPLETE",
+                "message": "Evaluation metadata is stale.",
+            },
+            "disclaimer": "Synthetic ML assets only.",
+        },
+    )
+    app = AppTest.from_string(
+        "from app.dashboard import _render_model_artifact_inventory\n"
+        "_render_model_artifact_inventory()\n",
+        default_timeout=30,
+    ).run()
+
+    assert not app.exception
+    assert any("INCOMPLETE" in item.value for item in app.warning)
+    assert any("Model version: 0.3.0" in item.value for item in app.caption)
+    assert any("Evaluation metadata is stale" in item.value for item in app.caption)
+
+
 def test_temporal_evaluation_controls_render_without_running_evaluation():
     app = AppTest.from_string(
         "from app.dashboard import _render_temporal_evaluation_lab\n"
