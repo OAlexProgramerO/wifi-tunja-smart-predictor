@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — V7.8.0 ML Artifact Inventory
+
+Adds a read-only inventory for the persisted synthetic classifier and regressor, including recorded training/evaluation metadata, SHA-256 fingerprints, availability, dataset compatibility, and actionable READY/MISSING/INCOMPLETE/RETRAINING_REQUIRED states. Adds `GET /model-artifacts/inventory` and a compact section in the existing About dashboard. The endpoint never trains, repairs, overwrites, or mixes model artifacts with official MinTIC data. Planned product V7.8.0 maps to Python package and Docker image `0.7.8`.
+
+Agrega un inventario de solo lectura para el clasificador y regresor sintéticos persistidos: metadatos de entrenamiento/evaluación, huellas SHA-256, disponibilidad, compatibilidad del dataset y estados accionables READY/MISSING/INCOMPLETE/RETRAINING_REQUIRED. Agrega `GET /model-artifacts/inventory` y una sección compacta en About. El endpoint nunca entrena, repara ni sobrescribe archivos, y no mezcla modelos con datos oficiales MinTIC. La versión prevista V7.8.0 corresponde al paquete Python y a la imagen Docker `0.7.8`.
+
 ## V7.7.0 — Operational Observability — released 2026-11-12
 
 Adds bounded in-process API request and response-status counters, error totals, monotonic duration aggregates, a read-only diagnostics endpoint with verified/unavailable service checks, and a compact dashboard summary. Metrics use registered route templates and retain no request bodies, chat messages, credentials, personal data, or sensitive headers. They reset on process restart and are not durable monitoring. Synthetic ML data and official MinTIC analytics remain separate. Product V7.7.0 maps to Python package and Docker image `0.7.7`. Annotated tag [`v7.7.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.7.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.7.0) target `e57c7d321f3302b7228228425d52b3e65d3719dd`. Pytest, Ruff, Black, Compose configuration, and `git diff --check` passed locally.
