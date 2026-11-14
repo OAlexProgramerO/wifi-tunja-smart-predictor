@@ -10,8 +10,8 @@ from api.routes.architecture import router as architecture_router
 from api.routes.artifact_inventory import router as artifact_inventory_router
 from api.routes.connectivity import router as connectivity_router
 from api.routes.experiments import router as experiments_router
-from api.routes.observability import router as observability_router
 from api.routes.model_runs import router as model_runs_router
+from api.routes.observability import router as observability_router
 from api.routes.prediction import router as prediction_router
 from api.security import install_api_security
 from wifi_tunja_smart_predictor.config import (

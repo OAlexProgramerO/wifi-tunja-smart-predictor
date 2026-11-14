@@ -3240,7 +3240,9 @@ def _render_model_run_comparison() -> None:
     try:
         report = main_api_request("/model-runs/comparison")
     except ApiClientError:
-        st.info("Saved model comparisons are unavailable because the main API could not be checked.")
+        st.info(
+            "Saved model comparisons are unavailable because the main API could not be checked."
+        )
         return
 
     for task in report.get("tasks", []):
@@ -3259,7 +3261,8 @@ def _render_model_run_comparison() -> None:
                 "Candidate": run.get("model"),
                 "Selected": run.get("selected", False),
                 "Model version": run.get("model_version") or "Unavailable",
-                "Evaluation time": run.get("evaluation_timestamp") or "Unavailable",
+                "Training time": run.get("training_timestamp") or "Unavailable",
+                "Evaluation time": run.get("evaluation_timestamp") or "Not recorded",
                 "Dataset fingerprint": run.get("dataset_fingerprint") or "Unavailable",
                 "Artifact fingerprint": run.get("artifact_fingerprint") or "Not persisted",
             }

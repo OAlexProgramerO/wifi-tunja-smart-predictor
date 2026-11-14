@@ -76,7 +76,9 @@ def test_model_run_comparison_dashboard_shows_partial_status_and_deltas(monkeypa
                 {
                     "role": "classifier",
                     "status": "PARTIAL",
-                    "reasons": ["Some candidate records contain only a subset of available metrics."],
+                    "reasons": [
+                        "Some candidate records contain only a subset of available metrics."
+                    ],
                     "runs": [
                         {
                             "model": "candidate_a",

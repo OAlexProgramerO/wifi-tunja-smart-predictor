@@ -42,7 +42,16 @@ _METRICS = {
         "training_time_seconds",
     ),
 }
-_HIGHER_IS_BETTER = {"accuracy", "precision", "recall", "f1", "roc_auc", "validation_f1", "r2", "validation_r2"}
+_HIGHER_IS_BETTER = {
+    "accuracy",
+    "precision",
+    "recall",
+    "f1",
+    "roc_auc",
+    "validation_f1",
+    "r2",
+    "validation_r2",
+}
 
 
 def _read_json(path: Path) -> dict[str, Any] | None:
@@ -103,8 +112,10 @@ def _period_signature(metadata: dict[str, Any]) -> tuple[Any, ...] | None:
     periods = []
     for name in ("train_period", "validation_period", "test_period"):
         period = metadata.get(name)
-        if not isinstance(period, dict) or not isinstance(period.get("start"), str) or not isinstance(
-            period.get("end"), str
+        if (
+            not isinstance(period, dict)
+            or not isinstance(period.get("start"), str)
+            or not isinstance(period.get("end"), str)
         ):
             return None
         periods.append((period["start"], period["end"], period.get("rows")))
@@ -141,6 +152,7 @@ def _task_comparison(
     selected = _safe_text(metadata.get("selected_model"))
     period_signature = _period_signature(metadata)
     training_timestamp = metadata.get("training_timestamp_utc")
+    evaluation_timestamp = metadata.get("evaluation_timestamp_utc")
     dataset_version = metadata.get("dataset_version")
     reasons = []
     if not metadata:
@@ -150,9 +162,15 @@ def _task_comparison(
     if period_signature is None:
         reasons.append("One or more evaluation windows are unavailable.")
     if not isinstance(training_timestamp, str):
-        reasons.append("The evaluation timestamp is unavailable.")
+        reasons.append("The training timestamp is unavailable.")
+    if not isinstance(evaluation_timestamp, str):
+        reasons.append("The evaluation timestamp is not recorded.")
+    if not _safe_text(metadata.get("training_run_id")):
+        reasons.append("A stable training run identifier is not recorded.")
     if not rows:
         reasons.append("No valid candidate metric rows were found.")
+    elif not any(row["metrics"] for row in rows):
+        reasons.append("No valid metric values were found in the candidate table.")
     status = "PARTIAL" if reasons else "VALID"
     expected_metric_keys = set().union(*(set(row["metrics"]) for row in rows)) if rows else set()
     if rows and any(set(row["metrics"]) != expected_metric_keys for row in rows):
@@ -167,7 +185,8 @@ def _task_comparison(
             "model": row["model"],
             "model_version": _safe_text(metadata.get("project_version")),
             "training_run_id": _safe_text(metadata.get("training_run_id")),
-            "evaluation_timestamp": _safe_text(training_timestamp),
+            "training_timestamp": _safe_text(training_timestamp),
+            "evaluation_timestamp": _safe_text(evaluation_timestamp),
             "dataset_version": _safe_text(dataset_version),
             "dataset_fingerprint": dataset_fingerprint,
             "artifact_fingerprint": selected_fingerprint if is_selected else None,
@@ -195,8 +214,12 @@ def _task_comparison(
     if selected and selected_fingerprint is None:
         reasons.append("The selected persisted model artifact fingerprint is unavailable.")
         status = "PARTIAL"
-    if status in {"VALID", "PARTIAL"} and baseline_metrics is not None and not any(
-        "fingerprint" in reason.lower() or "window" in reason.lower() for reason in reasons
+    if (
+        status in {"VALID", "PARTIAL"}
+        and baseline_metrics is not None
+        and not any(
+            "fingerprint" in reason.lower() or "window" in reason.lower() for reason in reasons
+        )
     ):
         for run in records:
             if run["selected"]:
@@ -224,9 +247,7 @@ def _task_comparison(
     }
 
 
-def compare_run_records(
-    records: list[dict[str, Any]], *, selected_model: str
-) -> dict[str, Any]:
+def compare_run_records(records: list[dict[str, Any]], *, selected_model: str) -> dict[str, Any]:
     """Compare synthetic candidate records, suppressing deltas for incompatible evidence.
 
     This public pure helper also supports focused integrity tests without touching files.
@@ -246,15 +267,23 @@ def compare_run_records(
     partial_metrics = bool(metric_keys) and any(keys != metric_keys[0] for keys in metric_keys[1:])
     incomplete = (
         baseline is None
-        or any(not item.get("dataset_fingerprint") or not item.get("evaluation_windows") for item in normalized)
+        or any(
+            not item.get("dataset_fingerprint") or not item.get("evaluation_windows")
+            for item in normalized
+        )
         or partial_metrics
     )
     status = "INCOMPATIBLE" if incompatible else "PARTIAL" if incomplete else "VALID"
     for item in normalized:
         item["metric_deltas_vs_selected"] = None
-    if status in {"VALID", "PARTIAL"} and baseline is not None and not incompatible and not any(
-        not item.get("dataset_fingerprint") or not item.get("evaluation_windows")
-        for item in normalized
+    if (
+        status in {"VALID", "PARTIAL"}
+        and baseline is not None
+        and not incompatible
+        and not any(
+            not item.get("dataset_fingerprint") or not item.get("evaluation_windows")
+            for item in normalized
+        )
     ):
         base_metrics = baseline.get("metrics") if isinstance(baseline.get("metrics"), dict) else {}
         for item in normalized:
@@ -344,7 +373,11 @@ def build_model_run_comparison() -> dict[str, Any]:
                 for run in group.get("runs", []):
                     run["metric_deltas_vs_selected"] = None
         states = {item["status"] for item in groups}
-    overall = "INCOMPATIBLE" if "INCOMPATIBLE" in states else "VALID" if states == {"VALID"} else "PARTIAL"
+    overall = (
+        "INCOMPATIBLE"
+        if "INCOMPATIBLE" in states
+        else "VALID" if states == {"VALID"} else "PARTIAL"
+    )
     return {
         "status": overall,
         "application_version": PROJECT_VERSION,
