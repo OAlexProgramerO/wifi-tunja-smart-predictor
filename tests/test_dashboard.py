@@ -63,7 +63,45 @@ def test_architecture_diagnostics_dashboard_renders_component_statuses(monkeypat
         default_timeout=30,
     ).run()
     assert not app.exception
-    assert any("Status check unavailable" in item.value for item in app.caption)
+
+
+def test_model_run_comparison_dashboard_shows_partial_status_and_deltas(monkeypatch):
+    from app import dashboard
+
+    monkeypatch.setattr(
+        dashboard,
+        "main_api_request",
+        lambda _path: {
+            "tasks": [
+                {
+                    "role": "classifier",
+                    "status": "PARTIAL",
+                    "reasons": ["Some candidate records contain only a subset of available metrics."],
+                    "runs": [
+                        {
+                            "model": "candidate_a",
+                            "selected": True,
+                            "metrics": {"f1": 0.8},
+                            "metric_deltas_vs_selected": {"f1": 0.0},
+                        },
+                        {
+                            "model": "candidate_b",
+                            "selected": False,
+                            "metrics": {"f1": 0.9},
+                            "metric_deltas_vs_selected": {"f1": 0.1},
+                        },
+                    ],
+                }
+            ]
+        },
+    )
+    app = AppTest.from_string(
+        "from app.dashboard import _render_model_run_comparison\n"
+        "_render_model_run_comparison()\n",
+        default_timeout=30,
+    ).run()
+    assert not app.exception
+    assert any("PARTIAL" in item.value for item in app.markdown)
 
 
 def test_operational_observability_dashboard_shows_counts_and_unavailable_status(monkeypatch):

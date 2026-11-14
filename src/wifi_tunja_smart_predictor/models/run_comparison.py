@@ -14,7 +14,9 @@ from wifi_tunja_smart_predictor.config import (
     MODEL_COMPARISON_PATH,
     MODEL_DIAGNOSTICS_PATH,
     MODEL_PATH,
+    PROCESSED_DATASET_PATH,
     PROJECT_VERSION,
+    RAW_DATASET_PATH,
     REGRESSION_COMPARISON_PATH,
     REGRESSION_METADATA_PATH,
     REGRESSION_MODEL_PATH,
@@ -51,6 +53,23 @@ def _read_json(path: Path) -> dict[str, Any] | None:
     return data if isinstance(data, dict) else None
 
 
+def _safe_text(value: Any, limit: int = 120) -> str | None:
+    return value[:limit] if isinstance(value, str) and value else None
+
+
+def _safe_period(value: Any) -> dict[str, str | int] | None:
+    if not isinstance(value, dict):
+        return None
+    result: dict[str, str | int] = {}
+    for key in ("start", "end", "cutoff"):
+        if isinstance(value.get(key), str):
+            result[key] = value[key][:40]
+    rows = value.get("rows")
+    if type(rows) is int and 0 <= rows <= 10**12:
+        result["rows"] = rows
+    return result or None
+
+
 def _read_candidates(path: Path, role: str) -> list[dict[str, Any]] | None:
     try:
         with path.open(newline="", encoding="utf-8") as handle:
@@ -74,7 +93,7 @@ def _read_candidates(path: Path, role: str) -> list[dict[str, Any]] | None:
                 value = float(raw)
             except (TypeError, ValueError):
                 continue
-            if math.isfinite(value):
+            if math.isfinite(value) and abs(value) <= 10**12:
                 metrics[key] = value
         result.append({"model": name[:80], "metrics": metrics})
     return result
@@ -119,7 +138,7 @@ def _task_comparison(
         }
 
     metadata = metadata or {}
-    selected = metadata.get("selected_model")
+    selected = _safe_text(metadata.get("selected_model"))
     period_signature = _period_signature(metadata)
     training_timestamp = metadata.get("training_timestamp_utc")
     dataset_version = metadata.get("dataset_version")
@@ -146,19 +165,23 @@ def _task_comparison(
         is_selected = row["model"] == selected
         run = {
             "model": row["model"],
-            "model_version": metadata.get("project_version"),
-            "training_run_id": metadata.get("training_run_id"),
-            "evaluation_timestamp": training_timestamp,
-            "dataset_version": dataset_version,
+            "model_version": _safe_text(metadata.get("project_version")),
+            "training_run_id": _safe_text(metadata.get("training_run_id")),
+            "evaluation_timestamp": _safe_text(training_timestamp),
+            "dataset_version": _safe_text(dataset_version),
             "dataset_fingerprint": dataset_fingerprint,
             "artifact_fingerprint": selected_fingerprint if is_selected else None,
             "artifact_persisted": is_selected and selected_fingerprint is not None,
             "selected": is_selected,
-            "evaluation_windows": metadata.get("train_period") and {
-                "train": metadata.get("train_period"),
-                "validation": metadata.get("validation_period"),
-                "test": metadata.get("test_period"),
-            },
+            "evaluation_windows": (
+                {
+                    "train": _safe_period(metadata.get("train_period")),
+                    "validation": _safe_period(metadata.get("validation_period")),
+                    "test": _safe_period(metadata.get("test_period")),
+                }
+                if period_signature is not None
+                else None
+            ),
             "metrics": row["metrics"],
             "metric_deltas_vs_selected": None,
         }
@@ -169,6 +192,9 @@ def _task_comparison(
     if selected and not any(run["selected"] for run in records):
         status = "PARTIAL"
         reasons.append("Selected model is not present in the saved comparison table.")
+    if selected and selected_fingerprint is None:
+        reasons.append("The selected persisted model artifact fingerprint is unavailable.")
+        status = "PARTIAL"
     if status in {"VALID", "PARTIAL"} and baseline_metrics is not None and not any(
         "fingerprint" in reason.lower() or "window" in reason.lower() for reason in reasons
     ):
@@ -210,7 +236,8 @@ def compare_run_records(
     normalized = [dict(record) for record in records if isinstance(record, dict)]
     fingerprints = {item.get("dataset_fingerprint") for item in normalized}
     windows = {json.dumps(item.get("evaluation_windows"), sort_keys=True) for item in normalized}
-    incompatible = len(fingerprints) > 1 or len(windows) > 1
+    roles = {item.get("role") for item in normalized if item.get("role") is not None}
+    incompatible = len(fingerprints) > 1 or len(windows) > 1 or len(roles) > 1
     baseline = next((item for item in normalized if item.get("model") == selected_model), None)
     metric_keys = [
         set(item.get("metrics", {})) if isinstance(item.get("metrics"), dict) else set()
@@ -252,8 +279,37 @@ def build_model_run_comparison() -> dict[str, Any]:
     report = _read_json(MODEL_DIAGNOSTICS_PATH)
     dataset = report.get("dataset", {}) if report else {}
     dataset_fingerprint = dataset.get("sha256") if isinstance(dataset, dict) else None
-    if not isinstance(dataset_fingerprint, str) or len(dataset_fingerprint) != 64:
+    if (
+        not isinstance(dataset_fingerprint, str)
+        or len(dataset_fingerprint) != 64
+        or any(character not in "0123456789abcdef" for character in dataset_fingerprint)
+    ):
         dataset_fingerprint = None
+    current_dataset = next(
+        (path for path in (PROCESSED_DATASET_PATH, RAW_DATASET_PATH) if path.is_file()), None
+    )
+    current_fingerprint = (
+        _artifact_fingerprint(current_dataset) if dataset_fingerprint and current_dataset else None
+    )
+    dataset_mismatch = bool(
+        dataset_fingerprint and current_fingerprint and dataset_fingerprint != current_fingerprint
+    )
+    dataset_fingerprint = current_fingerprint
+    saved_artifacts = report.get("artifacts", {}) if report else {}
+    artifact_mismatches = set()
+    for role, path, field in (
+        ("classifier", MODEL_PATH, "classifier_sha256"),
+        ("regressor", REGRESSION_MODEL_PATH, "regressor_sha256"),
+    ):
+        recorded = saved_artifacts.get(field) if isinstance(saved_artifacts, dict) else None
+        if (
+            isinstance(recorded, str)
+            and len(recorded) == 64
+            and all(character in "0123456789abcdef" for character in recorded)
+            and (current := _artifact_fingerprint(path)) is not None
+            and current != recorded
+        ):
+            artifact_mismatches.add(role)
     groups = [
         _task_comparison(
             "classifier",
@@ -271,6 +327,23 @@ def build_model_run_comparison() -> dict[str, Any]:
         ),
     ]
     states = {item["status"] for item in groups}
+    if dataset_mismatch or artifact_mismatches:
+        for group in groups:
+            if group["status"] != "UNAVAILABLE" and (
+                dataset_mismatch or group["role"] in artifact_mismatches
+            ):
+                group["status"] = "INCOMPATIBLE"
+                if dataset_mismatch:
+                    group["reasons"] = group.get("reasons", []) + [
+                        "The saved evaluation dataset fingerprint differs from the current dataset."
+                    ]
+                if group["role"] in artifact_mismatches:
+                    group["reasons"] = group.get("reasons", []) + [
+                        "The saved evaluation artifact fingerprint differs from the current selected artifact."
+                    ]
+                for run in group.get("runs", []):
+                    run["metric_deltas_vs_selected"] = None
+        states = {item["status"] for item in groups}
     overall = "INCOMPATIBLE" if "INCOMPATIBLE" in states else "VALID" if states == {"VALID"} else "PARTIAL"
     return {
         "status": overall,
