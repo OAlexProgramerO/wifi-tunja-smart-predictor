@@ -4,7 +4,7 @@
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V7.9.0 es la versión candidata actual; V7.8.0 es la última versión publicada. Paquete Python e imagen Docker candidatos: `0.7.9`. Consulte la [guía de arquitectura](docs/architecture.md), la [referencia API](docs/api.es.md), la [guía de inventario de artefactos ML](docs/model-artifact-inventory.md), la [guía de comparación de ejecuciones ML](docs/model-run-comparison.es.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V7.9.0 es la última versión publicada. Versión del paquete Python e imagen Docker: `0.7.9`. Consulte la [guía de arquitectura](docs/architecture.md), la [referencia API](docs/api.es.md), la [guía de inventario de artefactos ML](docs/model-artifact-inventory.md), la [guía de comparación de ejecuciones ML](docs/model-run-comparison.es.md) y el [historial de versiones](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combina su demostración sintética de clasificación horaria y estimación de conexiones con análisis descriptivos de un conjunto oficial MinTIC opcional. V7.5.0 resume la concentración de proveedores a partir de suscripciones fijas municipales informadas; no describe tráfico WiFi ni desempeño del servicio. V7.6.0 agrega diagnósticos de arquitectura sanitizados; V7.7.0 agrega contadores operativos privados; V7.8.0 inventaría los artefactos ML sintéticos sin modificarlos; V7.9.0 compara evaluaciones guardadas de candidatos solo entre tareas compatibles de clasificación y regresión.
 

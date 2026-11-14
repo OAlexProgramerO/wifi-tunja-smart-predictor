@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V7.9.0 — Model run comparison — released 2026-11-14
+
+Adds read-only comparisons of persisted model candidates within classifier and regressor tasks. Deltas are omitted for incompatible fingerprints or evaluation windows. The latest saved tables are used; this is not an archive of historical training runs. Current persisted records report `PARTIAL` where run IDs/evaluation timestamps are absent. Product V7.9.0 maps to Python package and Docker image `0.7.9`. Annotated tag [`v7.9.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.9.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.9.0) target `35139bd10d5cbfb30700bd71be53ab9b7113a057`. Pytest, Ruff, Black, and `git diff --check` passed.
+
 ## V7.8.0 — ML artifact inventory — released 2026-11-13
 
 Adds read-only classifier/regressor artifact availability, metadata consistency, and SHA-256 fingerprint checks, with API diagnostics and an About-page summary. It never retrains or modifies model files. Product V7.8.0 maps to Python package and Docker image `0.7.8`. Annotated tag [`v7.8.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.8.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.8.0) target `ab95a82cdf4be121b9b8745c2ed3154cae7aa286`.
