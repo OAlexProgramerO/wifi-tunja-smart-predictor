@@ -2861,6 +2861,7 @@ def _render_page(title: str, kind: str) -> None:
         render_network(_load_frame())
     elif kind == "Performance":
         render_performance_v3()
+        _render_model_run_comparison()
     elif kind == "Assistant":
         render_assistant()
     elif kind == "Experiments":
@@ -3231,6 +3232,58 @@ def _render_model_artifact_inventory() -> None:
         if evaluation.get("next_action"):
             st.caption(f"Evaluation next step: {evaluation['next_action']}")
     st.caption(report.get("disclaimer", "Model evaluation information is synthetic."))
+
+
+def _render_model_run_comparison() -> None:
+    """Show persisted candidate evaluation comparisons without fitting models."""
+    st.subheader("Saved model run comparison")
+    try:
+        report = main_api_request("/model-runs/comparison")
+    except ApiClientError:
+        st.info("Saved model comparisons are unavailable because the main API could not be checked.")
+        return
+
+    for task in report.get("tasks", []):
+        role = task.get("role", "model")
+        status = task.get("status", "PARTIAL")
+        st.markdown(f"**{role.title()} · {status}**")
+        if status == "UNAVAILABLE":
+            st.info(task.get("message", "Saved comparison is unavailable."))
+            continue
+        if task.get("reasons"):
+            for reason in task["reasons"]:
+                st.caption(reason)
+        rows = []
+        for run in task.get("runs", []):
+            row = {
+                "Candidate": run.get("model"),
+                "Selected": run.get("selected", False),
+                "Model version": run.get("model_version") or "Unavailable",
+                "Evaluation time": run.get("evaluation_timestamp") or "Unavailable",
+                "Dataset fingerprint": run.get("dataset_fingerprint") or "Unavailable",
+                "Artifact fingerprint": run.get("artifact_fingerprint") or "Not persisted",
+            }
+            metrics = run.get("metrics", {})
+            deltas = run.get("metric_deltas_vs_selected") or {}
+            for metric, value in metrics.items():
+                row[metric] = value
+                if metric in deltas and not run.get("selected"):
+                    row[f"Δ {metric}"] = deltas[metric]
+            rows.append(row)
+        if rows:
+            st.dataframe(
+                pd.DataFrame(rows),
+                hide_index=True,
+                width="stretch",
+                alt=f"Persisted {role} candidate evaluation metrics and differences from the selected model.",
+            )
+        windows = task.get("evaluation_windows")
+        if windows:
+            st.caption(f"Shared evaluation windows: {windows}")
+    st.caption(
+        "Synthetic evaluation only. Deltas compare candidates within the same task and saved split; "
+        "only the selected candidate has a persisted artifact fingerprint."
+    )
 
 
 def _render_real_connectivity() -> None:
