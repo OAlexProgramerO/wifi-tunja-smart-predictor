@@ -4,7 +4,7 @@
 
 `GET /model-runs/comparison` lee las tablas persistidas de evaluación de candidatos del clasificador y regresor, junto con los metadatos del modelo seleccionado. Compara candidatos únicamente dentro de la misma tarea: clasificación con clasificación y regresión con regresión. No ajusta modelos ni escribe en archivos de informes o modelos.
 
-El repositorio conserva las tablas de candidatos más recientes, no un historial acumulativo de entrenamientos. Cada fila representa la evaluación de un candidato en ese ciclo guardado, no una secuencia de despliegues independientes. La respuesta informa versión del modelo/paquete, fecha de entrenamiento, versión y huella del dataset cuando están disponibles, huella del artefacto seleccionado y ventanas temporales compartidas. Los candidatos no seleccionados no tienen una huella de artefacto persistida. La evidencia incompleta reduce el estado a `PARTIAL`; una huella o ventana de evaluación incompatible produce `INCOMPATIBLE` y omite las diferencias de métricas.
+El repositorio conserva las tablas de candidatos más recientes, no un historial acumulativo de entrenamientos. Cada fila representa la evaluación de un candidato en ese ciclo guardado, no una secuencia de despliegues independientes. La respuesta informa versión del modelo/paquete, fecha de entrenamiento registrada, fecha de evaluación solo si está guardada explícitamente, versión y huella del dataset cuando están disponibles, huella del artefacto seleccionado y ventanas temporales compartidas. Los candidatos no seleccionados no tienen una huella de artefacto persistida. La evidencia incompleta reduce el estado a `PARTIAL`; una huella o ventana de evaluación incompatible produce `INCOMPATIBLE` y omite las diferencias de métricas.
 
 ## Estados
 

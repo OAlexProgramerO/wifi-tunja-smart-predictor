@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V7.8.0
+# WiFi Tunja Smart Predictor — V7.9.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,15 +9,15 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V7.8.0 is the current release candidate; V7.7.0 remains the latest published release. Candidate Python package and Docker image: `0.7.8`. See the [architecture guide](docs/architecture.md), [API reference](docs/api.md), [ML artifact inventory guide](docs/model-artifact-inventory.md), and [release history](docs/release-history.md).
+**Release status:** V7.9.0 is the current release candidate; V7.8.0 is the latest published release. Candidate Python package and Docker image: `0.7.9`. See the [architecture guide](docs/architecture.md), [API reference](docs/api.md), [ML artifact inventory guide](docs/model-artifact-inventory.md), [model run comparison guide](docs/model-run-comparison.md), and [release history](docs/release-history.md).
 
-WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.5.0 summarizes provider concentration from reported municipal fixed-internet subscriptions; it does not characterize WiFi traffic or service performance. V7.6.0 adds sanitized architecture diagnostics; V7.7.0 adds privacy-safe operational counters; V7.8.0 inventories persisted synthetic model artifacts without modifying them.
+WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.5.0 summarizes provider concentration from reported municipal fixed-internet subscriptions; it does not characterize WiFi traffic or service performance. V7.6.0 adds sanitized architecture diagnostics; V7.7.0 adds privacy-safe operational counters; V7.8.0 inventories persisted synthetic model artifacts without modifying them; V7.9.0 compares saved candidate evaluations within compatible classifier and regressor tasks.
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 
 See the [system architecture guide](docs/architecture.md) for the component map, request/data flows, Compose services, and separation between synthetic ML and official MinTIC records.
 
-The existing ML models and scenarios continue to use synthetic data only; their metrics do not establish predictive performance for real public WiFi demand or municipal infrastructure in Tunja. The V7.8.0 artifact inventory checks only those synthetic model files and metadata. Official subscriptions and bandwidth categories are descriptive records, not evidence of traffic, congestion, or saturation. See the [official connectivity guide](docs/official-connectivity.md), [methodology](docs/methodology.md), [limitations](docs/limitations.md), [API guide](docs/api.md), [observability guide](docs/observability.md), and [assistant guide](docs/assistant.md).
+The existing ML models and scenarios continue to use synthetic data only; their metrics do not establish predictive performance for real public WiFi demand or municipal infrastructure in Tunja. The V7.8.0 artifact inventory and V7.9.0 comparison use synthetic model files and evaluation metadata only. Candidate evaluation tables retain only the most recent training cycle, and selected artifact fingerprints are unavailable for unpersisted candidates. Official subscriptions and bandwidth categories are descriptive records, not evidence of traffic, congestion, or saturation. See the [official connectivity guide](docs/official-connectivity.md), [methodology](docs/methodology.md), [limitations](docs/limitations.md), [API guide](docs/api.md), [observability guide](docs/observability.md), and [assistant guide](docs/assistant.md).
 
 **Security boundary:** API protections are a practical baseline. Authentication, authorization, production rate limiting, WAF protection, and penetration-tested deployment are not provided.
 

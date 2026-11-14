@@ -1,10 +1,16 @@
 # Changelog
 
-## Unreleased — V7.8.0 ML Artifact Inventory
+## Unreleased — V7.9.0 Model Run Comparison
 
-Adds a read-only inventory for the persisted synthetic classifier and regressor, including recorded training/evaluation metadata, SHA-256 fingerprints, availability, dataset compatibility, and actionable READY/MISSING/INCOMPLETE/RETRAINING_REQUIRED states. Adds `GET /model-artifacts/inventory` and a compact section in the existing About dashboard. The endpoint never trains, repairs, overwrites, or mixes model artifacts with official MinTIC data. Planned product V7.8.0 maps to Python package and Docker image `0.7.8`.
+Adds a read-only comparison of the persisted classifier and regressor candidate evaluation tables. Candidate metrics are compared only within the same task and saved temporal split; metric deltas are suppressed for incompatible dataset/artifact fingerprints or evaluation windows. The API and Model Performance dashboard expose model/dataset/artifact provenance, timestamps, windows, available metrics, and VALID/PARTIAL/INCOMPATIBLE/UNAVAILABLE states. No training is run and no artifacts are overwritten. Only the latest candidate tables are retained, so this is not a historical run archive. Product V7.9.0 maps to Python package and Docker image `0.7.9`. All evaluation remains synthetic and separate from official MinTIC data.
 
-Agrega un inventario de solo lectura para el clasificador y regresor sintéticos persistidos: metadatos de entrenamiento/evaluación, huellas SHA-256, disponibilidad, compatibilidad del dataset y estados accionables READY/MISSING/INCOMPLETE/RETRAINING_REQUIRED. Agrega `GET /model-artifacts/inventory` y una sección compacta en About. El endpoint nunca entrena, repara ni sobrescribe archivos, y no mezcla modelos con datos oficiales MinTIC. La versión prevista V7.8.0 corresponde al paquete Python y a la imagen Docker `0.7.8`.
+Agrega una comparación de solo lectura de las tablas guardadas de evaluación de candidatos del clasificador y regresor. Las métricas se comparan únicamente dentro de la misma tarea y división temporal; las diferencias se omiten ante huellas de dataset/artefacto o ventanas incompatibles. La API y Model Performance muestran procedencia de modelo/dataset/artefacto, marcas de tiempo, ventanas, métricas disponibles y estados VALID/PARTIAL/INCOMPATIBLE/UNAVAILABLE. No se ejecuta entrenamiento ni se sobrescriben artefactos. Solo se conserva la tabla de candidatos más reciente, por lo que no es un archivo histórico de ejecuciones. La versión de producto V7.9.0 corresponde al paquete Python y a la imagen Docker `0.7.9`. Toda evaluación sigue usando datos sintéticos y permanece separada de los datos oficiales MinTIC.
+
+## V7.8.0 — ML Artifact Inventory — released 2026-11-13
+
+Adds a read-only inventory for persisted synthetic classifier/regressor artifacts, metadata consistency, and fingerprints, with API diagnostics and an About dashboard view. No artifact is retrained or modified. Product V7.8.0 maps to Python package and Docker image `0.7.8`. Annotated tag [`v7.8.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.8.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.8.0) target `ab95a82cdf4be121b9b8745c2ed3154cae7aa286`.
+
+Agrega un inventario de solo lectura para artefactos sintéticos de clasificación/regresión, consistencia de metadatos y huellas, con diagnósticos API y vista About. No se reentrena ni modifica ningún artefacto. La versión de producto V7.8.0 corresponde al paquete Python y a la imagen Docker `0.7.8`. La etiqueta anotada [`v7.8.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.8.0) y el [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.8.0) apuntan a `ab95a82cdf4be121b9b8745c2ed3154cae7aa286`.
 
 ## V7.7.0 — Operational Observability — released 2026-11-12
 

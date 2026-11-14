@@ -1,5 +1,9 @@
 # Release history and V4.0 readiness
 
+## V7.8.0 — ML artifact inventory — released 2026-11-13
+
+Adds read-only classifier/regressor artifact availability, metadata consistency, and SHA-256 fingerprint checks, with API diagnostics and an About-page summary. It never retrains or modifies model files. Product V7.8.0 maps to Python package and Docker image `0.7.8`. Annotated tag [`v7.8.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.8.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.8.0) target `ab95a82cdf4be121b9b8745c2ed3154cae7aa286`.
+
 ## V7.7.0 — Operational observability — released 2026-11-12
 
 Adds bounded process-local API request, response-status, error, and duration aggregates, plus read-only diagnostics and a compact dashboard summary. The main API checks the assistant metrics/readiness route and distinguishes unavailable checks from verified not-ready/failure states. No request content or sensitive headers are retained. Metrics reset on process restart and are not durable monitoring. Synthetic ML inputs and official MinTIC descriptive analytics remain separate. Product V7.7.0 maps to Python package and Docker image `0.7.7`. Annotated tag [`v7.7.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.7.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.7.0) target `e57c7d321f3302b7228228425d52b3e65d3719dd`. Pytest, Ruff, Black, Compose configuration, and `git diff --check` passed locally.
