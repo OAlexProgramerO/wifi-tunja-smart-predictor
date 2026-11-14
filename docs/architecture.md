@@ -61,6 +61,8 @@ V7.7.0 operational observability flow: each API's shared middleware records its 
 
 V7.8.0 adds a read-only ML artifact inventory route and dashboard summary. It compares classifier/regressor files with validated training metadata and the saved evaluation report, reports missing/incomplete/stale compatibility states, and never loads a training command or changes model files. See the [model artifact inventory guide](model-artifact-inventory.md). This inventory covers only synthetic ML assets; official MinTIC records and snapshots are outside its scope.
 
+V7.9.0 adds a read-only view over the persisted classifier and regressor candidate evaluation tables. Comparisons stay within one task and use the shared recorded train/validation/test windows; mismatched dataset fingerprints or windows suppress metric deltas. The dashboard and API do not train models or mutate artifacts. Only the latest candidate tables are retained, so this is not a historical training-run archive. See the [model run comparison guide](model-run-comparison.md).
+
 ## Data boundaries
 
 Synthetic access points, locations, demand observations, model features, training labels, fitted model artifacts, predictions, and scenario results remain synthetic. MinTIC records are official descriptive fixed-internet subscription/access counts at Tunja municipal and quarterly granularity. They are persisted separately and are not inputs to the synthetic ML training or predictions. The official source does not measure public WiFi traffic, coverage, service quality, congestion, or saturation.
