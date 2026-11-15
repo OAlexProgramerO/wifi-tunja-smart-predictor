@@ -2315,7 +2315,72 @@ def _render_temporal_evaluation_lab() -> None:
         )
 
 
+def _render_synthetic_drift_monitor() -> None:
+    """Display an explicitly selected, read-only synthetic feature drift report."""
+    _section_header("Synthetic data drift monitor")
+    st.caption(
+        "Compares training inputs with a separate chronological validation/test split. "
+        "Targets and official MinTIC records are excluded. Drift is descriptive, not proof of model degradation."
+    )
+    with st.form("synthetic_drift_monitor_form"):
+        evaluation_split = st.selectbox(
+            "Synthetic evaluation partition",
+            ("validation", "test"),
+            index=1,
+        )
+        analyze = st.form_submit_button("Analyze feature distributions")
+    if analyze:
+        try:
+            st.session_state["synthetic_drift_report"] = main_api_request(
+                f"/drift/monitor?evaluation_split={evaluation_split}"
+            )
+        except ApiClientError as exc:
+            st.error(str(exc))
+            return
+
+    report = st.session_state.get("synthetic_drift_report")
+    if not report:
+        st.info("Choose a synthetic evaluation partition and run the read-only analysis.")
+        return
+    status = report.get("status", "WARNING")
+    if status == "STABLE":
+        st.success(f"{status}: no feature exceeded the configured descriptive thresholds.")
+    elif status == "DRIFT_DETECTED":
+        st.warning(f"{status}: one or more synthetic feature distributions exceeded thresholds.")
+    else:
+        st.info(f"{status}: some features warned or had insufficient samples.")
+    st.caption(
+        f"Generated {report.get('generated_at_utc', 'unknown')} · "
+        f"evaluation partition {report.get('evaluation_split', 'unknown')} · synthetic only"
+    )
+    st.caption(
+        f"Reference fingerprint: {report.get('dataset_fingerprints', {}).get('reference_features_sha256', 'unavailable')} · "
+        f"evaluation fingerprint: {report.get('dataset_fingerprints', {}).get('evaluation_features_sha256', 'unavailable')}"
+    )
+    st.dataframe(
+        pd.DataFrame(report.get("feature_results", [])),
+        hide_index=True,
+        width="stretch",
+        alt="Synthetic training versus evaluation feature distribution metrics and statuses",
+    )
+    with st.expander("Interpretation and limitations"):
+        st.json(report.get("configuration", {}))
+        for limitation in report.get("limitations", []):
+            st.caption(limitation)
+        st.caption(
+            "Targets excluded: "
+            + ", ".join(report.get("target_exclusion", {}).get("excluded_target_columns", []))
+        )
+    st.download_button(
+        "Download versioned drift report",
+        data=json.dumps(report, indent=2, ensure_ascii=False, allow_nan=False),
+        file_name=f"synthetic-drift-v{report.get('schema_version', '1.0')}-{report.get('evaluation_split', 'test')}.json",
+        mime="application/json",
+    )
+
+
 def render_performance_v3() -> None:
+    _render_synthetic_drift_monitor()
     _render_temporal_evaluation_lab()
     render_performance()
     regression_comparison_path = (
