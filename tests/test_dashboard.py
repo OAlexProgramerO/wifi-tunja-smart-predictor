@@ -193,6 +193,43 @@ def test_temporal_evaluation_controls_render_without_running_evaluation():
     assert any(item.label == "Features for distribution comparison" for item in app.multiselect)
 
 
+def test_synthetic_drift_monitor_dashboard_renders_feature_results(monkeypatch):
+    from app import dashboard
+
+    report = {
+        "schema_version": "1.0",
+        "status": "DRIFT_DETECTED",
+        "evaluation_split": "test",
+        "generated_at_utc": "2026-11-15T12:00:00+00:00",
+        "dataset_fingerprints": {
+            "reference_features_sha256": "a" * 64,
+            "evaluation_features_sha256": "b" * 64,
+        },
+        "feature_results": [{"feature": "hour", "status": "DRIFT_DETECTED", "psi": 0.5}],
+        "configuration": {"min_non_missing_samples": 20},
+        "limitations": ["Synthetic data only."],
+        "target_exclusion": {"excluded_target_columns": ["demand_level"]},
+    }
+    calls = []
+    monkeypatch.setattr(
+        dashboard,
+        "main_api_request",
+        lambda path: calls.append(path) or report,
+    )
+    app = AppTest.from_string(
+        "from app.dashboard import _render_synthetic_drift_monitor\n"
+        "_render_synthetic_drift_monitor()\n",
+        default_timeout=30,
+    ).run()
+    assert not app.exception
+    app.button[0].click().run()
+
+    assert not app.exception
+    assert calls == ["/drift/monitor?evaluation_split=test"]
+    assert any("DRIFT_DETECTED" in item.value for item in app.warning)
+    assert app.dataframe
+
+
 def test_model_diagnostics_surface_model_version_date_and_classification_summary():
     script = """
 import app.dashboard as dashboard
