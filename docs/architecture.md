@@ -63,6 +63,8 @@ V7.8.0 adds a read-only ML artifact inventory route and dashboard summary. It co
 
 V7.9.0 adds a read-only view over the persisted classifier and regressor candidate evaluation tables. Comparisons stay within one task and use the shared recorded train/validation/test windows; mismatched dataset fingerprints or windows suppress metric deltas. The dashboard and API do not train models or mutate artifacts. Only the latest candidate tables are retained, so this is not a historical training-run archive. See the [model run comparison guide](model-run-comparison.md).
 
+V8.0.0 adds synthetic feature drift monitoring. It compares only allowlisted model input features from the chronological synthetic training partition and a selected validation/test partition; target columns are excluded before statistics are calculated. The GET endpoint computes without writing, while an explicit CLI command stores a versioned report. Official MinTIC data is outside this flow. See the [synthetic drift monitoring guide](synthetic-drift-monitoring.md).
+
 ## Data boundaries
 
 Synthetic access points, locations, demand observations, model features, training labels, fitted model artifacts, predictions, and scenario results remain synthetic. MinTIC records are official descriptive fixed-internet subscription/access counts at Tunja municipal and quarterly granularity. They are persisted separately and are not inputs to the synthetic ML training or predictions. The official source does not measure public WiFi traffic, coverage, service quality, congestion, or saturation.
