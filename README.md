@@ -9,7 +9,7 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V8.0.0 is the current release candidate; V7.9.0 is the latest published release. Candidate Python package and Docker image: `0.8.0`. See the [architecture guide](docs/architecture.md), [API reference](docs/api.md), [synthetic drift monitoring guide](docs/synthetic-drift-monitoring.md), [ML artifact inventory guide](docs/model-artifact-inventory.md), [model run comparison guide](docs/model-run-comparison.md), and [release history](docs/release-history.md).
+**Release status:** V8.0.0 is released. Python package and Docker image: `0.8.0`. See the [architecture guide](docs/architecture.md), [API reference](docs/api.md), [synthetic drift monitoring guide](docs/synthetic-drift-monitoring.md), [ML artifact inventory guide](docs/model-artifact-inventory.md), [model run comparison guide](docs/model-run-comparison.md), and [release history](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.5.0 summarizes provider concentration from reported municipal fixed-internet subscriptions; it does not characterize WiFi traffic or service performance. V7.6.0 adds sanitized architecture diagnostics; V7.7.0 adds privacy-safe operational counters; V7.8.0 inventories persisted synthetic model artifacts; V7.9.0 compares saved candidate evaluations; V8.0.0 monitors feature distribution shifts between synthetic chronological partitions.
 
