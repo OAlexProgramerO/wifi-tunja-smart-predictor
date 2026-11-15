@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — V8.0.0 Synthetic Data Drift Monitoring
+
+Adds reproducible feature-distribution monitoring between synthetic training and selected validation/test partitions. Numerical/categorical summaries, missing/unseen categories, sample adequacy, fingerprints, target-leakage safeguards, a read-only API, a dashboard view, and an explicit command to persist versioned JSON reports. Product V8.0.0 maps to Python package and Docker image `0.8.0`. Drift is descriptive and does not establish real-world model degradation or public WiFi demand changes; official MinTIC data remains excluded.
+
+Agrega monitoreo reproducible de distribuciones entre entrenamiento sintético y una partición validation/test seleccionada. Incluye estadísticas numéricas/categóricas, faltantes/categorías nuevas, suficiencia de muestras, huellas, protecciones contra filtración de objetivos, API de solo lectura, vista de dashboard y comando explícito para guardar informes JSON versionados. V8.0.0 corresponde al paquete Python y la imagen Docker `0.8.0`. La deriva es descriptiva y no demuestra degradación real del modelo ni cambios en la demanda de WiFi público; los datos MinTIC oficiales permanecen excluidos.
+
 ## V7.9.0 — Model Run Comparison — released 2026-11-14
 
 Adds a read-only comparison of the persisted classifier and regressor candidate evaluation tables. Candidate metrics are compared only within the same task and saved temporal split; metric deltas are suppressed for incompatible dataset/artifact fingerprints or evaluation windows. The API and Model Performance dashboard expose model/dataset/artifact provenance, timestamps, windows, available metrics, and VALID/PARTIAL/INCOMPATIBLE/UNAVAILABLE states. No training is run and no artifacts are overwritten. Only the latest candidate tables are retained, so this is not a historical run archive. Product V7.9.0 maps to Python package and Docker image `0.7.9`. All evaluation remains synthetic and separate from official MinTIC data. Annotated tag [`v7.9.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v7.9.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v7.9.0) target `35139bd10d5cbfb30700bd71be53ab9b7113a057`. `pytest -q`, `ruff check .`, `black --check .`, and `git diff --check` passed locally.
