@@ -178,6 +178,43 @@ def test_regression_runner_keeps_target_out_of_features(monkeypatch: pytest.Monk
     assert set(result["evaluation"]["metrics"]) == {"mae", "rmse", "r2"}
 
 
+@pytest.mark.parametrize(
+    ("task", "candidate", "hyperparameters"),
+    [
+        ("classification", "decision_tree", {"max_depth": 3}),
+        ("regression", "random_forest_regressor", {"n_estimators": 10, "max_depth": 4}),
+    ],
+)
+def test_real_candidate_fit_completes_with_synthetic_chronological_data(
+    task: str,
+    candidate: str,
+    hyperparameters: dict[str, int],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import wifi_tunja_smart_predictor.experiments.ml_service as service
+
+    frame = make_mini_frame(82)
+    frame["timestamp"] = list(pd.date_range("2025-06-29", periods=72, freq="h")) + list(
+        pd.date_range("2025-10-01", periods=10, freq="h")
+    )
+    monkeypatch.setattr(service, "_load_synthetic_dataset", lambda: frame)
+    payload = _payload(
+        task=task,
+        model_candidate=candidate,
+        evaluation_split="test",
+        hyperparameters=hyperparameters,
+    )
+    orchestrator = MLExperimentOrchestrator(
+        MLExperimentStore(tmp_path / f"{task}.sqlite3")
+    )
+    record = orchestrator.create(payload, f"trained-run-{task}")
+    assert record["status"] == "COMPLETED"
+    assert record["result"]["dataset"]["kind"] == "synthetic"
+    assert record["result"]["evaluation"]["rows"] == 10
+    assert record["result"]["model"]["artifact_persisted"] is False
+
+
 def test_api_create_retrieve_report_and_pagination(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
