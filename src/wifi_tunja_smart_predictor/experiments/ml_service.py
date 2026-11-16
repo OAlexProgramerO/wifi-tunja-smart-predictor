@@ -142,6 +142,14 @@ def execute_experiment(configuration: dict[str, Any]) -> dict[str, Any]:
             "artifact_persisted": False,
             "artifact_fingerprint": None,
         },
+        "reproducibility": {
+            "status": "TRACEABLE_NOT_SELF_CONTAINED",
+            "exact_replay_verified": False,
+            "requirements": [
+                "The same synthetic dataset bytes must remain available.",
+                "The same source code and recorded library versions are required.",
+            ],
+        },
         "evaluation": {"metrics": metrics, "rows": int(len(evaluation))},
         "limitations": [
             "All data and metrics in this report are synthetic.",

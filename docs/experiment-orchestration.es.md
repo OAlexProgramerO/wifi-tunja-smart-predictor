@@ -6,6 +6,17 @@ El servicio ejecuta un candidato permitido de clasificación o regresión con el
 
 La configuración contiene `task` (`classification` o `regression`), `model_candidate` permitido, `evaluation_split` e `hyperparameters` de primitivas acotadas. Se validan los parámetros frente a las especificaciones existentes. Cada registro tiene UUID, fechas UTC, candidato, configuración, estado, huella del dataset, particiones cronológicas, métricas y huella de artefacto solo si se guardó alguno. V8.1 no persiste artefactos candidatos, así que dicha huella queda nula. Los errores guardan únicamente un tipo sanitizado y un mensaje genérico.
 
+Ejemplo:
+
+```json
+{
+  "task": "regression",
+  "model_candidate": "random_forest_regressor",
+  "evaluation_split": "validation",
+  "hyperparameters": {"n_estimators": 120, "max_depth": 12}
+}
+```
+
 ```text
 configuración válida -> PENDING -> RUNNING -> COMPLETED
                                          \-> FAILED
@@ -20,4 +31,4 @@ La solicitud FastAPI se ejecuta sincrónicamente y guarda cada estado en la tabl
 - `GET /ml-experiments/{experiment_id}`: detalle.
 - `GET /ml-experiments/{experiment_id}/report`: informe JSON persistido.
 
-La página Streamlit Experiment Orchestration envía ejecuciones, consulta historial/detalles y descarga informes. Es ejecución local sincrónica, no orquestación distribuida. Reproducir un resultado requiere el mismo código, dependencias y bytes del conjunto sintético. Los experimentos sobre test son para inspección, no para selección iterativa. Las métricas no validan pronósticos reales; los datos MinTIC oficiales no son entradas.
+La página Streamlit Experiment Orchestration envía ejecuciones, consulta historial/detalles y descarga informes. Es ejecución local sincrónica, no orquestación distribuida. Los informes usan `TRACEABLE_NOT_SELF_CONTAINED` y no afirman que se haya verificado una reproducción exacta: se requieren el mismo código, versiones de bibliotecas registradas y bytes del dataset sintético. Los experimentos sobre test son para inspección, no para selección iterativa. Las métricas no validan pronósticos reales; los datos MinTIC oficiales no son entradas.

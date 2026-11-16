@@ -144,6 +144,8 @@ def test_runner_uses_only_configured_features_and_records_dataset_identity(
     assert len(result["dataset"]["fingerprint"]) == 64
     assert result["temporal_split"]["evaluation_partition"] == "test"
     assert result["model"]["artifact_fingerprint"] is None
+    assert result["reproducibility"]["status"] == "TRACEABLE_NOT_SELF_CONTAINED"
+    assert result["reproducibility"]["exact_replay_verified"] is False
 
 
 def test_regression_runner_keeps_target_out_of_features(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -205,9 +207,7 @@ def test_real_candidate_fit_completes_with_synthetic_chronological_data(
         evaluation_split="test",
         hyperparameters=hyperparameters,
     )
-    orchestrator = MLExperimentOrchestrator(
-        MLExperimentStore(tmp_path / f"{task}.sqlite3")
-    )
+    orchestrator = MLExperimentOrchestrator(MLExperimentStore(tmp_path / f"{task}.sqlite3"))
     record = orchestrator.create(payload, f"trained-run-{task}")
     assert record["status"] == "COMPLETED"
     assert record["result"]["dataset"]["kind"] == "synthetic"

@@ -10,6 +10,17 @@ Each record has a UUID, UTC creation/update times, task, candidate, bounded para
 
 An experiment configuration contains `task` (`classification` or `regression`), an allowlisted `model_candidate`, `evaluation_split` (`validation` or `test`), and a small primitive-only `hyperparameters` object. Candidate names and parameter names are checked against existing estimator specifications; values are bounded before fitting. The shared `temporal_split` function and project cutoffs are reused. A dataset fingerprint and split bounds identify the inputs and temporal scope. An incompatible idempotency-key replay is rejected; a matching replay returns the original record.
 
+Example:
+
+```json
+{
+  "task": "regression",
+  "model_candidate": "random_forest_regressor",
+  "evaluation_split": "validation",
+  "hyperparameters": {"n_estimators": 120, "max_depth": 12}
+}
+```
+
 ```text
 validated configuration -> PENDING -> RUNNING -> COMPLETED
                                               \-> FAILED
@@ -24,4 +35,4 @@ The FastAPI request executes synchronously and persists each state transition to
 - `GET /ml-experiments/{experiment_id}` retrieves one record.
 - `GET /ml-experiments/{experiment_id}/report` exports its JSON report.
 
-The Streamlit Experiment Orchestration page submits a run, inspects history/details, and downloads its report. This is local synchronous execution, not distributed scheduling. Reproduction requires the same code, dependencies, and synthetic dataset bytes. Test-split runs are for explicit inspection, not iterative model selection. Results are not evidence of real-world forecast validity; official MinTIC data is not an input.
+The Streamlit Experiment Orchestration page submits a run, inspects history/details, and downloads its report. This is local synchronous execution, not distributed scheduling. Reports use `TRACEABLE_NOT_SELF_CONTAINED` and do not claim exact replay was verified: reproduction requires the same code, recorded library versions, and synthetic dataset bytes. Test-split runs are for explicit inspection, not iterative model selection. Results are not evidence of real-world forecast validity; official MinTIC data is not an input.
