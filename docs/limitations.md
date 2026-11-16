@@ -2,6 +2,8 @@
 
 ## Scientific limitations
 
+V8.1 experiment runs fit one allowlisted candidate using the configured chronological training partition and report validation or test metrics for the synthetic dataset. The stored configuration, dataset fingerprint, split bounds, and application version support traceability, but exact reproduction also requires matching source code, dependency versions, and dataset bytes. Fitted candidates are not persisted, so no candidate artifact fingerprint is available. Runs are synchronous, local, and not scheduled or retried; a process interruption can leave a `RUNNING` record. Test-partition runs must not be used for repeated candidate tuning. These metrics do not establish real-world forecast performance in Tunja; MinTIC data is excluded.
+
 Every AP, coordinate, observation, environmental value, network snapshot, and outcome is synthetic. Metrics describe only a held-out period from that synthetic generator and do not establish accuracy for real users or networks. No live telemetry, weather feed, event service, municipal inventory, or external geocoder is connected.
 
 The classifier predicts the synthetic `demand_level` target. The regressor estimates synthetic `connections_next_hour`. Capacity utilization treats the predicted connection count as a proxy; actual airtime, device capability, throughput, channel contention, and service quality are not modeled. Local feature replacement is sensitivity analysis, not causal attribution. Conformal coverage can change with distribution shift.

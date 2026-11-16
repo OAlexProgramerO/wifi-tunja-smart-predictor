@@ -1,5 +1,7 @@
 # Referencia de API — evaluación temporal V6.3.0 y experimentos
 
+V8.1 agrega rutas sincrónicas para experimentos ML sintéticos: `POST /ml-experiments`, `GET /ml-experiments?limit=20&offset=0`, `GET /ml-experiments/{experiment_id}` y `GET /ml-experiments/{experiment_id}/report`. La creación define tarea, candidato permitido, partición validation/test e hiperparámetros acotados; `X-Idempotency-Key` opcional hace seguros los reintentos. Las páginas se limitan a 100 registros. Solo se escribe en una tabla aditiva del historial; nunca se modifican artefactos. Consulte la [guía de orquestación de experimentos](experiment-orchestration.es.md).
+
 La API principal corre en el puerto 8000; Swagger está disponible en `/docs`.
 
 - `GET /architecture/diagnostics` devuelve responsabilidades de componentes y comprobaciones de estado sanitizadas. Distingue servicios sin verificar/datos no disponibles de fallos confirmados. No inspecciona el estado del daemon Docker; consulte la [guía de arquitectura](architecture.md).
