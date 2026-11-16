@@ -66,3 +66,7 @@ Class imbalance is reported from the generated synthetic labels (generator targe
 
 Accuracy, precision, recall, F1 (`HIGH` as positive class), ROC-AUC when `predict_proba` exists, and a confusion matrix. All numbers must come from execution. They describe **the synthetic evaluation dataset only**.
 
+# ML experiment runs
+
+V8.1 uses the same synthetic source and chronological boundaries as the existing training workflow. Each run fits one allowlisted task-specific candidate on rows through `TRAIN_END`; evaluation is restricted to the explicitly selected validation or test period. The task target is separated from `MODEL_INPUT_COLUMNS` and passed only as the label. The record fingerprints the complete task-specific source view (timestamp, allowlisted features, and target) and records the cutoffs, candidate, resolved bounded hyperparameters, seed, runtime library versions, and metrics. This supports traceability but exact replay still requires identical code and source data. Metrics remain synthetic and test results should not drive repeated tuning. See [experiment orchestration](experiment-orchestration.md).
+

@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — V8.1.0 Reproducible ML Experiment Orchestrator
+
+Adds validated, task-separated synthetic classification/regression runs with bounded candidate parameters, UUIDs, UTC lifecycle states, chronological split and dataset provenance, evaluation metrics, sanitized failures, an additive SQLite history table, idempotent creation, paginated detail/report APIs, and a focused dashboard workflow. Fitted candidates are not persisted and production artifacts or predictions are unchanged. All inputs and metrics remain synthetic; official MinTIC records are excluded. Product V8.1.0 maps to candidate Python package and Docker image `0.8.1`.
+
+Agrega ejecuciones sintéticas validadas de clasificación/regresión con tareas separadas, parámetros acotados, UUID, estados del ciclo de vida en UTC, procedencia de dataset y partición cronológica, métricas, errores sanitizados, tabla aditiva SQLite, creación idempotente, API paginada de historial/detalle/informes e interfaz dedicada. Los candidatos ajustados no se guardan y no cambian artefactos de producción ni predicciones. Todos los datos y métricas son sintéticos; se excluyen los registros oficiales MinTIC. El producto V8.1.0 corresponde a las versiones candidatas `0.8.1` del paquete Python y de la imagen Docker.
+
 ## V8.0.0 — Synthetic Data Drift Monitoring — released 2026-11-15
 
 Adds reproducible feature-distribution monitoring between synthetic training and selected validation/test partitions. Numerical/categorical summaries, missing/unseen categories, sample adequacy, fingerprints, target-leakage safeguards, a read-only API, a dashboard view, and an explicit command to persist versioned JSON reports. Product V8.0.0 maps to Python package and Docker image `0.8.0`. Drift is descriptive and does not establish real-world model degradation or public WiFi demand changes; official MinTIC data remains excluded. Annotated tag [`v8.0.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v8.0.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v8.0.0) target `9de3becaca53546baa7e3438f3527832107fd923`. `pytest -q`, `ruff check .`, `black --check .`, `docker compose config --quiet`, and `git diff --check` passed locally.
