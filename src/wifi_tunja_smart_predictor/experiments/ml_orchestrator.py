@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from wifi_tunja_smart_predictor.experiments.ml_config import normalize_configuration
 from wifi_tunja_smart_predictor.experiments.ml_schemas import MLExperimentCreate
 from wifi_tunja_smart_predictor.experiments.ml_service import (
     execute_experiment,
-    normalize_configuration,
 )
 from wifi_tunja_smart_predictor.experiments.ml_store import MLExperimentStore
 

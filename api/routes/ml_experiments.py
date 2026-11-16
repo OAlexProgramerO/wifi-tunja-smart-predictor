@@ -5,7 +5,7 @@ from __future__ import annotations
 import sqlite3
 from functools import lru_cache
 
-from fastapi import APIRouter, Header, HTTPException, Query
+from fastapi import APIRouter, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 
 from wifi_tunja_smart_predictor.config import experiment_database_path
@@ -28,6 +28,7 @@ def _orchestrator() -> MLExperimentOrchestrator:
 @router.post("", status_code=201, response_model=MLExperimentRecord)
 def create_ml_experiment(
     payload: MLExperimentCreate,
+    response: Response,
     idempotency_key: str = Header(alias="X-Idempotency-Key", min_length=8, max_length=128),
 ) -> dict:
     try:
@@ -42,6 +43,8 @@ def create_ml_experiment(
         raise HTTPException(
             status_code=503, detail="Experiment persistence is unavailable."
         ) from exc
+    if record.get("replayed"):
+        response.status_code = 200
     return record
 
 

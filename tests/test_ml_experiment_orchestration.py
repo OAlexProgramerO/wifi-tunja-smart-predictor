@@ -12,11 +12,11 @@ from fastapi.testclient import TestClient
 
 from tests.conftest import make_mini_frame
 from wifi_tunja_smart_predictor.config import MODEL_INPUT_COLUMNS, TARGET_COLUMNS
+from wifi_tunja_smart_predictor.experiments.ml_config import normalize_configuration
 from wifi_tunja_smart_predictor.experiments.ml_orchestrator import MLExperimentOrchestrator
 from wifi_tunja_smart_predictor.experiments.ml_schemas import MLExperimentCreate
 from wifi_tunja_smart_predictor.experiments.ml_service import (
     execute_experiment,
-    normalize_configuration,
 )
 from wifi_tunja_smart_predictor.experiments.ml_store import (
     IdempotencyConflict,
@@ -231,7 +231,11 @@ def test_api_rejects_invalid_task_contract_and_idempotency_conflict(
         "model_candidate": "decision_tree",
         "hyperparameters": {},
     }
-    assert client.post("/ml-experiments", json=payload, headers=headers).status_code == 201
+    created = client.post("/ml-experiments", json=payload, headers=headers)
+    assert created.status_code == 201
+    replay = client.post("/ml-experiments", json=payload, headers=headers)
+    assert replay.status_code == 200
+    assert replay.json()["experiment_id"] == created.json()["experiment_id"]
     changed = {**payload, "evaluation_split": "test"}
     assert client.post("/ml-experiments", json=changed, headers=headers).status_code == 409
     invalid = {**payload, "task": "regression"}
