@@ -9,6 +9,7 @@ from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
+from uuid import uuid4
 
 import pandas as pd
 import plotly.express as px
@@ -2864,6 +2865,7 @@ def _render_page(title: str, kind: str) -> None:
         "Advanced": "Advanced Prediction",
         "About": "About",
         "Experiments": "Experiment History",
+        "MLExperiments": "Experiment Orchestration",
         "RealConnectivity": "Real Connectivity Intelligence",
     }
     if kind != "Assistant":
@@ -3171,6 +3173,8 @@ def _render_page(title: str, kind: str) -> None:
                     markdown_column.error(f"Individual Markdown report unavailable: {exc}")
         except ApiClientError as exc:
             st.error(str(exc))
+    elif kind == "MLExperiments":
+        render_ml_experiment_orchestration()
     elif kind == "RealConnectivity":
         _render_real_connectivity()
     elif kind == "Advanced":
@@ -3179,6 +3183,99 @@ def _render_page(title: str, kind: str) -> None:
         st.markdown(
             "This prototype uses synthetic access points, coordinates, contexts, and outcomes. It has no live telemetry or real-time provider. Classification predicts `demand_level`; regression estimates `connections_next_hour`. The conformal interval is calibrated on validation residuals. Feature sensitivity does not establish causation. See `docs/` for methodology, API, privacy, and limitations."
         )
+
+
+def render_ml_experiment_orchestration() -> None:
+    """Submit a bounded synthetic training run and inspect saved reports."""
+    st.caption("Runs one allowlisted candidate on synthetic data with the chronological split.")
+    st.warning(
+        "All experiment data and metrics are synthetic. Runs do not validate real WiFi demand "
+        "and never use official MinTIC records. Candidate artifacts are not persisted."
+    )
+    with st.form("ml_experiment_create"):
+        task = st.selectbox("Task", ["classification", "regression"])
+        candidates = (
+            [
+                "logistic_regression",
+                "decision_tree",
+                "random_forest",
+                "knn",
+                "naive_bayes",
+            ]
+            if task == "classification"
+            else ["random_forest_regressor", "hist_gradient_boosting_regressor"]
+        )
+        candidate = st.selectbox("Model candidate", candidates)
+        evaluation_split = st.selectbox("Evaluation partition", ["validation", "test"])
+        hyperparameters_text = st.text_area(
+            "Hyperparameters JSON",
+            value="{}",
+            help="Optional. The API validates candidate-specific parameter names and bounds.",
+        )
+        submitted = st.form_submit_button("Run synthetic experiment")
+    if submitted:
+        try:
+            hyperparameters = json.loads(hyperparameters_text)
+            if not isinstance(hyperparameters, dict):
+                raise ValueError("Hyperparameters must be a JSON object.")
+            result = main_api_request(
+                "/ml-experiments",
+                {
+                    "task": task,
+                    "model_candidate": candidate,
+                    "evaluation_split": evaluation_split,
+                    "hyperparameters": hyperparameters,
+                },
+                headers={"X-Idempotency-Key": uuid4().hex},
+            )
+            st.session_state["ml_experiment_selected_id"] = result["experiment_id"]
+            if result["status"] == "FAILED":
+                st.error(result.get("error", {}).get("message", "Experiment failed."))
+            else:
+                st.success(f"Experiment {result['experiment_id']} finished: {result['status']}.")
+        except (json.JSONDecodeError, ValueError) as exc:
+            st.error(str(exc))
+        except ApiClientError as exc:
+            st.error(str(exc))
+
+    st.subheader("Recent ML experiments")
+    try:
+        page = main_api_request("/ml-experiments?limit=20&offset=0")
+    except ApiClientError as exc:
+        st.info(f"Experiment history is unavailable: {exc}")
+        return
+    records = page.get("items", [])
+    if not records:
+        st.info("No ML experiment runs have been recorded yet.")
+        return
+    summary = [
+        {
+            "experiment_id": row.get("experiment_id"),
+            "created_at_utc": row.get("created_at_utc"),
+            "status": row.get("status"),
+            "task": row.get("configuration", {}).get("task"),
+            "candidate": row.get("configuration", {}).get("model_candidate"),
+            "evaluation_split": row.get("configuration", {}).get("evaluation_split"),
+        }
+        for row in records
+    ]
+    st.dataframe(pd.DataFrame(summary), use_container_width=True, hide_index=True)
+    identifiers = [row["experiment_id"] for row in records]
+    current = st.session_state.get("ml_experiment_selected_id")
+    default_index = identifiers.index(current) if current in identifiers else 0
+    selected_id = st.selectbox("Inspect experiment", identifiers, index=default_index)
+    try:
+        record = main_api_request(f"/ml-experiments/{selected_id}")
+        st.json(record)
+        report = main_api_request(f"/ml-experiments/{selected_id}/report")
+        st.download_button(
+            "Download reproducible JSON report",
+            json.dumps(report, indent=2, ensure_ascii=False),
+            file_name=f"ml-experiment-{selected_id}.json",
+            mime="application/json",
+        )
+    except ApiClientError as exc:
+        st.error(f"Experiment details are unavailable: {exc}")
 
 
 def _render_architecture_diagnostics() -> None:
@@ -3596,6 +3693,12 @@ def main() -> None:
             title="Experiment History",
             icon="🧪",
             url_path="experiments",
+        ),
+        st.Page(
+            lambda: _render_page("Experiment Orchestration", "MLExperiments"),
+            title="Experiment Orchestration",
+            icon="🧬",
+            url_path="ml-experiments",
         ),
         st.Page(
             lambda: _render_page("Real Connectivity Intelligence", "RealConnectivity"),

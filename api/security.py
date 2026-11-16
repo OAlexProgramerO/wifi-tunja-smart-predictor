@@ -137,7 +137,7 @@ def install_api_security(app: FastAPI, *, max_body_bytes: int, service: str = "a
         allow_origins=_cors_origins(),
         allow_credentials=False,
         allow_methods=["GET", "POST"],
-        allow_headers=["Content-Type", "X-Request-ID"],
+        allow_headers=["Content-Type", "X-Request-ID", "X-Idempotency-Key"],
         expose_headers=["X-Request-ID"],
     )
     # Added last so correlation also covers security middleware rejections.

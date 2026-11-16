@@ -55,6 +55,7 @@ def request_json(
     payload: dict | None = None,
     *,
     timeout: float = REQUEST_TIMEOUT_SECONDS,
+    headers: Mapping[str, str] | None = None,
 ) -> dict:
     """Call one fixed backend route and decode a JSON object with a short timeout."""
     if not path.startswith("/") or path.startswith("//") or ".." in path.split("/"):
@@ -70,6 +71,7 @@ def request_json(
         data=body,
         headers={
             "Accept": "application/json",
+            **(dict(headers) if headers else {}),
             **({"Content-Type": "application/json"} if body else {}),
         },
         method="POST" if body else "GET",
@@ -90,9 +92,11 @@ def request_json(
     return decoded
 
 
-def main_api_request(path: str, payload: dict | None = None) -> dict:
+def main_api_request(
+    path: str, payload: dict | None = None, *, headers: Mapping[str, str] | None = None
+) -> dict:
     """Call the main prediction API."""
-    return request_json("main", path, payload)
+    return request_json("main", path, payload, headers=headers)
 
 
 def main_api_text_request(path: str, *, timeout: float = REQUEST_TIMEOUT_SECONDS) -> str:
