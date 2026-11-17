@@ -134,7 +134,7 @@ class MLExperimentStore:
         return self._decode(row) if row else None
 
     def list_page(self, *, limit: int, offset: int) -> tuple[list[dict[str, Any]], int]:
-        with self._connect() as connection:
+        with closing(self._connect()) as connection, connection:
             total = int(connection.execute("SELECT COUNT(*) FROM ml_experiments").fetchone()[0])
             rows = connection.execute(
                 "SELECT * FROM ml_experiments ORDER BY created_at_utc DESC, experiment_id LIMIT ? OFFSET ?",
