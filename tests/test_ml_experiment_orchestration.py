@@ -308,3 +308,75 @@ def test_dashboard_orchestration_page_smoke(monkeypatch: pytest.MonkeyPatch) -> 
     )
     assert any(item.value == "No ML experiment runs have been recorded yet." for item in app.info)
     assert any(item.label == "Run synthetic experiment" for item in app.button)
+
+
+def test_dashboard_experiment_comparison_smoke(monkeypatch: pytest.MonkeyPatch) -> None:
+    from streamlit.testing.v1 import AppTest
+
+    from app import dashboard
+
+    requests: list[tuple[str, dict | None]] = []
+    records = [
+        {
+            "experiment_id": f"run-{index}",
+            "created_at_utc": "2026-11-17T10:00:00+00:00",
+            "status": "COMPLETED",
+            "configuration": {
+                "task": "classification",
+                "model_candidate": f"candidate-{index}",
+                "evaluation_split": "validation",
+            },
+        }
+        for index in (1, 2)
+    ]
+
+    def fake_request(path: str, payload: dict | None = None, **_: object) -> dict:
+        requests.append((path, payload))
+        if path == "/ml-experiments?limit=20&offset=0":
+            return {"items": records, "limit": 20, "offset": 0, "total_count": 2}
+        if path == "/ml-experiments/compare":
+            return {
+                "report_schema_version": "1.0",
+                "overall_status": "COMPARABLE",
+                "experiments": [],
+                "comparisons": [
+                    {
+                        "left_experiment_id": "run-1",
+                        "right_experiment_id": "run-2",
+                        "status": "COMPARABLE",
+                        "metric_results": [
+                            {
+                                "metric": "f1",
+                                "left_value": 0.5,
+                                "right_value": 0.6,
+                                "delta": 0.1,
+                                "assessment": "IMPROVEMENT",
+                            }
+                        ],
+                    }
+                ],
+                "limitations": [],
+            }
+        if path.endswith("/report"):
+            return {"experiment": {"experiment_id": path.split("/")[2]}}
+        return {"experiment_id": path.split("/")[-1], "status": "COMPLETED"}
+
+    monkeypatch.setattr(dashboard, "main_api_request", fake_request)
+    app = AppTest.from_string(
+        "from app.dashboard import _render_page\n"
+        "_render_page('Experiment Orchestration', 'MLExperiments')\n",
+        default_timeout=30,
+    ).run()
+    assert not app.exception
+    assert any(item.label == "Select 2–10 experiments" for item in app.multiselect)
+    app.multiselect[0].set_value(["run-1", "run-2"]).run()
+    compare_button = next(
+        button for button in app.button if button.label == "Compare selected experiments"
+    )
+    compare_button.click().run()
+    assert ("/ml-experiments/compare", {"experiment_ids": ["run-1", "run-2"]}) in requests
+    assert any(
+        metric.label == "Comparison status" and metric.value == "COMPARABLE"
+        for metric in app.metric
+    )
+    assert any(item.label == "Download comparison JSON" for item in app.download_button)
