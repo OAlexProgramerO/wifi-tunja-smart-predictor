@@ -41,6 +41,8 @@ The comparison is relative to the first supplied experiment and reports only sha
 
 V8.1 adds synchronous synthetic ML experiment routes: `POST /ml-experiments`, `GET /ml-experiments?limit=20&offset=0`, `GET /ml-experiments/{experiment_id}`, and `GET /ml-experiments/{experiment_id}/report`. Create requests define task, allowlisted candidate, validation/test split, and bounded parameters; an optional `X-Idempotency-Key` makes retries safe. Pages are bounded to 100 records. Only the additive experiment-history table is written, never model artifacts. See the [experiment orchestration guide](experiment-orchestration.md).
 
+V8.2 adds read-only `POST /ml-experiments/compare` with two to ten unique saved experiment IDs. It checks synthetic dataset fingerprint, task, target/features, runtime, split, and chronological windows, then returns every pair with metric directions, deltas, and incompatibility reasons. It never ranks a universal best model or writes experiment history. See [Advanced ML experiment comparison](experiment-comparison.md).
+
 Start with `uvicorn api.main:app --reload --port 8000`; interactive OpenAPI is at `/docs`.
 
 - `GET /health` reports that the API process is responding and returns the installed application version. It does not claim models are usable.
