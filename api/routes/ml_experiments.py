@@ -9,6 +9,14 @@ from fastapi import APIRouter, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 
 from wifi_tunja_smart_predictor.config import experiment_database_path
+from wifi_tunja_smart_predictor.experiments.ml_comparison_schemas import (
+    MLExperimentComparisonRequest,
+    MLExperimentComparisonResponse,
+)
+from wifi_tunja_smart_predictor.experiments.ml_comparison_service import (
+    MLExperimentComparisonService,
+    MLExperimentNotFoundError,
+)
 from wifi_tunja_smart_predictor.experiments.ml_orchestrator import MLExperimentOrchestrator
 from wifi_tunja_smart_predictor.experiments.ml_schemas import (
     MLExperimentCreate,
@@ -58,6 +66,18 @@ def list_ml_experiments(
     except sqlite3.Error as exc:
         raise HTTPException(status_code=503, detail="Experiment history is unavailable.") from exc
     return {"items": items, "limit": limit, "offset": offset, "total_count": total}
+
+
+@router.post("/compare", response_model=MLExperimentComparisonResponse)
+def compare_ml_experiments(payload: MLExperimentComparisonRequest) -> dict:
+    try:
+        return MLExperimentComparisonService(_orchestrator().store).compare(payload.experiment_ids)
+    except MLExperimentNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except sqlite3.Error as exc:
+        raise HTTPException(
+            status_code=503, detail="Experiment comparison is unavailable."
+        ) from exc
 
 
 @router.get("/{experiment_id}/report")
