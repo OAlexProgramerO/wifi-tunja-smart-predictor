@@ -22,7 +22,7 @@ Candidate model names and hyperparameters are intentionally allowed to differ: t
 
 Classification and regression are never compared to each other. For classification, higher accuracy, precision, recall, F1, and ROC-AUC are treated as improvements. For regression, lower MAE/RMSE and higher R² are treated as improvements. A difference with absolute magnitude at most `1e-9` is a tie. Only shared finite metrics are compared. Missing or undefined metrics are listed in `unavailable_metrics`; a pair with some missing metrics is `PARTIAL` while valid shared metric comparisons remain visible.
 
-For 3–10 records the report includes every unordered pair. Overall status is `COMPARABLE` when every pair is fully comparable, `PARTIAL` when at least one pair has useful or partial comparisons but not all pairs are fully comparable, and `INCOMPATIBLE` when no pair can be compared. The report does not aggregate unlike metrics or select a universal best model. Review each pair and metric in context.
+For 3–10 records the report includes every unordered pair. Overall status is `COMPARABLE` when every pair is fully comparable, `PARTIAL` when at least one pair has useful or partial comparisons but not all pairs are fully comparable, and `INCOMPATIBLE` when every pair fails the compatibility checks. The report does not aggregate unlike metrics or select a universal best model. Review each pair and metric in context.
 
 ## Data and limitations
 

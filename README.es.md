@@ -4,13 +4,15 @@
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V8.1.0 está publicada. Versiones del paquete Python y de la imagen Docker: `0.8.1`. Consulte la [guía de arquitectura](docs/architecture.md), la [referencia API](docs/api.es.md), la [guía de monitoreo de deriva sintética](docs/synthetic-drift-monitoring.es.md), la [guía de orquestación de experimentos](docs/experiment-orchestration.es.md), la [guía de inventario de artefactos ML](docs/model-artifact-inventory.md), la [guía de comparación de ejecuciones ML](docs/model-run-comparison.es.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V8.2.0 es la versión candidata actual; V8.1.0 es la última versión publicada. Versiones candidatas del paquete Python e imagen Docker: `0.8.2`. Consulte la [guía de arquitectura](docs/architecture.md), la [referencia API](docs/api.es.md), la [guía de monitoreo de deriva sintética](docs/synthetic-drift-monitoring.es.md), la [guía de orquestación de experimentos](docs/experiment-orchestration.es.md), la [guía de comparación avanzada](docs/experiment-comparison.es.md), la [guía de inventario de artefactos ML](docs/model-artifact-inventory.md), la [guía de comparación de ejecuciones ML](docs/model-run-comparison.es.md) y el [historial de versiones](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combina su demostración sintética de clasificación horaria y estimación de conexiones con análisis descriptivos de un conjunto oficial MinTIC opcional. V7.5.0 resume la concentración de proveedores a partir de suscripciones fijas municipales informadas; no describe tráfico WiFi ni desempeño del servicio. V7.6.0 agrega diagnósticos de arquitectura sanitizados; V7.7.0 agrega contadores operativos privados; V7.8.0 inventaría artefactos ML sintéticos; V7.9.0 compara evaluaciones guardadas; V8.0.0 monitorea cambios de distribución entre particiones cronológicas sintéticas.
 
 Se conservan las verificaciones de huellas de artefactos de V4.3.0 y la trazabilidad de predicciones y validaciones de V4.2.0. Consulte el [diseño de diagnósticos V4.4.0](docs/model-diagnostics.md) para ver el esquema, las métricas, las ventanas temporales y la comprobación de procedencia.
 
 V8.1.0 agrega una base modular para experimentos ML reproducibles: ejecución sincrónica de candidatos sintéticos permitidos, estados y procedencia persistidos, API de historial/informes e interfaz de orquestación. Consulte la [guía de orquestación](docs/experiment-orchestration.es.md) y la [arquitectura](docs/architecture.md) para conocer límites y ciclo de vida.
+
+V8.2.0 agrega comparación por pares de experimentos ML finalizados, con verificaciones de compatibilidad, dirección de métricas, procedencia y explicación de evidencia faltante o incompatible. No selecciona un mejor modelo universal. Consulte la [guía de comparación avanzada](docs/experiment-comparison.es.md).
 
 Consulte la [guía de arquitectura del sistema](docs/architecture.md) para ver los componentes, flujos de solicitudes y datos, servicios Compose y separación entre ML sintético y registros oficiales MinTIC.
 

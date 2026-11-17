@@ -9,13 +9,15 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V8.1.0 is released. Python package and Docker image: `0.8.1`. See the [architecture guide](docs/architecture.md), [API reference](docs/api.md), [synthetic drift monitoring guide](docs/synthetic-drift-monitoring.md), [experiment orchestration guide](docs/experiment-orchestration.md), [ML artifact inventory guide](docs/model-artifact-inventory.md), [model run comparison guide](docs/model-run-comparison.md), and [release history](docs/release-history.md).
+**Release status:** V8.2.0 is the current release candidate; V8.1.0 is the latest published release. Candidate Python package and Docker image: `0.8.2`. See the [architecture guide](docs/architecture.md), [API reference](docs/api.md), [synthetic drift monitoring guide](docs/synthetic-drift-monitoring.md), [experiment orchestration guide](docs/experiment-orchestration.md), [advanced experiment comparison guide](docs/experiment-comparison.md), [ML artifact inventory guide](docs/model-artifact-inventory.md), [model run comparison guide](docs/model-run-comparison.md), and [release history](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.5.0 summarizes provider concentration from reported municipal fixed-internet subscriptions; it does not characterize WiFi traffic or service performance. V7.6.0 adds sanitized architecture diagnostics; V7.7.0 adds privacy-safe operational counters; V7.8.0 inventories persisted synthetic model artifacts; V7.9.0 compares saved candidate evaluations; V8.0.0 monitors feature distribution shifts between synthetic chronological partitions.
 
 V4.3.0 artifact fingerprint checks, V4.2.0 prediction traceability, and earlier validation improvements remain in place. See the [V4.4.0 diagnostics design](docs/model-diagnostics.md) for the report schema, metric semantics, time windows, and provenance checks.
 
 V8.1.0 adds a modular foundation for reproducible ML experiments: synchronous runs of allowlisted synthetic candidates, persisted lifecycle and provenance, history/report APIs, and a focused orchestration page. See the [experiment orchestration guide](docs/experiment-orchestration.md) and [architecture](docs/architecture.md) for lifecycle and limitations.
+
+V8.2.0 adds pairwise comparison of completed ML experiments, with compatibility checks, metric directions, provenance, and reasoned handling of missing or incompatible evidence. It does not select a universal best model. See the [advanced comparison guide](docs/experiment-comparison.md).
 
 See the [system architecture guide](docs/architecture.md) for the component map, request/data flows, Compose services, and separation between synthetic ML and official MinTIC records.
 

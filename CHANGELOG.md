@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — V8.2.0 Advanced Experiment Comparison
+
+Adds read-only pairwise comparison for persisted synthetic ML experiments, compatibility checks for task/data/runtime/configuration/chronological windows, task-specific metric direction and improvement/regression/tie assessments, missing-metric and incompatibility explanations, versioned provenance reports, a FastAPI route, and a dashboard comparison section with JSON export. No universal best model is declared; history and artifacts are not modified. Candidate Python/Docker version: `0.8.2`.
+
+Agrega comparación por pares, de solo lectura, de experimentos ML sintéticos guardados; valida tarea, datos, entorno, configuración y ventanas cronológicas; indica dirección de métricas, mejoras/regresiones/empates, métricas ausentes e incompatibilidades; genera informes versionados con procedencia, ruta FastAPI y sección de dashboard con exportación JSON. No declara un mejor modelo universal ni modifica historial o artefactos. Versión candidata Python/Docker: `0.8.2`.
+
 ## V8.1.0 — Reproducible ML Experiment Orchestrator — released 2026-11-16
 
 Adds validated, task-separated synthetic classification/regression runs with bounded candidate parameters, UUIDs, UTC lifecycle states, chronological split and dataset provenance, evaluation metrics, sanitized failures, an additive SQLite history table, idempotent creation, paginated detail/report APIs, and a focused dashboard workflow. Fitted candidates are not persisted and production artifacts or predictions are unchanged. All inputs and metrics remain synthetic; official MinTIC records are excluded. Product V8.1.0 maps to Python package and Docker image `0.8.1`. Annotated tag [`v8.1.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v8.1.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v8.1.0) target `579d14da34cf64511385d4410b912c066bedbb09`. `pytest -q`, `ruff check .`, `black --check .`, `docker compose config --quiet`, and `git diff --check` passed locally.
