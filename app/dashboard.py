@@ -75,6 +75,7 @@ from wifi_tunja_smart_predictor.visualization.plots import (
 
 logger = logging.getLogger(__name__)
 EXPERIMENT_COMPARISON_STATE_KEY = "experiment_history_comparison_report"
+ML_EXPERIMENT_COMPARISON_STATE_KEY = "ml_experiment_comparison_report"
 OFFICIAL_CONNECTIVITY_REFRESH_FUTURE_KEY = "official_connectivity_refresh_future"
 OFFICIAL_CONNECTIVITY_REFRESH_RESULT_KEY = "official_connectivity_refresh_result"
 
@@ -3276,6 +3277,58 @@ def render_ml_experiment_orchestration() -> None:
         )
     except ApiClientError as exc:
         st.error(f"Experiment details are unavailable: {exc}")
+
+    st.subheader("Compare saved ML experiments")
+    st.caption(
+        "Only compatible runs receive metric deltas. Classification and regression are "
+        "compared separately; this view does not choose a universal best model."
+    )
+    selected_experiments = st.multiselect(
+        "Select 2–10 experiments",
+        options=identifiers,
+        default=[],
+        key="ml_experiment_comparison_selection",
+    )
+    if st.button(
+        "Compare selected experiments",
+        disabled=not 2 <= len(selected_experiments) <= 10,
+    ):
+        try:
+            st.session_state[ML_EXPERIMENT_COMPARISON_STATE_KEY] = main_api_request(
+                "/ml-experiments/compare",
+                {"experiment_ids": selected_experiments},
+            )
+        except ApiClientError as exc:
+            st.error(f"Experiment comparison failed: {exc}")
+    comparison_report = st.session_state.get(ML_EXPERIMENT_COMPARISON_STATE_KEY)
+    if isinstance(comparison_report, dict):
+        st.metric("Comparison status", comparison_report.get("overall_status", "UNKNOWN"))
+        comparison_rows = []
+        for pair in comparison_report.get("comparisons", []):
+            for metric in pair.get("metric_results", []):
+                comparison_rows.append(
+                    {
+                        "Left experiment": pair.get("left_experiment_id"),
+                        "Right experiment": pair.get("right_experiment_id"),
+                        "Pair status": pair.get("status"),
+                        "Metric": metric.get("metric"),
+                        "Left value": metric.get("left_value"),
+                        "Right value": metric.get("right_value"),
+                        "Delta": metric.get("delta"),
+                        "Assessment": metric.get("assessment"),
+                    }
+                )
+        if comparison_rows:
+            st.dataframe(pd.DataFrame(comparison_rows), use_container_width=True, hide_index=True)
+        else:
+            st.info("No compatible shared metrics were available for the selected runs.")
+        st.json(comparison_report)
+        st.download_button(
+            "Download comparison JSON",
+            json.dumps(comparison_report, indent=2, ensure_ascii=False),
+            file_name="ml-experiment-comparison.json",
+            mime="application/json",
+        )
 
 
 def _render_architecture_diagnostics() -> None:
