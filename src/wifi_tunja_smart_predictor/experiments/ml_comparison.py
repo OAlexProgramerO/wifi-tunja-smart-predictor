@@ -104,9 +104,11 @@ def _compatibility_reasons(left: dict[str, Any], right: dict[str, Any]) -> list[
     for item in (left, right):
         if item.get("status") != "COMPLETED":
             reasons.append("EXPERIMENT_NOT_COMPLETED")
-        if item.get("task") not in METRIC_DIRECTIONS:
+        task = item.get("task")
+        if not isinstance(task, str) or task not in METRIC_DIRECTIONS:
             reasons.append("TASK_METADATA_UNAVAILABLE")
-        if item.get("evaluation_split") not in {"validation", "test"}:
+        split_name = item.get("evaluation_split")
+        if not isinstance(split_name, str) or split_name not in {"validation", "test"}:
             reasons.append("EVALUATION_SPLIT_UNAVAILABLE")
         try:
             datetime.fromisoformat(str(item.get("created_at_utc")).replace("Z", "+00:00"))
@@ -141,11 +143,12 @@ def _compatibility_reasons(left: dict[str, Any], right: dict[str, Any]) -> list[
                 reasons.append("TARGET_OR_FUTURE_FEATURE_LEAKAGE")
         if not isinstance(target, str) or target not in TARGET_NAMES:
             reasons.append("TARGET_CONFIGURATION_UNAVAILABLE")
-        expected_target = (
-            "demand_level" if item.get("task") == "classification" else "connections_next_hour"
-        )
-        if item.get("task") in METRIC_DIRECTIONS and target != expected_target:
-            reasons.append("TASK_TARGET_MISMATCH")
+        if isinstance(task, str) and task in METRIC_DIRECTIONS:
+            expected_target = (
+                "demand_level" if task == "classification" else "connections_next_hour"
+            )
+            if target != expected_target:
+                reasons.append("TASK_TARGET_MISMATCH")
         model = item.get("result_model", {})
         if (
             not isinstance(item.get("configured_candidate"), str)
@@ -159,7 +162,9 @@ def _compatibility_reasons(left: dict[str, Any], right: dict[str, Any]) -> list[
             reasons.append("MODEL_CONFIGURATION_INCONSISTENT")
         temporal = item.get("temporal_split")
         split = item.get("evaluation_split")
-        selected = temporal.get(split) if isinstance(temporal, dict) else None
+        selected = (
+            temporal.get(split) if isinstance(temporal, dict) and isinstance(split, str) else None
+        )
         train_period = temporal.get("train") if isinstance(temporal, dict) else None
         evaluation = item.get("evaluation")
         if (
@@ -231,7 +236,8 @@ def _compatibility_reasons(left: dict[str, Any], right: dict[str, Any]) -> list[
 def _numeric_metrics(metadata: dict[str, Any]) -> dict[str, float]:
     evaluation = metadata.get("evaluation", {})
     metrics = evaluation.get("metrics") if isinstance(evaluation, dict) else None
-    directions = METRIC_DIRECTIONS.get(metadata.get("task"), {})
+    task = metadata.get("task")
+    directions = METRIC_DIRECTIONS.get(task, {}) if isinstance(task, str) else {}
     if not isinstance(metrics, dict):
         return {}
     return {

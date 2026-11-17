@@ -199,6 +199,16 @@ def test_missing_fingerprint_or_inconsistent_model_metadata_is_incompatible() ->
     assert "TASK_TARGET_MISMATCH" in pair["reasons"]
 
 
+def test_malformed_task_and_split_metadata_returns_incompatible_report() -> None:
+    malformed = _record("malformed")
+    malformed["configuration"]["task"] = ["classification"]
+    malformed["configuration"]["evaluation_split"] = ["validation"]
+    pair = compare_experiment_records([_record("valid"), malformed])["comparisons"][0]
+    assert pair["status"] == "INCOMPATIBLE"
+    assert "TASK_METADATA_UNAVAILABLE" in pair["reasons"]
+    assert "EVALUATION_SPLIT_UNAVAILABLE" in pair["reasons"]
+
+
 def test_missing_metrics_produce_partial_results_and_provenance_is_retained() -> None:
     report = compare_experiment_records(
         [
