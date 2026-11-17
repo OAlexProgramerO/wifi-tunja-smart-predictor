@@ -155,6 +155,9 @@ def test_incompatible_records_suppress_metric_deltas(mutator, expected_reason: s
     assert pair["status"] == "INCOMPATIBLE"
     assert pair["metric_results"] == []
     assert expected_reason in pair["reasons"]
+    assert any(
+        expected_reason == detail["code"] and detail["message"] for detail in pair["reason_details"]
+    )
 
 
 def test_task_types_and_runtime_provenance_must_match() -> None:

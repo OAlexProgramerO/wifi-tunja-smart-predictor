@@ -175,6 +175,7 @@ def _compatibility_reasons(left: dict[str, Any], right: dict[str, Any]) -> list[
             or not selected.get("start")
             or not selected.get("end")
             or not isinstance(selected.get("rows"), int)
+            or isinstance(selected.get("rows"), bool)
             or not isinstance(evaluation, dict)
             or evaluation.get("rows") != selected.get("rows")
         ):
@@ -189,7 +190,9 @@ def _compatibility_reasons(left: dict[str, Any], right: dict[str, Any]) -> list[
                 if (
                     evaluation_start <= train_end
                     or evaluation_end < evaluation_start
+                    or isinstance(selected["rows"], bool)
                     or selected["rows"] <= 0
+                    or isinstance(train_period.get("rows", 0), bool)
                     or train_period.get("rows", 0) <= 0
                 ):
                     reasons.append("INVALID_CHRONOLOGICAL_WINDOWS")
