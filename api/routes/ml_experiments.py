@@ -99,7 +99,9 @@ def evaluate_ml_experiment_gates(payload: MLExperimentGateRequest) -> dict:
     except MLExperimentGateNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except sqlite3.Error as exc:
-        raise HTTPException(status_code=503, detail="Experiment evaluation is unavailable.") from exc
+        raise HTTPException(
+            status_code=503, detail="Experiment evaluation is unavailable."
+        ) from exc
 
 
 @router.get("/{experiment_id}/report")

@@ -27,13 +27,13 @@ def evaluate_experiment_gates(
     for experiment_id in sorted(by_id, key=lambda value: records.index(by_id[value])):
         record = by_id[experiment_id]
         result = record.get("result") if isinstance(record.get("result"), dict) else {}
-        config = record.get("configuration") if isinstance(record.get("configuration"), dict) else {}
+        config = (
+            record.get("configuration") if isinstance(record.get("configuration"), dict) else {}
+        )
         evaluation = result.get("evaluation") if isinstance(result.get("evaluation"), dict) else {}
         dataset = result.get("dataset") if isinstance(result.get("dataset"), dict) else {}
         temporal = (
-            result.get("temporal_split")
-            if isinstance(result.get("temporal_split"), dict)
-            else {}
+            result.get("temporal_split") if isinstance(result.get("temporal_split"), dict) else {}
         )
         selected_split = config.get("evaluation_split")
         period = temporal.get(selected_split) if isinstance(temporal, dict) else None
@@ -68,7 +68,11 @@ def evaluate_experiment_gates(
                     }
                 )
                 continue
-            passed = value >= criterion["threshold"] if criterion["operator"] == "gte" else value <= criterion["threshold"]
+            passed = (
+                value >= criterion["threshold"]
+                if criterion["operator"] == "gte"
+                else value <= criterion["threshold"]
+            )
             has_failure = has_failure or not passed
             criterion_results.append(
                 {
@@ -94,7 +98,9 @@ def evaluate_experiment_gates(
             run_reasons.append("EXPERIMENT_NOT_COMPLETED")
         if run_reasons:
             status = "INCONCLUSIVE"
-            explanation = "Compatibility or completion evidence is insufficient; thresholds were not judged."
+            explanation = (
+                "Compatibility or completion evidence is insufficient; thresholds were not judged."
+            )
         elif has_missing:
             status = "INCONCLUSIVE"
             explanation = "One or more required metrics are unavailable or invalid."
@@ -107,7 +113,9 @@ def evaluate_experiment_gates(
         if run_reasons:
             for item in criterion_results:
                 item["status"] = "INCONCLUSIVE"
-                item["explanation"] = "Not evaluated because experiment compatibility or completion failed."
+                item["explanation"] = (
+                    "Not evaluated because experiment compatibility or completion failed."
+                )
         results.append(
             {
                 "experiment_id": experiment_id,

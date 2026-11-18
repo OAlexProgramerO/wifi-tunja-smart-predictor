@@ -3335,9 +3335,7 @@ def render_ml_experiment_orchestration() -> None:
         "Apply explicit metric thresholds to completed synthetic runs. Incompatible data or "
         "evaluation windows produce inconclusive results; gates never promote models."
     )
-    task = st.selectbox(
-        "Gate task", ["classification", "regression"], key="ml_gate_task"
-    )
+    task = st.selectbox("Gate task", ["classification", "regression"], key="ml_gate_task")
     gate_ids = [
         row["experiment_id"]
         for row in summary
