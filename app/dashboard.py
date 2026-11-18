@@ -3330,6 +3330,70 @@ def render_ml_experiment_orchestration() -> None:
             mime="application/json",
         )
 
+    st.subheader("Automated evaluation gates")
+    st.caption(
+        "Apply explicit metric thresholds to completed synthetic runs. Incompatible data or "
+        "evaluation windows produce inconclusive results; gates never promote models."
+    )
+    task = st.selectbox(
+        "Gate task", ["classification", "regression"], key="ml_gate_task"
+    )
+    gate_ids = [
+        row["experiment_id"]
+        for row in summary
+        if row.get("task") == task and row.get("status") == "COMPLETED"
+    ]
+    gate_selection = st.multiselect(
+        "Completed experiments for the gate",
+        options=gate_ids,
+        key="ml_gate_experiment_selection",
+        help="Runs must have compatible datasets, runtime, task, and chronological windows.",
+    )
+    default_criteria = (
+        '[{"metric":"f1","operator":"gte","threshold":0.7}]'
+        if task == "classification"
+        else '[{"metric":"mae","operator":"lte","threshold":10.0}]'
+    )
+    criteria_text = st.text_area(
+        "Acceptance criteria JSON",
+        value=default_criteria,
+        key="ml_gate_criteria_json",
+        help="Use gte for higher-is-better metrics and lte for MAE/RMSE.",
+    )
+    if st.button("Evaluate acceptance gates", disabled=not 2 <= len(gate_selection) <= 10):
+        try:
+            criteria = json.loads(criteria_text)
+            if not isinstance(criteria, list):
+                raise ValueError("Criteria must be a JSON list.")
+            st.session_state["ml_experiment_gate_report"] = main_api_request(
+                "/ml-experiments/gates",
+                {"experiment_ids": gate_selection, "task": task, "criteria": criteria},
+            )
+        except (json.JSONDecodeError, ValueError) as exc:
+            st.error(str(exc))
+        except ApiClientError as exc:
+            st.error(f"Evaluation gate request failed: {exc}")
+    gate_report = st.session_state.get("ml_experiment_gate_report")
+    if isinstance(gate_report, dict):
+        gate_rows = [
+            {
+                "Experiment": result.get("experiment_id"),
+                "Gate status": result.get("status"),
+                "Explanation": result.get("explanation"),
+                "Reasons": ", ".join(result.get("reasons", [])),
+            }
+            for result in gate_report.get("results", [])
+        ]
+        if gate_rows:
+            st.dataframe(pd.DataFrame(gate_rows), width="stretch", hide_index=True)
+        st.json(gate_report)
+        st.download_button(
+            "Download evaluation gate JSON",
+            json.dumps(gate_report, indent=2, ensure_ascii=False),
+            file_name="ml-experiment-evaluation-gates.json",
+            mime="application/json",
+        )
+
 
 def _render_architecture_diagnostics() -> None:
     """Show sanitized, read-only component diagnostics on the existing About page."""
