@@ -98,6 +98,14 @@ def test_gate_failure_and_missing_metric_are_distinguished():
     assert results[1]["criteria"][0]["value"] is None
 
 
+def test_nonfinite_metric_is_inconclusive_and_sanitized():
+    first = _record("one")
+    first["result"]["evaluation"]["metrics"]["f1"] = float("nan")
+    report = evaluate_experiment_gates([first, _record("two")], "classification", [_criterion()])
+    assert report["results"][0]["status"] == "INCONCLUSIVE"
+    assert report["results"][0]["metrics"]["f1"] is None
+
+
 @pytest.mark.parametrize(
     "records,task",
     [

@@ -22,10 +22,9 @@ def evaluate_experiment_gates(
         for pair in comparisons
         if any(reason != "NO_SHARED_VALID_METRICS" for reason in pair.get("reasons", []))
     ]
-    by_id = {record.get("experiment_id"): record for record in records}
     results = []
-    for experiment_id in sorted(by_id, key=lambda value: records.index(by_id[value])):
-        record = by_id[experiment_id]
+    for record in records:
+        experiment_id = record.get("experiment_id")
         result = record.get("result") if isinstance(record.get("result"), dict) else {}
         config = (
             record.get("configuration") if isinstance(record.get("configuration"), dict) else {}
@@ -49,7 +48,21 @@ def evaluate_experiment_gates(
         criterion_results = []
         has_missing = False
         has_failure = False
-        metrics = evaluation.get("metrics") if isinstance(evaluation.get("metrics"), dict) else {}
+        recorded_metrics = (
+            evaluation.get("metrics") if isinstance(evaluation.get("metrics"), dict) else {}
+        )
+        supported_metrics = METRIC_DIRECTIONS.get(task, {})
+        metrics = {
+            name: (
+                float(value)
+                if isinstance(value, (int, float))
+                and not isinstance(value, bool)
+                and isfinite(float(value))
+                else None
+            )
+            for name, value in recorded_metrics.items()
+            if name in supported_metrics
+        }
         for criterion in criteria:
             value = metrics.get(criterion["metric"])
             valid = (
