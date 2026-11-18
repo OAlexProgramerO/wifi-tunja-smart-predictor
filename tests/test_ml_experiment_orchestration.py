@@ -357,6 +357,19 @@ def test_dashboard_experiment_comparison_smoke(monkeypatch: pytest.MonkeyPatch) 
                 ],
                 "limitations": [],
             }
+        if path == "/ml-experiments/gates":
+            return {
+                "report_schema_version": "1.0",
+                "task": "classification",
+                "results": [
+                    {
+                        "experiment_id": "run-1",
+                        "status": "PASSED",
+                        "explanation": "All criteria passed.",
+                        "reasons": [],
+                    }
+                ],
+            }
         if path.endswith("/report"):
             return {"experiment": {"experiment_id": path.split("/")[2]}}
         return {"experiment_id": path.split("/")[-1], "status": "COMPLETED"}
@@ -380,3 +393,13 @@ def test_dashboard_experiment_comparison_smoke(monkeypatch: pytest.MonkeyPatch) 
         for metric in app.metric
     )
     assert any(item.label == "Download comparison JSON" for item in app.download_button)
+    gate_selection = next(
+        item for item in app.multiselect if item.key == "ml_gate_experiment_selection"
+    )
+    gate_selection.set_value(["run-1", "run-2"]).run()
+    gate_button = next(
+        button for button in app.button if button.label == "Evaluate acceptance gates"
+    )
+    gate_button.click().run()
+    assert any(request[0] == "/ml-experiments/gates" for request in requests)
+    assert any(item.label == "Download evaluation gate JSON" for item in app.download_button)
