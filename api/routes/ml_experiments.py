@@ -17,6 +17,14 @@ from wifi_tunja_smart_predictor.experiments.ml_comparison_service import (
     MLExperimentComparisonService,
     MLExperimentNotFoundError,
 )
+from wifi_tunja_smart_predictor.experiments.ml_gates_schemas import (
+    MLExperimentGateRequest,
+    MLExperimentGateResponse,
+)
+from wifi_tunja_smart_predictor.experiments.ml_gates_service import (
+    MLExperimentGateNotFoundError,
+    MLExperimentGateService,
+)
 from wifi_tunja_smart_predictor.experiments.ml_orchestrator import MLExperimentOrchestrator
 from wifi_tunja_smart_predictor.experiments.ml_schemas import (
     MLExperimentCreate,
@@ -78,6 +86,20 @@ def compare_ml_experiments(payload: MLExperimentComparisonRequest) -> dict:
         raise HTTPException(
             status_code=503, detail="Experiment comparison is unavailable."
         ) from exc
+
+
+@router.post("/gates", response_model=MLExperimentGateResponse)
+def evaluate_ml_experiment_gates(payload: MLExperimentGateRequest) -> dict:
+    try:
+        return MLExperimentGateService(_orchestrator().store).evaluate(
+            payload.experiment_ids,
+            payload.task,
+            [criterion.model_dump() for criterion in payload.criteria],
+        )
+    except MLExperimentGateNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=503, detail="Experiment evaluation is unavailable.") from exc
 
 
 @router.get("/{experiment_id}/report")
