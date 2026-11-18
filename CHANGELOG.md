@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — V8.3.0 Automated Experiment Evaluation Gates
+
+Adds configurable task-specific metric thresholds for compatible persisted synthetic experiments, with criterion explanations, `PASSED`/`FAILED`/`INCONCLUSIVE` outcomes, provenance-rich versioned JSON reports, an API route, and dashboard criteria/results/export workflow. Incompatible datasets, tasks, splits, or chronological windows are inconclusive. No artifacts are modified and no model is promoted. Candidate Python/Docker version: `0.8.3`.
+
+Agrega umbrales configurables por tarea para métricas de experimentos sintéticos guardados compatibles, con explicación por criterio, resultados `PASSED`/`FAILED`/`INCONCLUSIVE`, informes JSON versionados con procedencia, ruta API e interfaz para configurar, consultar y exportar. Datos, tareas, particiones o ventanas cronológicas incompatibles producen resultado inconcluso. No modifica artefactos ni promueve modelos. Versión candidata Python/Docker: `0.8.3`.
+
 ## V8.2.0 — Advanced Experiment Comparison — released 2026-11-17
 
 Adds read-only pairwise comparison for persisted synthetic ML experiments, compatibility checks for task/data/runtime/configuration/chronological windows, task-specific metric direction and improvement/regression/tie assessments, missing-metric and incompatibility explanations, versioned provenance reports, a FastAPI route, and a dashboard comparison section with JSON export. No universal best model is declared; history and artifacts are not modified. Product V8.2.0 maps to Python and Docker version `0.8.2`. Annotated tag [`v8.2.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v8.2.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v8.2.0) target `ec2a1e830888a2927d2dcbbd328763f7bd8f2fcf`. `pytest -q`, `ruff check .`, `black --check .`, `docker compose config --quiet`, and `git diff --check` passed locally.

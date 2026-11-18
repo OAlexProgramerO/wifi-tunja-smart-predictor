@@ -4,6 +4,8 @@ V8.1 agrega rutas sincrónicas para experimentos ML sintéticos: `POST /ml-exper
 
 V8.2 agrega `POST /ml-experiments/compare`, de solo lectura, para comparar de dos a diez IDs únicos. Valida huella del dataset sintético, tarea, objetivo/features, entorno, partición y ventanas cronológicas; devuelve todos los pares con dirección de métricas, diferencias y causas de incompatibilidad. No elige un mejor modelo universal ni escribe en el historial. Consulte la [guía de comparación avanzada de experimentos ML](experiment-comparison.es.md).
 
+V8.3 agrega `POST /ml-experiments/gates`, de solo lectura. Recibe de 2 a 10 IDs únicos, una tarea y criterios únicos `{metric, operator, threshold}`. Clasificación acepta accuracy/precision/recall/F1/ROC-AUC con `gte`; regresión acepta MAE/RMSE con `lte` y R² con `gte`. Cada ejecución devuelve `PASSED`, `FAILED` o `INCONCLUSIVE`, evidencia por criterio y procedencia de dataset/evaluación. Las ejecuciones deben ser compatibles según la tarea, huella sintética, entorno, configuración y ventanas cronológicas de V8.2; las incompatibles quedan inconclusas y no se evalúan los umbrales. Consulte la [guía de gates automáticos de evaluación](experiment-evaluation-gates.es.md).
+
 La API principal corre en el puerto 8000; Swagger está disponible en `/docs`.
 
 - `GET /architecture/diagnostics` devuelve responsabilidades de componentes y comprobaciones de estado sanitizadas. Distingue servicios sin verificar/datos no disponibles de fallos confirmados. No inspecciona el estado del daemon Docker; consulte la [guía de arquitectura](architecture.md).

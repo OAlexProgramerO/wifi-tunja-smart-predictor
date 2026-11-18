@@ -85,6 +85,10 @@ The separate ML experiment API validates a task-specific configuration and idemp
 
 V8.2 adds `MLExperimentComparisonService` and a pure compatibility/metric engine over those persisted ML runs. It reads completed records without writes, validates provenance and chronological windows, and emits all pairwise comparisons; the API and existing orchestration page present those reports. It remains separate from scenario planning and the MinTIC pipeline and never declares a universal best model. This service boundary can be incorporated into a future V9 unified experiment workspace.
 
+### Automated evaluation gates (V8.3)
+
+`MLExperimentGateService` reads saved ML runs and delegates to a deterministic threshold engine. The engine reuses the V8.2 comparison compatibility contract to validate that selected runs share task, synthetic dataset fingerprint, runtime/configuration, and chronological evaluation windows before judging criteria. The API accepts task-specific metric thresholds and returns per-run `PASSED`, `FAILED`, or `INCONCLUSIVE` results with criterion explanations and versioned provenance. The existing Experiment Orchestration page configures criteria and displays/downloads the report. This flow is read-only: it does not retrain, modify artifacts, or promote candidates; official MinTIC data is not part of it.
+
 **The dataset is synthetic and was generated for software development, machine learning experimentation, demonstration, and portfolio purposes.** Coordinates and access-point identifiers do not correspond to real public WiFi infrastructure in Tunja.
 
 Runtime and development dependency declarations live in `pyproject.toml`. `requirements.lock` is generated from the runtime dependencies for Python 3.12/Linux x86-64 and installed with hash verification in the image. Compose pins `linux/amd64`; local development supports Python 3.11+ and installs the `dev` extra without using the container-only lock.

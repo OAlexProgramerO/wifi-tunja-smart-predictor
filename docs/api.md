@@ -43,6 +43,8 @@ V8.1 adds synchronous synthetic ML experiment routes: `POST /ml-experiments`, `G
 
 V8.2 adds read-only `POST /ml-experiments/compare` with two to ten unique saved experiment IDs. It checks synthetic dataset fingerprint, task, target/features, runtime, split, and chronological windows, then returns every pair with metric directions, deltas, and incompatibility reasons. It never ranks a universal best model or writes experiment history. See [Advanced ML experiment comparison](experiment-comparison.md).
 
+V8.3 adds read-only `POST /ml-experiments/gates`. Provide 2–10 unique saved IDs, one task, and one or more unique `{metric, operator, threshold}` criteria. Classification accepts accuracy/precision/recall/F1/ROC-AUC with `gte`; regression accepts MAE/RMSE with `lte` and R² with `gte`. Each run returns `PASSED`, `FAILED`, or `INCONCLUSIVE`, criterion evidence, and dataset/evaluation provenance. Runs must be compatible under the V8.2 task, synthetic fingerprint, runtime, configuration, and chronological-window contract; incompatible runs are inconclusive and thresholds are not judged. See [Automated experiment evaluation gates](experiment-evaluation-gates.md).
+
 Start with `uvicorn api.main:app --reload --port 8000`; interactive OpenAPI is at `/docs`.
 
 - `GET /health` reports that the API process is responding and returns the installed application version. It does not claim models are usable.
