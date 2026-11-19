@@ -154,6 +154,22 @@ class MLExperimentStore:
             ).fetchall()
         return [self._decode_policy(row) for row in rows], int(total)
 
+    def list_policy_versions(
+        self, policy_id: str, *, limit: int = 100, offset: int = 0
+    ) -> tuple[list[dict], int]:
+        """List immutable versions for one policy ID, newest first."""
+        with closing(self._connect()) as connection:
+            total = connection.execute(
+                "SELECT COUNT(*) AS total FROM ml_evaluation_policies WHERE policy_id = ?",
+                (policy_id,),
+            ).fetchone()["total"]
+            rows = connection.execute(
+                """SELECT * FROM ml_evaluation_policies WHERE policy_id = ?
+                ORDER BY version DESC LIMIT ? OFFSET ?""",
+                (policy_id, limit, offset),
+            ).fetchall()
+        return [self._decode_policy(row) for row in rows], int(total)
+
     def create_pending(
         self, configuration: dict[str, Any], idempotency_key: str
     ) -> tuple[dict[str, Any], bool]:

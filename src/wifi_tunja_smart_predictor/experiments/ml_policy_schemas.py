@@ -60,6 +60,13 @@ class MLEvaluationPolicyPage(BaseModel):
     total_count: int
 
 
+class MLEvaluationPolicyVersionPage(BaseModel):
+    items: list[MLEvaluationPolicyRecord]
+    limit: int
+    offset: int
+    total_count: int
+
+
 class MLEvaluationPolicyRunRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

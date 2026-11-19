@@ -49,6 +49,9 @@ class MLEvaluationPolicyService:
     def list_policies(self, *, limit: int, offset: int) -> tuple[list[dict], int]:
         return self.store.list_policies(limit=limit, offset=offset)
 
+    def list_versions(self, policy_id: str, *, limit: int, offset: int) -> tuple[list[dict], int]:
+        return self.store.list_policy_versions(policy_id, limit=limit, offset=offset)
+
     def evaluate(self, policy_id: str, version: int, experiment_id: str) -> dict[str, Any]:
         policy = self.store.get_policy(policy_id, version)
         record = self.store.get(experiment_id)

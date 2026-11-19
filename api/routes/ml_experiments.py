@@ -32,6 +32,7 @@ from wifi_tunja_smart_predictor.experiments.ml_policy_schemas import (
     MLEvaluationPolicyRecord,
     MLEvaluationPolicyRunRequest,
     MLEvaluationPolicyRunResponse,
+    MLEvaluationPolicyVersionPage,
 )
 from wifi_tunja_smart_predictor.experiments.ml_policy_service import (
     MLEvaluationPolicyNotFoundError,
@@ -163,6 +164,25 @@ def get_ml_evaluation_policy(policy_id: str, version: int | None = Query(None, g
         raise HTTPException(
             status_code=503, detail="Evaluation policy storage is unavailable."
         ) from exc
+
+
+@router.get("/policies/{policy_id}/versions", response_model=MLEvaluationPolicyVersionPage)
+def list_ml_evaluation_policy_versions(
+    policy_id: str,
+    limit: int = Query(100, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=100_000),
+) -> dict:
+    try:
+        items, total = MLEvaluationPolicyService(_orchestrator().store).list_versions(
+            policy_id, limit=limit, offset=offset
+        )
+    except sqlite3.Error as exc:
+        raise HTTPException(
+            status_code=503, detail="Evaluation policy storage is unavailable."
+        ) from exc
+    if total == 0:
+        raise HTTPException(status_code=404, detail="Evaluation policy was not found.")
+    return {"items": items, "limit": limit, "offset": offset, "total_count": total}
 
 
 @router.post(
