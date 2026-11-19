@@ -7,6 +7,25 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+GATE_METRICS = {
+    "classification": {"accuracy", "precision", "recall", "f1", "roc_auc"},
+    "regression": {"mae", "rmse", "r2"},
+}
+GATE_OPERATORS = {
+    **{name: "gte" for name in ("accuracy", "precision", "recall", "f1", "roc_auc", "r2")},
+    "mae": "lte",
+    "rmse": "lte",
+}
+
+
+def validate_gate_criteria(task: str, criteria: list[MLGateCriterion]) -> None:
+    """Validate a task's unique metrics and their direction-correct operators."""
+    names = [criterion.metric for criterion in criteria]
+    if len(set(names)) != len(names) or any(name not in GATE_METRICS[task] for name in names):
+        raise ValueError("criteria must contain unique metrics for the selected task.")
+    if any(item.operator != GATE_OPERATORS[item.metric] for item in criteria):
+        raise ValueError("criterion operators must follow the metric direction.")
+
 
 class MLGateCriterion(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -35,21 +54,7 @@ class MLExperimentGateRequest(BaseModel):
             raise ValueError("experiment_ids must be unique.")
         if any(not value or len(value) > 80 for value in self.experiment_ids):
             raise ValueError("experiment_ids contain an invalid identifier.")
-        allowed = (
-            {"accuracy", "precision", "recall", "f1", "roc_auc"}
-            if self.task == "classification"
-            else {"mae", "rmse", "r2"}
-        )
-        expected_operator = {
-            **{name: "gte" for name in ("accuracy", "precision", "recall", "f1", "roc_auc", "r2")},
-            "mae": "lte",
-            "rmse": "lte",
-        }
-        names = [criterion.metric for criterion in self.criteria]
-        if len(set(names)) != len(names) or any(name not in allowed for name in names):
-            raise ValueError("criteria must contain unique metrics for the selected task.")
-        if any(item.operator != expected_operator[item.metric] for item in self.criteria):
-            raise ValueError("criterion operators must follow the metric direction.")
+        validate_gate_criteria(self.task, self.criteria)
         return self
 
 

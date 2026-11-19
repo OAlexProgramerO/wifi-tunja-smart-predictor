@@ -34,6 +34,16 @@ class MLExperimentStore:
                     result_json TEXT,
                     error_json TEXT
                 )""")
+            connection.execute("""CREATE TABLE IF NOT EXISTS ml_evaluation_policies (
+                    policy_id TEXT NOT NULL,
+                    version INTEGER NOT NULL CHECK(version > 0),
+                    name TEXT NOT NULL,
+                    description TEXT NOT NULL,
+                    tags_json TEXT NOT NULL,
+                    created_at_utc TEXT NOT NULL,
+                    criteria_json TEXT NOT NULL,
+                    PRIMARY KEY (policy_id, version)
+                )""")
             columns = {row[1] for row in connection.execute("PRAGMA table_info(ml_experiments)")}
             if "completed_at_utc" not in columns:
                 connection.execute("ALTER TABLE ml_experiments ADD COLUMN completed_at_utc TEXT")
@@ -55,6 +65,94 @@ class MLExperimentStore:
             "result": json.loads(row["result_json"]) if row["result_json"] else None,
             "error": json.loads(row["error_json"]) if row["error_json"] else None,
         }
+
+    @staticmethod
+    def _decode_policy(row: sqlite3.Row) -> dict[str, Any]:
+        return {
+            "policy_id": row["policy_id"],
+            "version": row["version"],
+            "name": row["name"],
+            "description": row["description"],
+            "tags": json.loads(row["tags_json"]),
+            "created_at_utc": row["created_at_utc"],
+            "criteria": json.loads(row["criteria_json"]),
+        }
+
+    def create_policy_version(
+        self,
+        *,
+        policy_id: str | None,
+        name: str,
+        description: str,
+        tags: list[str],
+        criteria: dict[str, list[dict[str, Any]]],
+    ) -> dict[str, Any]:
+        """Create policy v1 or append an immutable version to an existing policy ID."""
+        now = datetime.now(UTC).isoformat()
+        with closing(self._connect()) as connection, connection:
+            connection.execute("BEGIN IMMEDIATE")
+            if policy_id is None:
+                policy_id = str(uuid.uuid4())
+                version = 1
+            else:
+                row = connection.execute(
+                    "SELECT MAX(version) AS latest FROM ml_evaluation_policies WHERE policy_id = ?",
+                    (policy_id,),
+                ).fetchone()
+                if row is None or row["latest"] is None:
+                    raise KeyError("Evaluation policy not found.")
+                version = int(row["latest"]) + 1
+            connection.execute(
+                """INSERT INTO ml_evaluation_policies (
+                    policy_id, version, name, description, tags_json, created_at_utc, criteria_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    policy_id,
+                    version,
+                    name,
+                    description,
+                    json.dumps(tags, sort_keys=True, separators=(",", ":")),
+                    now,
+                    json.dumps(criteria, sort_keys=True, separators=(",", ":"), allow_nan=False),
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM ml_evaluation_policies WHERE policy_id = ? AND version = ?",
+                (policy_id, version),
+            ).fetchone()
+        return self._decode_policy(row)
+
+    def get_policy(self, policy_id: str, version: int | None = None) -> dict[str, Any] | None:
+        """Read one immutable policy version, defaulting to the latest version."""
+        with closing(self._connect()) as connection:
+            if version is None:
+                row = connection.execute(
+                    """SELECT * FROM ml_evaluation_policies WHERE policy_id = ?
+                    ORDER BY version DESC LIMIT 1""",
+                    (policy_id,),
+                ).fetchone()
+            else:
+                row = connection.execute(
+                    "SELECT * FROM ml_evaluation_policies WHERE policy_id = ? AND version = ?",
+                    (policy_id, version),
+                ).fetchone()
+        return self._decode_policy(row) if row else None
+
+    def list_policies(self, *, limit: int = 20, offset: int = 0) -> tuple[list[dict], int]:
+        """List latest versions of policies with bounded pagination."""
+        with closing(self._connect()) as connection:
+            total = connection.execute(
+                "SELECT COUNT(DISTINCT policy_id) AS total FROM ml_evaluation_policies"
+            ).fetchone()["total"]
+            rows = connection.execute(
+                """SELECT p.* FROM ml_evaluation_policies AS p
+                JOIN (SELECT policy_id, MAX(version) AS version
+                      FROM ml_evaluation_policies GROUP BY policy_id) AS latest
+                  ON p.policy_id = latest.policy_id AND p.version = latest.version
+                ORDER BY p.created_at_utc DESC, p.policy_id ASC LIMIT ? OFFSET ?""",
+                (limit, offset),
+            ).fetchall()
+        return [self._decode_policy(row) for row in rows], int(total)
 
     def create_pending(
         self, configuration: dict[str, Any], idempotency_key: str
