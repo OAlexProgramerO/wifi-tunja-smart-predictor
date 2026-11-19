@@ -3392,6 +3392,148 @@ def render_ml_experiment_orchestration() -> None:
             mime="application/json",
         )
 
+    st.subheader("Reusable evaluation policies")
+    st.caption(
+        "Browse immutable policy versions, create a new profile or append a version, and "
+        "evaluate a completed synthetic experiment."
+    )
+    try:
+        policy_page = main_api_request("/ml-experiments/policies?limit=100&offset=0")
+    except ApiClientError as exc:
+        st.info(f"Evaluation policies are unavailable: {exc}")
+        return
+    policies = policy_page.get("items", [])
+    if policies:
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {
+                        "Policy ID": item.get("policy_id"),
+                        "Version": item.get("version"),
+                        "Name": item.get("name"),
+                        "Description": item.get("description"),
+                        "Tags": ", ".join(item.get("tags", [])),
+                    }
+                    for item in policies
+                ]
+            ),
+            width="stretch",
+            hide_index=True,
+        )
+    else:
+        st.info("No reusable evaluation policies have been created yet.")
+
+    with st.form("ml_evaluation_policy_create"):
+        policy_choices = ["Create a new policy"] + [
+            f"{item['policy_id']} (latest v{item['version']})" for item in policies
+        ]
+        selected_policy_choice = st.selectbox("Policy to create or version", policy_choices)
+        policy_id = (
+            selected_policy_choice.split(" (latest v", maxsplit=1)[0]
+            if selected_policy_choice != "Create a new policy"
+            else None
+        )
+        policy_name = st.text_input("Policy name", max_chars=120)
+        policy_description = st.text_input("Policy description", max_chars=500)
+        policy_tags = st.text_input("Policy tags", help="Comma-separated, up to 10 tags.")
+        classification_criteria_text = st.text_area(
+            "Classification criteria JSON",
+            value='[{"metric":"f1","operator":"gte","threshold":0.7}]',
+        )
+        regression_criteria_text = st.text_area(
+            "Regression criteria JSON",
+            value="[]",
+        )
+        create_policy = st.form_submit_button("Save policy version")
+    if create_policy:
+        try:
+            classification_criteria = json.loads(classification_criteria_text)
+            regression_criteria = json.loads(regression_criteria_text)
+            if not isinstance(classification_criteria, list) or not isinstance(
+                regression_criteria, list
+            ):
+                raise ValueError("Task criteria must each be JSON lists.")
+            saved_policy = main_api_request(
+                "/ml-experiments/policies",
+                {
+                    "policy_id": policy_id,
+                    "name": policy_name,
+                    "description": policy_description,
+                    "tags": [tag.strip() for tag in policy_tags.split(",") if tag.strip()],
+                    "classification_criteria": classification_criteria,
+                    "regression_criteria": regression_criteria,
+                },
+            )
+            st.session_state["ml_saved_evaluation_policy"] = saved_policy
+        except (json.JSONDecodeError, ValueError) as exc:
+            st.error(str(exc))
+        except ApiClientError as exc:
+            st.error(f"Policy creation failed: {exc}")
+    saved_policy = st.session_state.get("ml_saved_evaluation_policy")
+    if isinstance(saved_policy, dict):
+        st.success(
+            f"Saved {saved_policy.get('name')} version {saved_policy.get('version')} "
+            f"({saved_policy.get('policy_id')})."
+        )
+
+    if policies:
+        st.markdown("#### Evaluate with a saved policy")
+        policy_lookup = {
+            f"{item['name']} — v{item['version']} ({item['policy_id']})": item for item in policies
+        }
+        selected_policy_label = st.selectbox(
+            "Saved policy version", list(policy_lookup), key="ml_policy_evaluation_choice"
+        )
+        selected_policy_profile = policy_lookup[selected_policy_label]
+        try:
+            version_page = main_api_request(
+                f"/ml-experiments/policies/{selected_policy_profile['policy_id']}/versions"
+                "?limit=100&offset=0"
+            )
+            policy_versions = version_page.get("items", [])
+        except ApiClientError as exc:
+            policy_versions = []
+            st.info(f"Saved policy versions are unavailable: {exc}")
+        version_lookup = {item["version"]: item for item in policy_versions}
+        if version_lookup:
+            selected_version = st.selectbox(
+                "Policy version to apply",
+                options=list(version_lookup),
+                format_func=lambda value: f"v{value} — {version_lookup[value]['name']}",
+                key="ml_policy_version_choice",
+            )
+        completed_experiments = [
+            row["experiment_id"] for row in records if row.get("status") == "COMPLETED"
+        ]
+        if completed_experiments and version_lookup:
+            selected_policy_experiment = st.selectbox(
+                "Completed experiment",
+                completed_experiments,
+                key="ml_policy_experiment_choice",
+            )
+            if st.button("Evaluate experiment with policy"):
+                selected_policy = version_lookup[selected_version]
+                try:
+                    st.session_state["ml_evaluation_policy_report"] = main_api_request(
+                        f"/ml-experiments/policies/{selected_policy['policy_id']}/versions/"
+                        f"{selected_policy['version']}/evaluate",
+                        {"experiment_id": selected_policy_experiment},
+                    )
+                except ApiClientError as exc:
+                    st.error(f"Policy evaluation failed: {exc}")
+        else:
+            st.info("A completed experiment is required to run a policy.")
+    policy_report = st.session_state.get("ml_evaluation_policy_report")
+    if isinstance(policy_report, dict):
+        st.metric("Policy evaluation", policy_report.get("status", "INCONCLUSIVE"))
+        st.json(policy_report)
+        st.download_button(
+            "Download policy evaluation JSON",
+            json.dumps(policy_report, indent=2, ensure_ascii=False),
+            file_name="ml-evaluation-policy-report.json",
+            mime="application/json",
+        )
+
 
 def _render_architecture_diagnostics() -> None:
     """Show sanitized, read-only component diagnostics on the existing About page."""
