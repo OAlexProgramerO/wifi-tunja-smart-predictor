@@ -89,6 +89,10 @@ V8.2 adds `MLExperimentComparisonService` and a pure compatibility/metric engine
 
 `MLExperimentGateService` reads saved ML runs and delegates to a deterministic threshold engine. The engine reuses the V8.2 comparison compatibility contract to validate that selected runs share task, synthetic dataset fingerprint, runtime/configuration, and chronological evaluation windows before judging criteria. The API accepts task-specific metric thresholds and returns per-run `PASSED`, `FAILED`, or `INCONCLUSIVE` results with criterion explanations and versioned provenance. The existing Experiment Orchestration page configures criteria and displays/downloads the report. This flow is read-only: it does not retrain, modify artifacts, or promote candidates; official MinTIC data is not part of it.
 
+### Reusable evaluation policy registry (V8.4)
+
+The policy registry adds an immutable `ml_evaluation_policies` table to the existing SQLite store, keyed by `(policy_id, version)`. `MLEvaluationPolicyService` validates and writes new profiles/versions, retrieves the exact selected version, and delegates experiment evidence checks to the V8.3 gate engine. The API supports paginated profile/version retrieval and evaluation reports; the existing orchestration dashboard browses profiles, selects historical versions, and exports a report. Policy metadata and criteria are version-scoped; no update/delete operation exists. Policies evaluate persisted synthetic experiment evidence and remain separate from MinTIC analytics and production model artifacts.
+
 **The dataset is synthetic and was generated for software development, machine learning experimentation, demonstration, and portfolio purposes.** Coordinates and access-point identifiers do not correspond to real public WiFi infrastructure in Tunja.
 
 Runtime and development dependency declarations live in `pyproject.toml`. `requirements.lock` is generated from the runtime dependencies for Python 3.12/Linux x86-64 and installed with hash verification in the image. Compose pins `linux/amd64`; local development supports Python 3.11+ and installs the `dev` extra without using the container-only lock.

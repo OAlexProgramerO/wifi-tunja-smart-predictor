@@ -8,7 +8,10 @@ V8.4 adds immutable, versioned acceptance profiles over the V8.3 evaluation-gate
 - Posting the same `policy_id` appends the next version; existing versions are never edited or deleted.
 - `GET /ml-experiments/policies?limit=20&offset=0` lists the latest version of each profile.
 - `GET /ml-experiments/policies/{policy_id}` retrieves the latest version; add `?version=n` to retrieve an immutable historical version.
+- `GET /ml-experiments/policies/{policy_id}/versions?limit=100&offset=0` lists immutable versions newest first.
 - `POST /ml-experiments/policies/{policy_id}/versions/{version}/evaluate` accepts an `experiment_id` and applies the selected task criteria.
+
+The dashboard displays the latest profile versions, allows creation of a new profile or the next version, and lets the user choose a listed historical version for evaluation.
 
 Evaluation reports identify the exact policy ID/version and include the complete saved profile, experiment ID/timestamps, synthetic dataset fingerprint, chronological split/window, metrics, criterion results, and compatibility evidence. Unsupported tasks, incompatible or incomplete experiment provenance, and missing required metrics produce explicit `INCONCLUSIVE` results. Only completed, compatible synthetic records can pass or fail criteria.
 

@@ -1,10 +1,10 @@
-# WiFi Tunja Smart Predictor — V8.3.0
+# WiFi Tunja Smart Predictor — V8.4.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB)](https://www.python.org/) [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E)](https://scikit-learn.org/) [![FastAPI](https://img.shields.io/badge/FastAPI-API-009688)](https://fastapi.tiangolo.com/) [![Streamlit](https://img.shields.io/badge/Streamlit-dashboard-FF4B4B)](https://streamlit.io/) [![pytest](https://img.shields.io/badge/pytest-tests-0A9EDC)](https://pytest.org/) [![Licencia MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 Leer en [English](README.md)
 
-**Estado de publicación:** V8.3.0 está publicada. Versiones del paquete Python y de la imagen Docker: `0.8.3`. Consulte la [guía de arquitectura](docs/architecture.md), la [referencia API](docs/api.es.md), la [guía de monitoreo de deriva sintética](docs/synthetic-drift-monitoring.es.md), la [guía de orquestación de experimentos](docs/experiment-orchestration.es.md), la [guía de comparación avanzada](docs/experiment-comparison.es.md), la [guía de gates de evaluación](docs/experiment-evaluation-gates.es.md), la [guía de inventario de artefactos ML](docs/model-artifact-inventory.md), la [guía de comparación de ejecuciones ML](docs/model-run-comparison.es.md) y el [historial de versiones](docs/release-history.md).
+**Estado de publicación:** V8.4.0 es candidata; V8.3.0 es la última versión publicada. Versiones candidatas del paquete Python y la imagen Docker: `0.8.4`. Consulte la [guía de arquitectura](docs/architecture.md), la [referencia API](docs/api.es.md), la [guía de monitoreo de deriva sintética](docs/synthetic-drift-monitoring.es.md), la [guía de orquestación de experimentos](docs/experiment-orchestration.es.md), la [guía de comparación avanzada](docs/experiment-comparison.es.md), la [guía de gates de evaluación](docs/experiment-evaluation-gates.es.md), la [guía del registro reutilizable de políticas](docs/evaluation-policy-registry.es.md), la [guía de inventario de artefactos ML](docs/model-artifact-inventory.md), la [guía de comparación de ejecuciones ML](docs/model-run-comparison.es.md) y el [historial de versiones](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combina su demostración sintética de clasificación horaria y estimación de conexiones con análisis descriptivos de un conjunto oficial MinTIC opcional. V7.5.0 resume la concentración de proveedores a partir de suscripciones fijas municipales informadas; no describe tráfico WiFi ni desempeño del servicio. V7.6.0 agrega diagnósticos de arquitectura sanitizados; V7.7.0 agrega contadores operativos privados; V7.8.0 inventaría artefactos ML sintéticos; V7.9.0 compara evaluaciones guardadas; V8.0.0 monitorea cambios de distribución entre particiones cronológicas sintéticas.
 
@@ -15,6 +15,8 @@ V8.1.0 agrega una base modular para experimentos ML reproducibles: ejecución si
 V8.2.0 agrega comparación por pares de experimentos ML finalizados, con verificaciones de compatibilidad, dirección de métricas, procedencia y explicación de evidencia faltante o incompatible. No selecciona un mejor modelo universal. Consulte la [guía de comparación avanzada](docs/experiment-comparison.es.md).
 
 V8.3.0 agrega gates configurables de aceptación por métricas para experimentos guardados compatibles. Los resultados son `PASSED`, `FAILED` o `INCONCLUSIVE`, incluyen evidencia por criterio e informe JSON versionado; son de solo lectura y nunca promueven modelos. Consulte la [guía de gates de evaluación](docs/experiment-evaluation-gates.es.md).
+
+V8.4.0 agrega políticas de evaluación reutilizables con versiones inmutables, API paginada para el registro, consulta de versiones históricas e informes de evaluación por política. El dashboard permite crear perfiles/versiones, consultar versiones guardadas y evaluar experimentos finalizados con una versión seleccionada. Consulte la [guía del registro de políticas](docs/evaluation-policy-registry.es.md).
 
 Consulte la [guía de arquitectura del sistema](docs/architecture.md) para ver los componentes, flujos de solicitudes y datos, servicios Compose y separación entre ML sintético y registros oficiales MinTIC.
 

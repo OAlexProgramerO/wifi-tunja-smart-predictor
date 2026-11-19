@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — V8.4.0 Reusable Evaluation Policy Registry
+
+Adds named classification and/or regression policy profiles with immutable numbered versions, descriptive metadata, additive SQLite persistence, paginated listing and exact-version retrieval APIs, and evaluation of one compatible saved synthetic experiment through the existing V8.3 gates engine. Reports include the selected policy ID/version, exact criteria and experiment provenance. The dashboard can create new profiles/versions, browse history and evaluate/export a selected version. Unsupported tasks or missing compatibility/metric evidence are explicitly inconclusive. Python/Docker candidate version: `0.8.4`.
+
+Agrega perfiles de políticas con criterios de clasificación y/o regresión, versiones numeradas inmutables, metadatos descriptivos, persistencia aditiva SQLite, API paginada y consulta de versiones exactas, además de evaluar un experimento sintético compatible mediante el motor V8.3 existente. Los informes incluyen ID/versión de la política seleccionada, criterios exactos y procedencia del experimento. El dashboard permite crear perfiles/versiones, consultar el historial y evaluar/exportar una versión elegida. Tareas no admitidas o evidencia incompatible/ausente quedan explícitamente inconclusas. Versión candidata Python/Docker: `0.8.4`.
+
 ## V8.3.0 — Automated Experiment Evaluation Gates — released 2026-11-18
 
 Adds configurable task-specific metric thresholds for compatible persisted synthetic experiments, with criterion explanations, `PASSED`/`FAILED`/`INCONCLUSIVE` outcomes, provenance-rich versioned JSON reports, an API route, and dashboard criteria/results/export workflow. Incompatible datasets, tasks, splits, or chronological windows are inconclusive. No artifacts are modified and no model is promoted. Product V8.3.0 maps to Python and Docker version `0.8.3`. Annotated tag [`v8.3.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v8.3.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v8.3.0) target `1f543cd82cd2343bf1591ff72ee2956b124b04c8`. `pytest -q`, `ruff check .`, `black --check .`, `docker compose config --quiet`, and `git diff --check` passed locally.
