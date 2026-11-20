@@ -44,6 +44,27 @@ class MLExperimentStore:
                     criteria_json TEXT NOT NULL,
                     PRIMARY KEY (policy_id, version)
                 )""")
+            connection.execute("""CREATE TABLE IF NOT EXISTS ml_policy_evaluation_runs (
+                    run_id TEXT PRIMARY KEY,
+                    created_at_utc TEXT NOT NULL,
+                    experiment_id TEXT NOT NULL,
+                    policy_id TEXT NOT NULL,
+                    policy_version INTEGER NOT NULL,
+                    status TEXT NOT NULL,
+                    report_json TEXT NOT NULL
+                )""")
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_ml_policy_runs_created "
+                "ON ml_policy_evaluation_runs(created_at_utc DESC)"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_ml_policy_runs_policy "
+                "ON ml_policy_evaluation_runs(policy_id, policy_version, created_at_utc DESC)"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_ml_policy_runs_experiment "
+                "ON ml_policy_evaluation_runs(experiment_id, created_at_utc DESC)"
+            )
             columns = {row[1] for row in connection.execute("PRAGMA table_info(ml_experiments)")}
             if "completed_at_utc" not in columns:
                 connection.execute("ALTER TABLE ml_experiments ADD COLUMN completed_at_utc TEXT")
@@ -169,6 +190,98 @@ class MLExperimentStore:
                 (policy_id, limit, offset),
             ).fetchall()
         return [self._decode_policy(row) for row in rows], int(total)
+
+    @staticmethod
+    def _decode_policy_evaluation_run(row: sqlite3.Row) -> dict[str, Any]:
+        return {
+            "run_id": row["run_id"],
+            "created_at_utc": row["created_at_utc"],
+            "experiment_id": row["experiment_id"],
+            "policy_id": row["policy_id"],
+            "policy_version": row["policy_version"],
+            "status": row["status"],
+            "report": json.loads(row["report_json"]),
+        }
+
+    def save_policy_evaluation_run(self, report: dict[str, Any]) -> dict[str, Any]:
+        """Insert an immutable policy evaluation report and its filterable index fields."""
+        policy = report.get("policy")
+        experiment = report.get("experiment")
+        if not isinstance(policy, dict) or not isinstance(experiment, dict):
+            raise ValueError(
+                "A policy evaluation report requires policy and experiment provenance."
+            )
+        report_json = json.dumps(report, sort_keys=True, separators=(",", ":"), allow_nan=False)
+        with closing(self._connect()) as connection, connection:
+            connection.execute(
+                """INSERT INTO ml_policy_evaluation_runs (
+                    run_id, created_at_utc, experiment_id, policy_id, policy_version, status,
+                    report_json
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    report["run_id"],
+                    report["created_at_utc"],
+                    experiment.get("experiment_id"),
+                    policy.get("policy_id"),
+                    policy.get("version"),
+                    report.get("status"),
+                    report_json,
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM ml_policy_evaluation_runs WHERE run_id = ?", (report["run_id"],)
+            ).fetchone()
+        return self._decode_policy_evaluation_run(row)
+
+    def get_policy_evaluation_run(self, run_id: str) -> dict[str, Any] | None:
+        """Retrieve one immutable policy evaluation run and its full report."""
+        with closing(self._connect()) as connection:
+            row = connection.execute(
+                "SELECT * FROM ml_policy_evaluation_runs WHERE run_id = ?", (run_id,)
+            ).fetchone()
+        return self._decode_policy_evaluation_run(row) if row else None
+
+    def list_policy_evaluation_runs(
+        self,
+        *,
+        limit: int = 20,
+        offset: int = 0,
+        policy_id: str | None = None,
+        policy_version: int | None = None,
+        experiment_id: str | None = None,
+        status: str | None = None,
+        created_from_utc: str | None = None,
+        created_to_utc: str | None = None,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """List run history with optional exact-match and UTC range filters."""
+        clauses: list[str] = []
+        parameters: list[Any] = []
+        for column, value in (
+            ("policy_id", policy_id),
+            ("policy_version", policy_version),
+            ("experiment_id", experiment_id),
+            ("status", status),
+        ):
+            if value is not None:
+                clauses.append(f"{column} = ?")
+                parameters.append(value)
+        if created_from_utc is not None:
+            clauses.append("created_at_utc >= ?")
+            parameters.append(created_from_utc)
+        if created_to_utc is not None:
+            clauses.append("created_at_utc <= ?")
+            parameters.append(created_to_utc)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        with closing(self._connect()) as connection:
+            total = connection.execute(
+                f"SELECT COUNT(*) AS total FROM ml_policy_evaluation_runs {where}", parameters
+            ).fetchone()["total"]
+            rows = connection.execute(
+                f"""SELECT * FROM ml_policy_evaluation_runs {where}
+                ORDER BY created_at_utc DESC, run_id ASC LIMIT ? OFFSET ?""",
+                [*parameters, limit, offset],
+            ).fetchall()
+        return [self._decode_policy_evaluation_run(row) for row in rows], int(total)
 
     def create_pending(
         self, configuration: dict[str, Any], idempotency_key: str
