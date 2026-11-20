@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — V8.5.0 Evaluation Policy Run History
+
+Persists every reusable-policy evaluation as an immutable run with a run ID, timestamp, exact experiment and policy version, outcome, criteria evidence, and synthetic provenance. Adds filtered/paginated history, run detail and JSON report APIs, and comparison that suppresses criterion comparisons across incompatible experiments, policy profiles, datasets, evaluation windows, or evaluator versions. The dashboard filters, inspects, and compares saved runs. Python/Docker candidate version: `0.8.5`.
+
+Persiste cada evaluación de una política reutilizable como ejecución inmutable con ID, fecha, experimento y versión exactos de la política, resultado, evidencia por criterio y procedencia sintética. Agrega historial filtrable/paginado, API de detalle/informe JSON y comparación que omite criterios cuando difieren el experimento, perfil, dataset, ventana de evaluación o versión del evaluador. El dashboard filtra, inspecciona y compara ejecuciones guardadas. Versión candidata Python/Docker: `0.8.5`.
+
 ## V8.4.0 — Reusable Evaluation Policy Registry — released 2026-11-19
 
 Adds named classification and/or regression policy profiles with immutable numbered versions, descriptive metadata, additive SQLite persistence, paginated listing and exact-version retrieval APIs, and evaluation of one compatible saved synthetic experiment through the existing V8.3 gates engine. Reports include the selected policy ID/version, exact criteria and experiment provenance. The dashboard can create new profiles/versions, browse history and evaluate/export a selected version. Unsupported tasks or missing compatibility/metric evidence are explicitly inconclusive. Product V8.4.0 maps to Python/Docker `0.8.4`. Annotated tag [`v8.4.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v8.4.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v8.4.0) target `9c970076c09422c5632444be4ccf646b22f7d5f6`. `pytest -q`, `ruff check .`, `black --check .`, `docker compose config --quiet`, and `git diff --check` passed locally.
