@@ -3534,6 +3534,121 @@ def render_ml_experiment_orchestration() -> None:
             mime="application/json",
         )
 
+    st.subheader("Evaluation policy run history")
+    with st.form("ml_policy_run_history_filters"):
+        filter_columns = st.columns(3)
+        history_policy_id = filter_columns[0].text_input("Filter by policy ID")
+        history_policy_version = filter_columns[1].text_input("Filter by policy version")
+        history_experiment_id = filter_columns[2].text_input("Filter by experiment ID")
+        status_options = ["Any status", "PASSED", "FAILED", "INCONCLUSIVE"]
+        history_status = st.selectbox("Filter by evaluation status", status_options)
+        date_columns = st.columns(2)
+        history_from = date_columns[0].text_input(
+            "Created from (UTC)", placeholder="2026-11-20T00:00:00Z"
+        )
+        history_to = date_columns[1].text_input(
+            "Created through (UTC)", placeholder="2026-11-21T00:00:00Z"
+        )
+        history_offset = st.number_input(
+            "History offset", min_value=0, max_value=100_000, value=0, step=20
+        )
+        load_history = st.form_submit_button("Load evaluation run history")
+    if load_history:
+        try:
+            query = {"limit": 20, "offset": int(history_offset)}
+            if history_policy_id.strip():
+                query["policy_id"] = history_policy_id.strip()
+            if history_policy_version.strip():
+                version_number = int(history_policy_version)
+                if version_number < 1:
+                    raise ValueError("Policy version must be at least 1.")
+                query["policy_version"] = version_number
+            if history_experiment_id.strip():
+                query["experiment_id"] = history_experiment_id.strip()
+            if history_status != "Any status":
+                query["status"] = history_status
+            if history_from.strip():
+                query["created_from_utc"] = history_from.strip()
+            if history_to.strip():
+                query["created_to_utc"] = history_to.strip()
+            st.session_state["ml_policy_run_history_query"] = query
+        except ValueError as exc:
+            st.error(f"Invalid history filter: {exc}")
+    history_query = st.session_state.get("ml_policy_run_history_query")
+    if history_query:
+        try:
+            history_page = main_api_request(
+                f"/ml-experiments/policy-runs?{urlencode(history_query)}"
+            )
+            history_items = history_page.get("items", [])
+            st.caption(
+                f"Showing {len(history_items)} of {history_page.get('total_count', 0)} matching runs."
+            )
+            if history_items:
+                st.dataframe(
+                    pd.DataFrame(
+                        [
+                            {
+                                "Run ID": item.get("run_id"),
+                                "Created at (UTC)": item.get("created_at_utc"),
+                                "Experiment ID": item.get("experiment_id"),
+                                "Policy ID": item.get("policy_id"),
+                                "Policy version": item.get("policy_version"),
+                                "Status": item.get("status"),
+                            }
+                            for item in history_items
+                        ]
+                    ),
+                    width="stretch",
+                    hide_index=True,
+                )
+                run_ids = [item["run_id"] for item in history_items]
+                selected_run_id = st.selectbox(
+                    "Inspect evaluation run", run_ids, key="ml_policy_run_detail_choice"
+                )
+                run_detail = main_api_request(f"/ml-experiments/policy-runs/{selected_run_id}")
+                st.json(run_detail)
+                run_report = main_api_request(
+                    f"/ml-experiments/policy-runs/{selected_run_id}/report"
+                )
+                st.download_button(
+                    "Download saved evaluation run JSON",
+                    json.dumps(run_report, indent=2, ensure_ascii=False),
+                    file_name=f"policy-evaluation-run-{selected_run_id}.json",
+                    mime="application/json",
+                )
+                compared_run_ids = st.multiselect(
+                    "Select two runs to compare",
+                    options=run_ids,
+                    max_selections=2,
+                    key="ml_policy_run_comparison_selection",
+                )
+                if st.button("Compare evaluation runs", disabled=len(compared_run_ids) != 2):
+                    try:
+                        st.session_state["ml_policy_run_comparison_report"] = main_api_request(
+                            "/ml-experiments/policy-runs/compare",
+                            {
+                                "left_run_id": compared_run_ids[0],
+                                "right_run_id": compared_run_ids[1],
+                            },
+                        )
+                    except ApiClientError as exc:
+                        st.error(f"Evaluation run comparison failed: {exc}")
+            else:
+                st.info("No policy evaluation runs match the selected filters.")
+        except ApiClientError as exc:
+            st.error(f"Evaluation run history is unavailable: {exc}")
+    run_comparison = st.session_state.get("ml_policy_run_comparison_report")
+    if isinstance(run_comparison, dict):
+        st.metric("Run comparison compatibility", run_comparison.get("status", "UNKNOWN"))
+        st.json(run_comparison)
+        st.download_button(
+            "Download evaluation run comparison JSON",
+            json.dumps(run_comparison, indent=2, ensure_ascii=False),
+            file_name="policy-evaluation-run-comparison.json",
+            mime="application/json",
+        )
+
 
 def _render_architecture_diagnostics() -> None:
     """Show sanitized, read-only component diagnostics on the existing About page."""
