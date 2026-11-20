@@ -75,6 +75,8 @@ class MLEvaluationPolicyRunRequest(BaseModel):
 
 class MLEvaluationPolicyRunResponse(BaseModel):
     report_schema_version: str
+    run_id: str
+    created_at_utc: str
     generated_at_utc: str
     project_version: str
     data_boundary: str
@@ -86,4 +88,52 @@ class MLEvaluationPolicyRunResponse(BaseModel):
     metrics: dict[str, float | None]
     criteria: list[dict[str, Any]]
     compatibility: dict[str, Any]
+    limitations: list[str]
+
+
+class MLEvaluationPolicyRunHistoryItem(BaseModel):
+    run_id: str
+    created_at_utc: str
+    experiment_id: str
+    policy_id: str
+    policy_version: int
+    status: Literal["PASSED", "FAILED", "INCONCLUSIVE"]
+    criteria: list[dict[str, Any]]
+    provenance: dict[str, Any]
+
+
+class MLEvaluationPolicyRunHistoryPage(BaseModel):
+    items: list[MLEvaluationPolicyRunHistoryItem]
+    limit: int
+    offset: int
+    total_count: int
+
+
+class MLEvaluationPolicyRunDetail(MLEvaluationPolicyRunHistoryItem):
+    report: MLEvaluationPolicyRunResponse
+
+
+class MLEvaluationPolicyRunComparisonRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    left_run_id: str = Field(min_length=1, max_length=80)
+    right_run_id: str = Field(min_length=1, max_length=80)
+
+    @model_validator(mode="after")
+    def require_distinct_run_ids(self) -> MLEvaluationPolicyRunComparisonRequest:
+        if self.left_run_id == self.right_run_id:
+            raise ValueError("left_run_id and right_run_id must be different.")
+        return self
+
+
+class MLEvaluationPolicyRunComparisonResponse(BaseModel):
+    report_schema_version: str
+    generated_at_utc: str
+    status: Literal["COMPATIBLE", "PARTIAL", "INCOMPATIBLE"]
+    run_ids: list[str | None]
+    context: dict[str, Any]
+    reasons: list[str]
+    reason_details: list[dict[str, str]]
+    criterion_comparisons: list[dict[str, Any]]
+    interpretation: str
     limitations: list[str]

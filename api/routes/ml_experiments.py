@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime
 from functools import lru_cache
+from typing import Literal
 
 from fastapi import APIRouter, Header, HTTPException, Path, Query, Response
 from fastapi.responses import JSONResponse
@@ -30,6 +32,10 @@ from wifi_tunja_smart_predictor.experiments.ml_policy_schemas import (
     MLEvaluationPolicyCreate,
     MLEvaluationPolicyPage,
     MLEvaluationPolicyRecord,
+    MLEvaluationPolicyRunComparisonRequest,
+    MLEvaluationPolicyRunComparisonResponse,
+    MLEvaluationPolicyRunDetail,
+    MLEvaluationPolicyRunHistoryPage,
     MLEvaluationPolicyRunRequest,
     MLEvaluationPolicyRunResponse,
     MLEvaluationPolicyVersionPage,
@@ -202,6 +208,76 @@ def evaluate_ml_experiment_with_policy(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except sqlite3.Error as exc:
         raise HTTPException(status_code=503, detail="Policy evaluation is unavailable.") from exc
+
+
+@router.get("/policy-runs", response_model=MLEvaluationPolicyRunHistoryPage)
+def list_ml_policy_evaluation_runs(
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=100_000),
+    policy_id: str | None = Query(None, min_length=1, max_length=80),
+    policy_version: int | None = Query(None, ge=1),
+    experiment_id: str | None = Query(None, min_length=1, max_length=80),
+    status: Literal["PASSED", "FAILED", "INCONCLUSIVE"] | None = Query(None),
+    created_from_utc: datetime | None = Query(None),
+    created_to_utc: datetime | None = Query(None),
+) -> dict:
+    try:
+        items, total = MLEvaluationPolicyService(_orchestrator().store).list_runs(
+            limit=limit,
+            offset=offset,
+            policy_id=policy_id,
+            policy_version=policy_version,
+            experiment_id=experiment_id,
+            status=status,
+            created_from_utc=created_from_utc,
+            created_to_utc=created_to_utc,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=503, detail="Policy run history is unavailable.") from exc
+    return {"items": items, "limit": limit, "offset": offset, "total_count": total}
+
+
+@router.get("/policy-runs/{run_id}", response_model=MLEvaluationPolicyRunDetail)
+def get_ml_policy_evaluation_run(run_id: str) -> dict:
+    try:
+        run = MLEvaluationPolicyService(_orchestrator().store).get_run(run_id)
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=503, detail="Policy run history is unavailable.") from exc
+    if run is None:
+        raise HTTPException(status_code=404, detail="Policy evaluation run was not found.")
+    return run
+
+
+@router.get("/policy-runs/{run_id}/report")
+def get_ml_policy_evaluation_run_report(run_id: str) -> JSONResponse:
+    try:
+        report = MLEvaluationPolicyService(_orchestrator().store).get_run_report(run_id)
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=503, detail="Policy run report is unavailable.") from exc
+    if report is None:
+        raise HTTPException(status_code=404, detail="Policy evaluation run was not found.")
+    return JSONResponse(
+        content=report,
+        headers={"Content-Disposition": "attachment; filename=policy-evaluation-run.json"},
+    )
+
+
+@router.post("/policy-runs/compare", response_model=MLEvaluationPolicyRunComparisonResponse)
+def compare_ml_policy_evaluation_runs(
+    payload: MLEvaluationPolicyRunComparisonRequest,
+) -> dict:
+    try:
+        return MLEvaluationPolicyService(_orchestrator().store).compare_runs(
+            payload.left_run_id, payload.right_run_id
+        )
+    except MLEvaluationPolicyNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except sqlite3.Error as exc:
+        raise HTTPException(
+            status_code=503, detail="Policy run comparison is unavailable."
+        ) from exc
 
 
 @router.get("/{experiment_id}/report")
