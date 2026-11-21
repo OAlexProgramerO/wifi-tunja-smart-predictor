@@ -11,6 +11,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from wifi_tunja_smart_predictor.experiments.ml_policy_audit import audit_digest
+
 
 class IdempotencyConflict(ValueError):
     """An idempotency key was reused with a different validated configuration."""
@@ -53,6 +55,23 @@ class MLExperimentStore:
                     status TEXT NOT NULL,
                     report_json TEXT NOT NULL
                 )""")
+            connection.execute("""CREATE TABLE IF NOT EXISTS ml_policy_evaluation_audit (
+                    audit_id TEXT PRIMARY KEY,
+                    run_id TEXT NOT NULL UNIQUE,
+                    timestamp_utc TEXT NOT NULL,
+                    execution_source TEXT NOT NULL,
+                    outcome TEXT NOT NULL,
+                    event_json TEXT NOT NULL,
+                    digest_sha256 TEXT NOT NULL
+                )""")
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_ml_policy_audit_timestamp "
+                "ON ml_policy_evaluation_audit(timestamp_utc DESC)"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS idx_ml_policy_audit_policy "
+                "ON ml_policy_evaluation_audit(json_extract(event_json, '$.policy_id'), timestamp_utc DESC)"
+            )
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_ml_policy_runs_created "
                 "ON ml_policy_evaluation_runs(created_at_utc DESC)"
@@ -203,8 +222,10 @@ class MLExperimentStore:
             "report": json.loads(row["report_json"]),
         }
 
-    def save_policy_evaluation_run(self, report: dict[str, Any]) -> dict[str, Any]:
-        """Insert an immutable policy evaluation report and its filterable index fields."""
+    def save_policy_evaluation_run(
+        self, report: dict[str, Any], audit_event: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Atomically insert an immutable policy run and linked integrity audit event."""
         policy = report.get("policy")
         experiment = report.get("experiment")
         if not isinstance(policy, dict) or not isinstance(experiment, dict):
@@ -212,6 +233,10 @@ class MLExperimentStore:
                 "A policy evaluation report requires policy and experiment provenance."
             )
         report_json = json.dumps(report, sort_keys=True, separators=(",", ":"), allow_nan=False)
+        event_json = json.dumps(
+            audit_event, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+        )
+        digest = audit_digest(audit_event)
         with closing(self._connect()) as connection, connection:
             connection.execute(
                 """INSERT INTO ml_policy_evaluation_runs (
@@ -228,10 +253,114 @@ class MLExperimentStore:
                     report_json,
                 ),
             )
+            connection.execute(
+                """INSERT INTO ml_policy_evaluation_audit (
+                    audit_id, run_id, timestamp_utc, execution_source, outcome,
+                    event_json, digest_sha256
+                ) VALUES (?, ?, ?, ?, ?, ?, ?)""",
+                (
+                    audit_event["audit_id"],
+                    audit_event["run_id"],
+                    audit_event["timestamp_utc"],
+                    audit_event["execution_source"],
+                    audit_event["outcome"],
+                    event_json,
+                    digest,
+                ),
+            )
             row = connection.execute(
                 "SELECT * FROM ml_policy_evaluation_runs WHERE run_id = ?", (report["run_id"],)
             ).fetchone()
         return self._decode_policy_evaluation_run(row)
+
+    @staticmethod
+    def _decode_policy_audit(row: sqlite3.Row) -> dict[str, Any]:
+        try:
+            event = json.loads(row["event_json"])
+            decode_status = "READABLE" if isinstance(event, dict) else "MALFORMED"
+        except (json.JSONDecodeError, TypeError):
+            event = None
+            decode_status = "MALFORMED"
+        return {
+            "audit_id": row["audit_id"],
+            "run_id": row["run_id"],
+            "timestamp_utc": row["timestamp_utc"],
+            "execution_source": row["execution_source"],
+            "outcome": row["outcome"],
+            "event": event,
+            "digest_sha256": row["digest_sha256"],
+            "decode_status": decode_status,
+        }
+
+    def get_policy_audit(self, run_id: str) -> dict[str, Any] | None:
+        """Retrieve a policy audit event by its linked evaluation run ID."""
+        with closing(self._connect()) as connection:
+            row = connection.execute(
+                "SELECT * FROM ml_policy_evaluation_audit WHERE run_id = ?", (run_id,)
+            ).fetchone()
+        return self._decode_policy_audit(row) if row else None
+
+    def list_policy_audits(
+        self,
+        *,
+        limit: int = 20,
+        offset: int = 0,
+        policy_id: str | None = None,
+        policy_version: int | None = None,
+        experiment_id: str | None = None,
+        outcome: str | None = None,
+        execution_source: str | None = None,
+        created_from_utc: str | None = None,
+        created_to_utc: str | None = None,
+    ) -> tuple[list[dict[str, Any]], int]:
+        """List audit events using safe JSON-field and timestamp filters."""
+        clauses: list[str] = []
+        parameters: list[Any] = []
+        for path, value in (
+            ("$.policy_id", policy_id),
+            ("$.policy_version", policy_version),
+            ("$.experiment_id", experiment_id),
+        ):
+            if value is not None:
+                clauses.append("json_extract(event_json, ?) = ?")
+                parameters.extend((path, value))
+        for column, value in (("outcome", outcome), ("execution_source", execution_source)):
+            if value is not None:
+                clauses.append(f"{column} = ?")
+                parameters.append(value)
+        if created_from_utc is not None:
+            clauses.append("timestamp_utc >= ?")
+            parameters.append(created_from_utc)
+        if created_to_utc is not None:
+            clauses.append("timestamp_utc <= ?")
+            parameters.append(created_to_utc)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        with closing(self._connect()) as connection:
+            total = connection.execute(
+                f"SELECT COUNT(*) AS total FROM ml_policy_evaluation_audit {where}", parameters
+            ).fetchone()["total"]
+            rows = connection.execute(
+                f"""SELECT * FROM ml_policy_evaluation_audit {where}
+                ORDER BY timestamp_utc DESC, audit_id ASC LIMIT ? OFFSET ?""",
+                [*parameters, limit, offset],
+            ).fetchall()
+        return [self._decode_policy_audit(row) for row in rows], int(total)
+
+    def get_policy_audit_by_id(self, audit_id: str) -> dict[str, Any] | None:
+        """Retrieve an audit event by audit ID, including possible orphan records."""
+        with closing(self._connect()) as connection:
+            row = connection.execute(
+                "SELECT * FROM ml_policy_evaluation_audit WHERE audit_id = ?", (audit_id,)
+            ).fetchone()
+        return self._decode_policy_audit(row) if row else None
+
+    def list_policy_run_ids_missing_audit(self) -> list[str]:
+        """Return evaluation run IDs with no corresponding audit event."""
+        with closing(self._connect()) as connection:
+            rows = connection.execute("""SELECT r.run_id FROM ml_policy_evaluation_runs AS r
+                LEFT JOIN ml_policy_evaluation_audit AS a ON a.run_id = r.run_id
+                WHERE a.run_id IS NULL ORDER BY r.created_at_utc DESC, r.run_id ASC""").fetchall()
+        return [row["run_id"] for row in rows]
 
     def get_policy_evaluation_run(self, run_id: str) -> dict[str, Any] | None:
         """Retrieve one immutable policy evaluation run and its full report."""

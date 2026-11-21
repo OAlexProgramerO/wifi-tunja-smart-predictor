@@ -137,3 +137,32 @@ class MLEvaluationPolicyRunComparisonResponse(BaseModel):
     criterion_comparisons: list[dict[str, Any]]
     interpretation: str
     limitations: list[str]
+
+
+class MLEvaluationPolicyAuditVerification(BaseModel):
+    status: Literal["VERIFIED", "INVALID", "UNVERIFIABLE"]
+    run_id: str | None = None
+    audit_id: str | None = None
+    stored_digest_sha256: str | None = None
+    computed_digest_sha256: str | None = None
+    reasons: list[str]
+    explanation: str
+
+
+class MLEvaluationPolicyAuditItem(BaseModel):
+    audit_id: str | None
+    run_id: str
+    timestamp_utc: str | None = None
+    execution_source: str | None = None
+    outcome: str | None = None
+    event: dict[str, Any] | None = None
+    digest_sha256: str | None = None
+    decode_status: str | None = None
+    verification: MLEvaluationPolicyAuditVerification
+
+
+class MLEvaluationPolicyAuditPage(BaseModel):
+    items: list[MLEvaluationPolicyAuditItem]
+    limit: int
+    offset: int
+    total_count: int

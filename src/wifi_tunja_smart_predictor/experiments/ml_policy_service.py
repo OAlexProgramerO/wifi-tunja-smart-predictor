@@ -8,6 +8,11 @@ from uuid import uuid4
 
 from wifi_tunja_smart_predictor.config import PROJECT_VERSION
 from wifi_tunja_smart_predictor.experiments.ml_gates import evaluate_experiment_gates
+from wifi_tunja_smart_predictor.experiments.ml_policy_audit import (
+    AUDIT_SCHEMA_VERSION,
+    audit_digest,
+    build_policy_audit_event,
+)
 from wifi_tunja_smart_predictor.experiments.ml_policy_run_comparison import (
     compare_policy_evaluation_run_records,
 )
@@ -56,7 +61,14 @@ class MLEvaluationPolicyService:
     def list_versions(self, policy_id: str, *, limit: int, offset: int) -> tuple[list[dict], int]:
         return self.store.list_policy_versions(policy_id, limit=limit, offset=offset)
 
-    def evaluate(self, policy_id: str, version: int, experiment_id: str) -> dict[str, Any]:
+    def evaluate(
+        self,
+        policy_id: str,
+        version: int,
+        experiment_id: str,
+        *,
+        execution_source: str = "api",
+    ) -> dict[str, Any]:
         policy = self.store.get_policy(policy_id, version)
         record = self.store.get(experiment_id)
         if policy is None or record is None:
@@ -136,7 +148,165 @@ class MLEvaluationPolicyService:
                 "The report is read-only and does not promote models or modify artifacts.",
             ],
         }
-        return self.store.save_policy_evaluation_run(report)["report"]
+        audit_event = build_policy_audit_event(report, execution_source=execution_source)
+        self.store.save_policy_evaluation_run(report, audit_event)
+        return report
+
+    @staticmethod
+    def _audit_verification(audit: dict[str, Any] | None, run_id: str | None) -> dict[str, Any]:
+        if audit is None:
+            return {
+                "status": "UNVERIFIABLE",
+                "run_id": run_id,
+                "reasons": ["AUDIT_EVENT_MISSING"],
+                "explanation": "No audit event is stored for this evaluation run.",
+            }
+        event = audit.get("event")
+        if audit.get("decode_status") != "READABLE" or not isinstance(event, dict):
+            return {
+                "status": "UNVERIFIABLE",
+                "run_id": audit.get("run_id"),
+                "audit_id": audit.get("audit_id"),
+                "reasons": ["AUDIT_EVENT_UNREADABLE"],
+                "explanation": "The stored audit event cannot be parsed as a JSON object.",
+            }
+        try:
+            computed = audit_digest(event)
+        except (TypeError, ValueError):
+            return {
+                "status": "INVALID",
+                "run_id": audit.get("run_id"),
+                "audit_id": audit.get("audit_id"),
+                "reasons": ["AUDIT_EVENT_NOT_CANONICALIZABLE"],
+                "explanation": "The event contains values outside the canonical JSON format.",
+            }
+        if computed != audit.get("digest_sha256"):
+            return {
+                "status": "INVALID",
+                "run_id": audit.get("run_id"),
+                "audit_id": audit.get("audit_id"),
+                "stored_digest_sha256": audit.get("digest_sha256"),
+                "computed_digest_sha256": computed,
+                "reasons": ["DIGEST_MISMATCH"],
+                "explanation": "The stored audit event does not match its local digest.",
+            }
+        if event.get("audit_schema_version") != AUDIT_SCHEMA_VERSION:
+            return {
+                "status": "UNVERIFIABLE",
+                "run_id": audit.get("run_id"),
+                "audit_id": audit.get("audit_id"),
+                "reasons": ["UNSUPPORTED_AUDIT_SCHEMA"],
+                "explanation": "This application cannot verify the audit event schema version.",
+            }
+        reasons = []
+        if audit.get("audit_id") != event.get("audit_id"):
+            reasons.append("AUDIT_ID_MISMATCH")
+        for event_key, audit_key in (
+            ("run_id", "run_id"),
+            ("timestamp_utc", "timestamp_utc"),
+            ("execution_source", "execution_source"),
+            ("outcome", "outcome"),
+        ):
+            if event.get(event_key) != audit.get(audit_key):
+                reasons.append(f"INDEX_{event_key.upper()}_MISMATCH")
+        return {
+            "status": "INVALID" if reasons else "VERIFIED",
+            "run_id": audit.get("run_id"),
+            "audit_id": audit.get("audit_id"),
+            "stored_digest_sha256": audit.get("digest_sha256"),
+            "computed_digest_sha256": computed,
+            "reasons": sorted(set(reasons)),
+            "explanation": (
+                "The local digest and indexed event fields are consistent."
+                if not reasons
+                else "The audit record has a digest or indexed-field inconsistency."
+            ),
+        }
+
+    def verify_audit(self, run_id: str) -> dict[str, Any]:
+        """Verify one audit event and its consistency with the linked evaluation report."""
+        audit = self.store.get_policy_audit(run_id)
+        result = self._audit_verification(audit, run_id)
+        if audit is None or result["status"] == "UNVERIFIABLE":
+            return result
+        run = self.store.get_policy_evaluation_run(run_id)
+        if run is None:
+            result["status"] = "INVALID"
+            result["reasons"].append("LINKED_RUN_MISSING")
+        else:
+            report = run.get("report", {})
+            policy = report.get("policy", {}) if isinstance(report, dict) else {}
+            experiment = report.get("experiment", {}) if isinstance(report, dict) else {}
+            expected = {
+                "run_id": run.get("run_id"),
+                "experiment_id": run.get("experiment_id"),
+                "policy_id": run.get("policy_id"),
+                "policy_version": run.get("policy_version"),
+                "timestamp_utc": run.get("created_at_utc"),
+                "outcome": run.get("status"),
+            }
+            event = audit.get("event", {})
+            actual = {
+                "run_id": event.get("run_id"),
+                "experiment_id": event.get("experiment_id"),
+                "policy_id": event.get("policy_id"),
+                "policy_version": event.get("policy_version"),
+                "timestamp_utc": event.get("timestamp_utc"),
+                "outcome": event.get("outcome"),
+            }
+            if (
+                policy.get("policy_id") != expected["policy_id"]
+                or policy.get("version") != expected["policy_version"]
+                or experiment.get("experiment_id") != expected["experiment_id"]
+            ):
+                result["reasons"].append("RUN_REPORT_INDEX_INCONSISTENT")
+            if actual != expected:
+                result["reasons"].append("AUDIT_RUN_REFERENCE_MISMATCH")
+            if isinstance(report, dict) and event.get("outcome") != report.get("status"):
+                result["reasons"].append("AUDIT_OUTCOME_REPORT_MISMATCH")
+        result["reasons"] = sorted(set(result["reasons"]))
+        if result["reasons"]:
+            result["status"] = "INVALID"
+            result["explanation"] = (
+                "The audit event, its index, or linked run data is inconsistent."
+            )
+        else:
+            result["status"] = "VERIFIED"
+        return result
+
+    def verify_audit_id(self, audit_id: str) -> dict[str, Any]:
+        """Verify an audit record by ID, including whether its linked run still exists."""
+        audit = self.store.get_policy_audit_by_id(audit_id)
+        if audit is None:
+            return {
+                "status": "UNVERIFIABLE",
+                "audit_id": audit_id,
+                "reasons": ["AUDIT_EVENT_MISSING"],
+                "explanation": "No audit event is stored with this identifier.",
+            }
+        result = self.verify_audit(audit["run_id"])
+        if audit["audit_id"] != audit_id:
+            result["status"] = "INVALID"
+            result["reasons"] = sorted(set(result["reasons"] + ["AUDIT_ID_MISMATCH"]))
+        return result
+
+    def list_audits(self, *, limit: int, offset: int, **filters: Any) -> tuple[list, int]:
+        start = self._normalize_utc(filters.pop("created_from_utc", None))
+        end = self._normalize_utc(filters.pop("created_to_utc", None))
+        if start is not None and end is not None and start > end:
+            raise ValueError("created_from_utc must not be later than created_to_utc.")
+        audits, total = self.store.list_policy_audits(
+            limit=limit,
+            offset=offset,
+            created_from_utc=start,
+            created_to_utc=end,
+            **filters,
+        )
+        items = []
+        for audit in audits:
+            verification = self.verify_audit(audit["run_id"])
+            items.append({**audit, "verification": verification})
+        return items, total
 
     @staticmethod
     def _run_summary(run: dict[str, Any]) -> dict[str, Any]:

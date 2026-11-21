@@ -29,6 +29,8 @@ from wifi_tunja_smart_predictor.experiments.ml_gates_service import (
 )
 from wifi_tunja_smart_predictor.experiments.ml_orchestrator import MLExperimentOrchestrator
 from wifi_tunja_smart_predictor.experiments.ml_policy_schemas import (
+    MLEvaluationPolicyAuditPage,
+    MLEvaluationPolicyAuditVerification,
     MLEvaluationPolicyCreate,
     MLEvaluationPolicyPage,
     MLEvaluationPolicyRecord,
@@ -277,6 +279,59 @@ def compare_ml_policy_evaluation_runs(
     except sqlite3.Error as exc:
         raise HTTPException(
             status_code=503, detail="Policy run comparison is unavailable."
+        ) from exc
+
+
+@router.get("/policy-audit", response_model=MLEvaluationPolicyAuditPage)
+def list_ml_policy_evaluation_audit(
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0, le=100_000),
+    policy_id: str | None = Query(None, min_length=1, max_length=80),
+    policy_version: int | None = Query(None, ge=1),
+    experiment_id: str | None = Query(None, min_length=1, max_length=80),
+    outcome: Literal["PASSED", "FAILED", "INCONCLUSIVE"] | None = Query(None),
+    execution_source: str | None = Query(None, min_length=1, max_length=32),
+    created_from_utc: datetime | None = Query(None),
+    created_to_utc: datetime | None = Query(None),
+) -> dict:
+    try:
+        items, total = MLEvaluationPolicyService(_orchestrator().store).list_audits(
+            limit=limit,
+            offset=offset,
+            policy_id=policy_id,
+            policy_version=policy_version,
+            experiment_id=experiment_id,
+            outcome=outcome,
+            execution_source=execution_source,
+            created_from_utc=created_from_utc,
+            created_to_utc=created_to_utc,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=503, detail="Policy audit history is unavailable.") from exc
+    return {"items": items, "limit": limit, "offset": offset, "total_count": total}
+
+
+@router.get(
+    "/policy-runs/{run_id}/audit/verify", response_model=MLEvaluationPolicyAuditVerification
+)
+def verify_ml_policy_run_audit(run_id: str) -> dict:
+    try:
+        return MLEvaluationPolicyService(_orchestrator().store).verify_audit(run_id)
+    except sqlite3.Error as exc:
+        raise HTTPException(
+            status_code=503, detail="Policy audit verification is unavailable."
+        ) from exc
+
+
+@router.get("/policy-audit/{audit_id}/verify", response_model=MLEvaluationPolicyAuditVerification)
+def verify_ml_policy_audit_id(audit_id: str) -> dict:
+    try:
+        return MLEvaluationPolicyService(_orchestrator().store).verify_audit_id(audit_id)
+    except sqlite3.Error as exc:
+        raise HTTPException(
+            status_code=503, detail="Policy audit verification is unavailable."
         ) from exc
 
 
