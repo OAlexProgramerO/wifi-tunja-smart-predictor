@@ -229,7 +229,13 @@ class MLEvaluationPolicyService:
         result = self._audit_verification(audit, run_id)
         if audit is None or result["status"] == "UNVERIFIABLE":
             return result
-        run = self.store.get_policy_evaluation_run(run_id)
+        try:
+            run = self.store.get_policy_evaluation_run(run_id)
+        except (ValueError, TypeError):
+            result["status"] = "INVALID"
+            result["reasons"].append("LINKED_RUN_REPORT_UNREADABLE")
+            result["explanation"] = "The linked evaluation report is malformed or unreadable."
+            return result
         if run is None:
             result["status"] = "INVALID"
             result["reasons"].append("LINKED_RUN_MISSING")
@@ -264,6 +270,28 @@ class MLEvaluationPolicyService:
                 result["reasons"].append("AUDIT_RUN_REFERENCE_MISMATCH")
             if isinstance(report, dict) and event.get("outcome") != report.get("status"):
                 result["reasons"].append("AUDIT_OUTCOME_REPORT_MISMATCH")
+            if not isinstance(report, dict):
+                result["reasons"].append("LINKED_RUN_REPORT_MALFORMED")
+            else:
+                report_experiment = (
+                    report.get("experiment") if isinstance(report.get("experiment"), dict) else {}
+                )
+                report_dataset = (
+                    report_experiment.get("dataset")
+                    if isinstance(report_experiment.get("dataset"), dict)
+                    else {}
+                )
+                expected_provenance = {
+                    "project_version": report.get("project_version"),
+                    "task": report_experiment.get("task"),
+                    "dataset_kind": report_dataset.get("kind"),
+                    "dataset_fingerprint_algorithm": report_dataset.get("fingerprint_algorithm"),
+                    "dataset_fingerprint": report_dataset.get("fingerprint"),
+                    "evaluation_split": report_experiment.get("evaluation_split"),
+                    "evaluation_window": report_experiment.get("evaluation_window"),
+                }
+                if event.get("provenance") != expected_provenance:
+                    result["reasons"].append("AUDIT_PROVENANCE_REPORT_MISMATCH")
         result["reasons"] = sorted(set(result["reasons"]))
         if result["reasons"]:
             result["status"] = "INVALID"

@@ -110,6 +110,24 @@ def test_audit_verification_detects_consistent_digest_with_wrong_run_reference(t
     assert "AUDIT_RUN_REFERENCE_MISMATCH" in verification["reasons"]
 
 
+def test_audit_verification_detects_provenance_mismatch_even_with_matching_digest(tmp_path):
+    store = MLExperimentStore(tmp_path / "ml.sqlite")
+    service = MLEvaluationPolicyService(store)
+    report = _recorded_run(store, service, 0.7)
+    audit = store.get_policy_audit(report["run_id"])
+    event = audit["event"]
+    event["provenance"]["dataset_fingerprint"] = "0" * 64
+    with sqlite3.connect(store.path) as connection:
+        connection.execute(
+            "UPDATE ml_policy_evaluation_audit SET event_json = ?, digest_sha256 = ? "
+            "WHERE run_id = ?",
+            (canonical_audit_json(event), audit_digest(event), report["run_id"]),
+        )
+    verification = service.verify_audit(report["run_id"])
+    assert verification["status"] == "INVALID"
+    assert "AUDIT_PROVENANCE_REPORT_MISMATCH" in verification["reasons"]
+
+
 def test_audit_history_api_paginates_filters_and_verifies(monkeypatch, tmp_path):
     store = MLExperimentStore(tmp_path / "ml.sqlite")
     service = MLEvaluationPolicyService(store)
