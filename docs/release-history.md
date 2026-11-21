@@ -1,5 +1,13 @@
 # Release history and V4.0 readiness
 
+## V8.6.0 — Evaluation audit trail and integrity verification
+
+Records privacy-safe local audit events atomically with new policy evaluation runs. Deterministic canonical JSON and SHA-256 digests support paginated/filterable history and verification of event, index, and linked run/report consistency. Verification results distinguish `VERIFIED`, `INVALID`, and `UNVERIFIABLE`; older runs are left unchanged. The digest is not a signature or tamper-proof mechanism, and a privileged database operator could rewrite both records and digests. Audit data covers synthetic ML evaluations only, separate from official MinTIC records. Product V8.6.0 maps to Python/Docker `0.8.6`.
+
+## V8.6.0 — Auditoría de evaluaciones y verificación de integridad
+
+Registra eventos locales privados de auditoría en la misma transacción que nuevas ejecuciones de políticas. JSON canónico y digest SHA-256 deterministas permiten consultar historial paginado/filtrable y verificar consistencia entre evento, índice y ejecución/informe enlazado. Los estados distinguen `VERIFIED`, `INVALID` y `UNVERIFIABLE`; las ejecuciones anteriores permanecen intactas. El digest no es una firma ni un mecanismo invulnerable a modificaciones; un operador privilegiado podría reescribir ambos registros y digests. La auditoría cubre evaluaciones ML sintéticas y se mantiene separada de MinTIC oficial. V8.6.0 corresponde a Python/Docker `0.8.6`.
+
 ## V8.5.0 — Evaluation policy run history — released 2026-11-20
 
 Persists every policy evaluation as an immutable report/run ID with timestamp, experiment and exact policy version, result, criterion evidence, and synthetic provenance. Adds filtered/paginated history, detail and JSON download routes, and comparison limited to compatible experiment/policy/dataset/evaluation/evaluator contexts. Missing criterion evidence is partial; incompatible records include reasons without criterion comparisons. Dashboard history supports filters, detail inspection, report download, and run comparison. No models or experiment records are modified/promoted; MinTIC is excluded. Product V8.5.0 maps to Python/Docker `0.8.5`. Annotated tag [`v8.5.0`](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/tree/v8.5.0) and [GitHub Release](https://github.com/OAlexProgramerO/wifi-tunja-smart-predictor/releases/tag/v8.5.0) target `8aa5b88c19797acbf93dc95d1086b9b439d7f944`. Pytest, Ruff, Black, Compose configuration, and `git diff --check` passed locally.

@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V8.5.0
+# WiFi Tunja Smart Predictor — V8.6.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,7 +9,7 @@
 
 Read this in [Español](README.es.md)
 
-**Release status:** V8.5.0 is released. Python package and Docker image: `0.8.5`. See the [architecture guide](docs/architecture.md), [API reference](docs/api.md), [synthetic drift monitoring guide](docs/synthetic-drift-monitoring.md), [experiment orchestration guide](docs/experiment-orchestration.md), [advanced experiment comparison guide](docs/experiment-comparison.md), [automated evaluation gates guide](docs/experiment-evaluation-gates.md), [reusable evaluation policy guide](docs/evaluation-policy-registry.md), [ML artifact inventory guide](docs/model-artifact-inventory.md), [model run comparison guide](docs/model-run-comparison.md), and [release history](docs/release-history.md).
+**Current version:** Product V8.6.0; Python package and Docker image `0.8.6`. See the [architecture guide](docs/architecture.md), [API reference](docs/api.md), [evaluation audit trail guide](docs/evaluation-audit-trail.md), [synthetic drift monitoring guide](docs/synthetic-drift-monitoring.md), [experiment orchestration guide](docs/experiment-orchestration.md), [advanced experiment comparison guide](docs/experiment-comparison.md), [automated evaluation gates guide](docs/experiment-evaluation-gates.md), [reusable evaluation policy guide](docs/evaluation-policy-registry.md), [ML artifact inventory guide](docs/model-artifact-inventory.md), [model run comparison guide](docs/model-run-comparison.md), and [release history](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.5.0 summarizes provider concentration from reported municipal fixed-internet subscriptions; it does not characterize WiFi traffic or service performance. V7.6.0 adds sanitized architecture diagnostics; V7.7.0 adds privacy-safe operational counters; V7.8.0 inventories persisted synthetic model artifacts; V7.9.0 compares saved candidate evaluations; V8.0.0 monitors feature distribution shifts between synthetic chronological partitions.
 
@@ -24,6 +24,8 @@ V8.3.0 adds configurable metric acceptance gates for compatible saved experiment
 V8.4.0 adds named, reusable evaluation policies with immutable versions, paginated registry APIs, historical version retrieval, and policy-based evaluation reports. The dashboard can create profiles and new versions, browse saved versions, and evaluate completed experiments against a selected policy version. See the [policy registry guide](docs/evaluation-policy-registry.md).
 
 V8.5.0 persists each policy evaluation as an immutable run, adds filtered/paginated history, JSON detail reports, and compatibility-checked run comparison. The dashboard can filter, inspect, and compare saved runs without changing prior policy or experiment records. See the [policy run history guide](docs/evaluation-policy-registry.md).
+
+V8.6.0 records a privacy-safe local audit event for each new policy evaluation, with a deterministic SHA-256 digest, paginated/filterable audit history, and verification of event/run consistency. `VERIFIED` indicates local consistency only; it is not cryptographic authenticity or tamper-proof storage. Older runs without audit events are reported as unverifiable and remain unchanged. See the [evaluation audit trail guide](docs/evaluation-audit-trail.md).
 
 See the [system architecture guide](docs/architecture.md) for the component map, request/data flows, Compose services, and separation between synthetic ML and official MinTIC records.
 
