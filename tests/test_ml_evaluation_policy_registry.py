@@ -350,6 +350,24 @@ def test_dashboard_browses_policy_versions_and_runs_selected_version(monkeypatch
             return {"run_id": run_id, "policy": policy, "criteria": []}
         if path == "/ml-experiments/policy-runs/compare":
             return {"status": "COMPATIBLE", "criterion_comparisons": []}
+        if path.startswith("/ml-experiments/policy-audit?"):
+            return {
+                "items": [
+                    {
+                        "audit_id": "history-1",
+                        "run_id": "history-1",
+                        "timestamp_utc": "2026-11-20T12:00:00+00:00",
+                        "execution_source": "api",
+                        "outcome": "PASSED",
+                        "digest_sha256": "a" * 64,
+                        "verification": {"status": "VERIFIED"},
+                        "event": {"run_id": "history-1"},
+                    }
+                ],
+                "total_count": 1,
+            }
+        if path.endswith("/audit/verify"):
+            return {"status": "VERIFIED", "reasons": [], "explanation": "consistent"}
         if path.startswith("/ml-experiments/policy-runs/"):
             run_id = path.rsplit("/", maxsplit=1)[-1]
             item = next(row for row in history_items if row["run_id"] == run_id)
@@ -393,3 +411,11 @@ def test_dashboard_browses_policy_versions_and_runs_selected_version(monkeypatch
     assert any(
         item.label == "Download evaluation run comparison JSON" for item in app.download_button
     )
+    next(
+        button for button in app.button if button.label == "Load evaluation audit history"
+    ).click().run()
+    assert any(path.startswith("/ml-experiments/policy-audit?") for path, _ in requests)
+    app.text_input(key="ml_policy_audit_verify_run_id").set_value("history-1").run()
+    next(button for button in app.button if button.label == "Verify audit record").click().run()
+    assert any(path.endswith("/policy-runs/history-1/audit/verify") for path, _ in requests)
+    assert any("Audit record status: VERIFIED" in item.value for item in app.success)

@@ -3649,6 +3649,112 @@ def render_ml_experiment_orchestration() -> None:
             mime="application/json",
         )
 
+    st.subheader("Evaluation audit trail")
+    st.caption(
+        "Local SHA-256 digests detect inconsistencies in saved synthetic evaluation records. "
+        "They do not prove authenticity or prevent privileged database rewrites."
+    )
+    with st.form("ml_policy_audit_history_filters"):
+        audit_columns = st.columns(3)
+        audit_policy_id = audit_columns[0].text_input("Audit filter: policy ID")
+        audit_policy_version = audit_columns[1].text_input("Audit filter: policy version")
+        audit_experiment_id = audit_columns[2].text_input("Audit filter: experiment ID")
+        audit_outcome = st.selectbox(
+            "Audit filter: outcome",
+            ["Any outcome", "PASSED", "FAILED", "INCONCLUSIVE"],
+        )
+        audit_source = st.text_input("Audit filter: execution source")
+        audit_dates = st.columns(2)
+        audit_from = audit_dates[0].text_input(
+            "Audit created from (UTC)", placeholder="2026-11-20T00:00:00Z"
+        )
+        audit_to = audit_dates[1].text_input(
+            "Audit created through (UTC)", placeholder="2026-11-21T00:00:00Z"
+        )
+        audit_offset = st.number_input(
+            "Audit history offset", min_value=0, max_value=100_000, value=0, step=20
+        )
+        load_audit = st.form_submit_button("Load evaluation audit history")
+    if load_audit:
+        try:
+            audit_query = {"limit": 20, "offset": int(audit_offset)}
+            for name, value in (
+                ("policy_id", audit_policy_id),
+                ("policy_version", audit_policy_version),
+                ("experiment_id", audit_experiment_id),
+                ("execution_source", audit_source),
+                ("created_from_utc", audit_from),
+                ("created_to_utc", audit_to),
+            ):
+                if value.strip():
+                    audit_query[name] = int(value) if name == "policy_version" else value.strip()
+            if audit_outcome != "Any outcome":
+                audit_query["outcome"] = audit_outcome
+            st.session_state["ml_policy_audit_history_query"] = audit_query
+        except ValueError as exc:
+            st.error(f"Invalid audit history filter: {exc}")
+    audit_query = st.session_state.get("ml_policy_audit_history_query", {"limit": 20, "offset": 0})
+    try:
+        audit_page = main_api_request(f"/ml-experiments/policy-audit?{urlencode(audit_query)}")
+        audit_items = audit_page.get("items", [])
+        st.caption(
+            f"Showing {len(audit_items)} of {audit_page.get('total_count', 0)} audit events."
+        )
+        if audit_items:
+            st.dataframe(
+                pd.DataFrame(
+                    [
+                        {
+                            "Audit ID": item.get("audit_id"),
+                            "Run ID": item.get("run_id"),
+                            "Timestamp (UTC)": item.get("timestamp_utc"),
+                            "Execution source": item.get("execution_source"),
+                            "Outcome": item.get("outcome"),
+                            "Verification": item.get("verification", {}).get("status"),
+                            "Digest": item.get("digest_sha256"),
+                        }
+                        for item in audit_items
+                    ]
+                ),
+                width="stretch",
+                hide_index=True,
+            )
+            audit_run_ids = [item["run_id"] for item in audit_items]
+            selected_audit_run = st.selectbox(
+                "Inspect audit event", audit_run_ids, key="ml_policy_audit_detail_choice"
+            )
+            selected_audit = next(
+                item for item in audit_items if item["run_id"] == selected_audit_run
+            )
+            st.json(selected_audit)
+        else:
+            st.info("No audit events match the selected filters.")
+    except ApiClientError as exc:
+        st.info(f"Evaluation audit history is unavailable: {exc}")
+
+    verify_run_id = st.text_input(
+        "Verify audit by evaluation run ID",
+        key="ml_policy_audit_verify_run_id",
+        help="This also detects evaluation runs whose audit event is missing.",
+    )
+    if st.button("Verify audit record", disabled=not verify_run_id.strip()):
+        try:
+            st.session_state["ml_policy_audit_verification"] = main_api_request(
+                f"/ml-experiments/policy-runs/{verify_run_id.strip()}/audit/verify"
+            )
+        except ApiClientError as exc:
+            st.error(f"Audit verification failed: {exc}")
+    audit_verification = st.session_state.get("ml_policy_audit_verification")
+    if isinstance(audit_verification, dict):
+        status = audit_verification.get("status", "UNVERIFIABLE")
+        if status == "VERIFIED":
+            st.success(f"Audit record status: {status}")
+        elif status == "INVALID":
+            st.error(f"Audit record status: {status}")
+        else:
+            st.warning(f"Audit record status: {status}")
+        st.json(audit_verification)
+
 
 def _render_architecture_diagnostics() -> None:
     """Show sanitized, read-only component diagnostics on the existing About page."""
