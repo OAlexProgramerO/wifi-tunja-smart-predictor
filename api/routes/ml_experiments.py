@@ -28,6 +28,7 @@ from wifi_tunja_smart_predictor.experiments.ml_gates_service import (
     MLExperimentGateService,
 )
 from wifi_tunja_smart_predictor.experiments.ml_orchestrator import MLExperimentOrchestrator
+from wifi_tunja_smart_predictor.experiments.ml_policy_export import render_policy_audit_csv
 from wifi_tunja_smart_predictor.experiments.ml_policy_schemas import (
     MLEvaluationPolicyAuditPage,
     MLEvaluationPolicyAuditVerification,
@@ -311,6 +312,87 @@ def list_ml_policy_evaluation_audit(
     except sqlite3.Error as exc:
         raise HTTPException(status_code=503, detail="Policy audit history is unavailable.") from exc
     return {"items": items, "limit": limit, "offset": offset, "total_count": total}
+
+
+def _export_ml_policy_audit(
+    *,
+    as_csv: bool,
+    policy_id: str | None,
+    policy_version: int | None,
+    experiment_id: str | None,
+    outcome: Literal["PASSED", "FAILED", "INCONCLUSIVE"] | None,
+    execution_source: str | None,
+    created_from_utc: datetime | None,
+    created_to_utc: datetime | None,
+) -> Response:
+    try:
+        export = MLEvaluationPolicyService(_orchestrator().store).export_audits(
+            policy_id=policy_id,
+            policy_version=policy_version,
+            experiment_id=experiment_id,
+            outcome=outcome,
+            execution_source=execution_source,
+            created_from_utc=created_from_utc,
+            created_to_utc=created_to_utc,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except sqlite3.Error as exc:
+        raise HTTPException(status_code=503, detail="Policy audit export is unavailable.") from exc
+    if as_csv:
+        return Response(
+            content=render_policy_audit_csv(export),
+            media_type="text/csv",
+            headers={"Content-Disposition": 'attachment; filename="policy-evaluation-audit.csv"'},
+        )
+    return JSONResponse(
+        content=export,
+        headers={"Content-Disposition": 'attachment; filename="policy-evaluation-audit.json"'},
+    )
+
+
+@router.get("/policy-audit/export.json")
+def export_ml_policy_audit_json(
+    policy_id: str | None = Query(None, min_length=1, max_length=80),
+    policy_version: int | None = Query(None, ge=1),
+    experiment_id: str | None = Query(None, min_length=1, max_length=80),
+    outcome: Literal["PASSED", "FAILED", "INCONCLUSIVE"] | None = Query(None),
+    execution_source: str | None = Query(None, min_length=1, max_length=32),
+    created_from_utc: datetime | None = Query(None),
+    created_to_utc: datetime | None = Query(None),
+) -> Response:
+    return _export_ml_policy_audit(
+        as_csv=False,
+        policy_id=policy_id,
+        policy_version=policy_version,
+        experiment_id=experiment_id,
+        outcome=outcome,
+        execution_source=execution_source,
+        created_from_utc=created_from_utc,
+        created_to_utc=created_to_utc,
+    )
+
+
+@router.get("/policy-audit/export.csv")
+def export_ml_policy_audit_csv(
+    policy_id: str | None = Query(None, min_length=1, max_length=80),
+    policy_version: int | None = Query(None, ge=1),
+    experiment_id: str | None = Query(None, min_length=1, max_length=80),
+    outcome: Literal["PASSED", "FAILED", "INCONCLUSIVE"] | None = Query(None),
+    execution_source: str | None = Query(None, min_length=1, max_length=32),
+    created_from_utc: datetime | None = Query(None),
+    created_to_utc: datetime | None = Query(None),
+) -> Response:
+    return _export_ml_policy_audit(
+        as_csv=True,
+        policy_id=policy_id,
+        policy_version=policy_version,
+        experiment_id=experiment_id,
+        outcome=outcome,
+        execution_source=execution_source,
+        created_from_utc=created_from_utc,
+        created_to_utc=created_to_utc,
+    )
 
 
 @router.get(

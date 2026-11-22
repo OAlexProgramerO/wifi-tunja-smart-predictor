@@ -68,10 +68,9 @@ class MLExperimentStore:
                 "CREATE INDEX IF NOT EXISTS idx_ml_policy_audit_timestamp "
                 "ON ml_policy_evaluation_audit(timestamp_utc DESC)"
             )
-            connection.execute(
-                "CREATE INDEX IF NOT EXISTS idx_ml_policy_audit_policy "
-                "ON ml_policy_evaluation_audit(json_extract(event_json, '$.policy_id'), timestamp_utc DESC)"
-            )
+            # V8.6 indexed JSON directly, which makes a malformed event impossible to read.
+            # Drop that optional index; guarded JSON filters below preserve bad rows as auditable.
+            connection.execute("DROP INDEX IF EXISTS idx_ml_policy_audit_policy")
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS idx_ml_policy_runs_created "
                 "ON ml_policy_evaluation_runs(created_at_utc DESC)"
@@ -314,37 +313,78 @@ class MLExperimentStore:
         created_to_utc: str | None = None,
     ) -> tuple[list[dict[str, Any]], int]:
         """List audit events using safe JSON-field and timestamp filters."""
-        clauses: list[str] = []
-        parameters: list[Any] = []
-        for path, value in (
-            ("$.policy_id", policy_id),
-            ("$.policy_version", policy_version),
-            ("$.experiment_id", experiment_id),
-        ):
-            if value is not None:
-                clauses.append("json_extract(event_json, ?) = ?")
-                parameters.extend((path, value))
-        for column, value in (("outcome", outcome), ("execution_source", execution_source)):
-            if value is not None:
-                clauses.append(f"{column} = ?")
-                parameters.append(value)
-        if created_from_utc is not None:
-            clauses.append("timestamp_utc >= ?")
-            parameters.append(created_from_utc)
-        if created_to_utc is not None:
-            clauses.append("timestamp_utc <= ?")
-            parameters.append(created_to_utc)
-        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        where, parameters = self._policy_audit_filter_sql(
+            policy_id=policy_id,
+            policy_version=policy_version,
+            experiment_id=experiment_id,
+            outcome=outcome,
+            execution_source=execution_source,
+            created_from_utc=created_from_utc,
+            created_to_utc=created_to_utc,
+        )
         with closing(self._connect()) as connection:
             total = connection.execute(
-                f"SELECT COUNT(*) AS total FROM ml_policy_evaluation_audit {where}", parameters
+                f"""SELECT COUNT(*) AS total FROM ml_policy_evaluation_audit AS a
+                LEFT JOIN ml_policy_evaluation_runs AS r ON r.run_id = a.run_id {where}""",
+                parameters,
             ).fetchone()["total"]
             rows = connection.execute(
-                f"""SELECT * FROM ml_policy_evaluation_audit {where}
-                ORDER BY timestamp_utc DESC, audit_id ASC LIMIT ? OFFSET ?""",
+                f"""SELECT a.* FROM ml_policy_evaluation_audit AS a
+                LEFT JOIN ml_policy_evaluation_runs AS r ON r.run_id = a.run_id {where}
+                ORDER BY a.timestamp_utc DESC, a.audit_id ASC LIMIT ? OFFSET ?""",
                 [*parameters, limit, offset],
             ).fetchall()
         return [self._decode_policy_audit(row) for row in rows], int(total)
+
+    @staticmethod
+    def _policy_audit_filter_sql(
+        *,
+        policy_id: str | None,
+        policy_version: int | None,
+        experiment_id: str | None,
+        outcome: str | None,
+        execution_source: str | None,
+        created_from_utc: str | None,
+        created_to_utc: str | None,
+    ) -> tuple[str, list[Any]]:
+        clauses: list[str] = []
+        parameters: list[Any] = []
+        for event_path, report_path, value in (
+            ("$.policy_id", "$.policy.policy_id", policy_id),
+            ("$.policy_version", "$.policy.version", policy_version),
+            ("$.experiment_id", "$.experiment.experiment_id", experiment_id),
+        ):
+            if value is not None:
+                clauses.append("""COALESCE(
+                    CASE WHEN json_valid(a.event_json) THEN json_extract(a.event_json, ?) END,
+                    CASE WHEN json_valid(r.report_json) THEN json_extract(r.report_json, ?) END
+                ) = ?""")
+                parameters.extend((event_path, report_path))
+                parameters.append(value)
+        for column, value in (("outcome", outcome), ("execution_source", execution_source)):
+            if value is not None:
+                clauses.append(f"a.{column} = ?")
+                parameters.append(value)
+        if created_from_utc is not None:
+            clauses.append("a.timestamp_utc >= ?")
+            parameters.append(created_from_utc)
+        if created_to_utc is not None:
+            clauses.append("a.timestamp_utc <= ?")
+            parameters.append(created_to_utc)
+        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        return where, parameters
+
+    def list_all_policy_audits(self, **filters: Any) -> list[dict[str, Any]]:
+        """Read one filtered, deterministically ordered export snapshot."""
+        where, parameters = self._policy_audit_filter_sql(**filters)
+        with closing(self._connect()) as connection:
+            rows = connection.execute(
+                f"""SELECT a.* FROM ml_policy_evaluation_audit AS a
+                LEFT JOIN ml_policy_evaluation_runs AS r ON r.run_id = a.run_id {where}
+                ORDER BY a.timestamp_utc DESC, a.audit_id ASC""",
+                parameters,
+            ).fetchall()
+        return [self._decode_policy_audit(row) for row in rows]
 
     def get_policy_audit_by_id(self, audit_id: str) -> dict[str, Any] | None:
         """Retrieve an audit event by audit ID, including possible orphan records."""

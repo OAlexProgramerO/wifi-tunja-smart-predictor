@@ -13,6 +13,7 @@ from wifi_tunja_smart_predictor.experiments.ml_policy_audit import (
     audit_digest,
     build_policy_audit_event,
 )
+from wifi_tunja_smart_predictor.experiments.ml_policy_export import build_policy_audit_export
 from wifi_tunja_smart_predictor.experiments.ml_policy_run_comparison import (
     compare_policy_evaluation_run_records,
 )
@@ -335,6 +336,60 @@ class MLEvaluationPolicyService:
             verification = self.verify_audit(audit["run_id"])
             items.append({**audit, "verification": verification})
         return items, total
+
+    def export_audits(
+        self,
+        *,
+        policy_id: str | None = None,
+        policy_version: int | None = None,
+        experiment_id: str | None = None,
+        outcome: str | None = None,
+        execution_source: str | None = None,
+        created_from_utc: datetime | None = None,
+        created_to_utc: datetime | None = None,
+    ) -> dict[str, Any]:
+        """Export all matching events from one ordered snapshot with fresh verification."""
+        start = self._normalize_utc(created_from_utc)
+        end = self._normalize_utc(created_to_utc)
+        if start is not None and end is not None and start > end:
+            raise ValueError("created_from_utc must not be later than created_to_utc.")
+        filters = {
+            key: value
+            for key, value in {
+                "policy_id": policy_id,
+                "policy_version": policy_version,
+                "experiment_id": experiment_id,
+                "outcome": outcome,
+                "execution_source": execution_source,
+                "created_from_utc": start,
+                "created_to_utc": end,
+            }.items()
+            if value is not None
+        }
+        audits = self.store.list_all_policy_audits(
+            policy_id=policy_id,
+            policy_version=policy_version,
+            experiment_id=experiment_id,
+            outcome=outcome,
+            execution_source=execution_source,
+            created_from_utc=start,
+            created_to_utc=end,
+        )
+        verified = []
+        for audit in audits:
+            verification = self.verify_audit(audit["run_id"])
+            export_audit = audit
+            if audit.get("decode_status") != "READABLE":
+                run = self.store.get_policy_evaluation_run(audit["run_id"])
+                report = run.get("report") if isinstance(run, dict) else None
+                if isinstance(report, dict):
+                    recovered_event = build_policy_audit_event(
+                        report,
+                        execution_source=audit.get("execution_source") or "unknown",
+                    )
+                    export_audit = {**audit, "event": recovered_event}
+            verified.append({**export_audit, "verification": verification})
+        return build_policy_audit_export(verified, filters)
 
     @staticmethod
     def _run_summary(run: dict[str, Any]) -> dict[str, Any]:
