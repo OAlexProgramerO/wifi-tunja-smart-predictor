@@ -1,5 +1,11 @@
 # Changelog
 
+## V8.7.0 — Audit Evidence Export
+
+Adds filtered JSON and CSV downloads for the full matching set of V8.6 policy audit events, with export schema/timestamp/filter/count metadata, stable ordering, original digest values, and per-record verification state. A metadata row preserves CSV export metadata when no events match. Exports use an allowlist, include all matching records independent of dashboard pagination, and do not modify audit events or runs. Malformed historical event JSON remains exportable as `UNVERIFIABLE` when linked run metadata is available. Product V8.7.0 maps to Python and Docker `0.8.7`; synthetic ML audit records remain separate from official MinTIC descriptive data.
+
+Agrega descargas JSON y CSV filtradas con el conjunto completo de eventos V8.6 coincidentes, metadatos de esquema/fecha/filtros/cantidad, orden estable, digests originales y estado de verificación por registro. Una fila de metadatos conserva la información del CSV cuando no hay eventos. Las exportaciones usan una lista permitida, incluyen todos los resultados independientemente de la paginación del dashboard y no modifican eventos ni ejecuciones. El JSON histórico malformado sigue siendo exportable como `UNVERIFIABLE` cuando existe metadato de ejecución relacionado. V8.7.0 corresponde a Python y Docker `0.8.7`; la auditoría ML sintética continúa separada de los datos descriptivos oficiales MinTIC.
+
 ## V8.6.0 — Evaluation Audit Trail and Integrity Verification
 
 Adds one privacy-safe local audit event atomically for each new policy evaluation run, with deterministic canonical JSON and a SHA-256 consistency digest. Adds filtered/paginated audit history and endpoints to verify an event against its digest and linked run/report, plus dashboard inspection. Verification distinguishes `VERIFIED`, `INVALID`, and `UNVERIFIABLE`; older V8.5 records are not modified and have no audit event. The digest detects local inconsistencies but does not prove authenticity or prevent a privileged database operator from rewriting both event and digest. Synthetic ML audit data remains separate from official MinTIC records. Product V8.6.0 maps to Python and Docker `0.8.6`.

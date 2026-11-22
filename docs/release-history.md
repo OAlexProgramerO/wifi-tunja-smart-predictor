@@ -1,5 +1,13 @@
 # Release history and V4.0 readiness
 
+## V8.7.0 — Audit evidence export
+
+Adds filtered JSON/CSV downloads for all matching local policy audit events, with export metadata, deterministic record order, original digests, and verification states. Explicit allowlisting excludes unknown event properties, and dashboard exports are independent of history pagination. Exports are read-only and preserve the V8.6 consistency-only digest limitation. Product V8.7.0 maps to Python/Docker `0.8.7`; synthetic audit events remain separate from official MinTIC data.
+
+## V8.7.0 — Exportación de evidencias de auditoría
+
+Agrega descargas JSON/CSV filtradas de todos los eventos locales de auditoría de políticas coincidentes, con metadatos, orden determinista, digests originales y estados de verificación. La lista explícita de campos excluye propiedades desconocidas; las descargas del dashboard no dependen de la paginación del historial. Las exportaciones son de solo lectura y conservan el límite de consistencia local del digest V8.6. V8.7.0 corresponde a Python/Docker `0.8.7`; los eventos sintéticos permanecen separados de los datos oficiales MinTIC.
+
 ## V8.6.0 — Evaluation audit trail and integrity verification
 
 Records privacy-safe local audit events atomically with new policy evaluation runs. Deterministic canonical JSON and SHA-256 digests support paginated/filterable history and verification of event, index, and linked run/report consistency. Verification results distinguish `VERIFIED`, `INVALID`, and `UNVERIFIABLE`; older runs are left unchanged. The digest is not a signature or tamper-proof mechanism, and a privileged database operator could rewrite both records and digests. Audit data covers synthetic ML evaluations only, separate from official MinTIC records. Product V8.6.0 maps to Python/Docker `0.8.6`.
