@@ -236,3 +236,22 @@ def test_v86_audit_database_migration_preserves_rows_and_allows_bad_json_inspect
         )
     assert saved == (event_json, "digest")
     assert "idx_ml_policy_audit_policy" not in indexes
+
+
+def test_export_reports_unverifiable_when_event_and_linked_report_are_malformed(
+    tmp_path, monkeypatch
+):
+    store, service, _, _, report, _ = _setup_exports(tmp_path, monkeypatch)
+    with sqlite3.connect(store.path) as connection:
+        connection.execute(
+            "UPDATE ml_policy_evaluation_audit SET event_json = ? WHERE run_id = ?",
+            ("not-json", report["run_id"]),
+        )
+        connection.execute(
+            "UPDATE ml_policy_evaluation_runs SET report_json = ? WHERE run_id = ?",
+            ("not-json", report["run_id"]),
+        )
+    export = service.export_audits()
+    assert export["record_count"] == 1
+    assert export["records"][0]["verification_status"] == "UNVERIFIABLE"
+    assert export["records"][0]["run_id"] == report["run_id"]

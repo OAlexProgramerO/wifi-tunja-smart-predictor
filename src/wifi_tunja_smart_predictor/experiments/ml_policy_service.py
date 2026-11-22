@@ -380,7 +380,10 @@ class MLEvaluationPolicyService:
             verification = self.verify_audit(audit["run_id"])
             export_audit = audit
             if audit.get("decode_status") != "READABLE":
-                run = self.store.get_policy_evaluation_run(audit["run_id"])
+                try:
+                    run = self.store.get_policy_evaluation_run(audit["run_id"])
+                except (ValueError, TypeError):
+                    run = None
                 report = run.get("report") if isinstance(run, dict) else None
                 if isinstance(report, dict):
                     recovered_event = build_policy_audit_event(
