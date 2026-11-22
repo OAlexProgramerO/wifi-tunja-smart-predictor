@@ -19,6 +19,7 @@ from wifi_tunja_smart_predictor.analytics.geospatial import analyze_geospatial_d
 from wifi_tunja_smart_predictor.api_client import (
     ApiClientError,
     assistant_api_request,
+    main_api_download,
     main_api_request,
     main_api_text_request,
 )
@@ -3691,6 +3692,7 @@ def render_ml_experiment_orchestration() -> None:
             if audit_outcome != "Any outcome":
                 audit_query["outcome"] = audit_outcome
             st.session_state["ml_policy_audit_history_query"] = audit_query
+            st.session_state.pop("ml_policy_audit_exports", None)
         except ValueError as exc:
             st.error(f"Invalid audit history filter: {exc}")
     audit_query = st.session_state.get("ml_policy_audit_history_query", {"limit": 20, "offset": 0})
@@ -3729,6 +3731,38 @@ def render_ml_experiment_orchestration() -> None:
             st.json(selected_audit)
         else:
             st.info("No audit events match the selected filters.")
+        export_query = {
+            key: value for key, value in audit_query.items() if key not in {"limit", "offset"}
+        }
+        export_suffix = f"?{urlencode(export_query)}" if export_query else ""
+        st.caption("Exports include every record matching these filters, independent of this page.")
+        if st.button("Prepare complete filtered audit exports"):
+            try:
+                st.session_state["ml_policy_audit_exports"] = {
+                    "json": main_api_download(
+                        f"/ml-experiments/policy-audit/export.json{export_suffix}"
+                    ),
+                    "csv": main_api_download(
+                        f"/ml-experiments/policy-audit/export.csv{export_suffix}"
+                    ),
+                }
+            except ApiClientError as exc:
+                st.error(f"Audit export could not be prepared: {exc}")
+        exports = st.session_state.get("ml_policy_audit_exports")
+        if isinstance(exports, dict):
+            download_columns = st.columns(2)
+            download_columns[0].download_button(
+                "Download complete audit JSON",
+                data=exports["json"],
+                file_name="policy-evaluation-audit.json",
+                mime="application/json",
+            )
+            download_columns[1].download_button(
+                "Download complete audit CSV",
+                data=exports["csv"],
+                file_name="policy-evaluation-audit.csv",
+                mime="text/csv",
+            )
     except ApiClientError as exc:
         st.info(f"Evaluation audit history is unavailable: {exc}")
 

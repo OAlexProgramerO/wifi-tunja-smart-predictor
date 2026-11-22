@@ -300,6 +300,7 @@ def test_dashboard_browses_policy_versions_and_runs_selected_version(monkeypatch
     from app import dashboard
 
     requests = []
+    download_requests = []
     records = [
         {
             "experiment_id": f"run-{index}",
@@ -379,6 +380,11 @@ def test_dashboard_browses_policy_versions_and_runs_selected_version(monkeypatch
         return {"experiment_id": path.split("/")[-1], "status": "COMPLETED"}
 
     monkeypatch.setattr(dashboard, "main_api_request", fake_request)
+    monkeypatch.setattr(
+        dashboard,
+        "main_api_download",
+        lambda path: download_requests.append(path) or path.encode("utf-8"),
+    )
     app = AppTest.from_string(
         "from app.dashboard import _render_page\n"
         "_render_page('Experiment Orchestration', 'MLExperiments')\n",
@@ -415,6 +421,14 @@ def test_dashboard_browses_policy_versions_and_runs_selected_version(monkeypatch
         button for button in app.button if button.label == "Load evaluation audit history"
     ).click().run()
     assert any(path.startswith("/ml-experiments/policy-audit?") for path, _ in requests)
+    next(
+        button for button in app.button if button.label == "Prepare complete filtered audit exports"
+    ).click().run()
+    assert any(path.endswith("/export.json") for path in download_requests)
+    assert any(path.endswith("/export.csv") for path in download_requests)
+    assert all("limit=" not in path and "offset=" not in path for path in download_requests)
+    assert any(item.label == "Download complete audit JSON" for item in app.download_button)
+    assert any(item.label == "Download complete audit CSV" for item in app.download_button)
     app.text_input(key="ml_policy_audit_verify_run_id").set_value("history-1").run()
     next(button for button in app.button if button.label == "Verify audit record").click().run()
     assert any(path.endswith("/policy-runs/history-1/audit/verify") for path, _ in requests)

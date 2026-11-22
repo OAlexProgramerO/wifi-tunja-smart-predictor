@@ -15,6 +15,7 @@ DEFAULT_API_URLS = {
 }
 REQUEST_TIMEOUT_SECONDS = 5
 MAX_TEXT_REPORT_BYTES = 1_000_000
+DOWNLOAD_TIMEOUT_SECONDS = 30
 
 
 class ApiClientError(RuntimeError):
@@ -122,6 +123,26 @@ def main_api_text_request(path: str, *, timeout: float = REQUEST_TIMEOUT_SECONDS
         ) from None
     except UnicodeDecodeError:
         raise ApiClientError("Main API returned an invalid text response.") from None
+
+
+def main_api_download(path: str, *, timeout: float = DOWNLOAD_TIMEOUT_SECONDS) -> bytes:
+    """Fetch a complete main API export response as bytes for a download button."""
+    if not path.startswith("/") or path.startswith("//") or ".." in path.split("/"):
+        raise ValueError("path must be an application route beginning with one slash")
+    try:
+        url = api_base_url("main") + path
+    except ValueError as exc:
+        raise ApiClientError(str(exc)) from None
+    request = Request(url, headers={"Accept": "application/json, text/csv"}, method="GET")
+    try:
+        with urlopen(request, timeout=timeout) as response:
+            return response.read()
+    except HTTPError as exc:
+        raise ApiClientError(f"Main API returned HTTP {exc.code}.") from None
+    except (URLError, TimeoutError, OSError):
+        raise ApiClientError(
+            "Main API is unavailable at the configured MAIN_API_URL endpoint."
+        ) from None
 
 
 def assistant_api_request(path: str, payload: dict | None = None) -> dict:

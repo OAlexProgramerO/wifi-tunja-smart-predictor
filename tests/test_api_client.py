@@ -99,3 +99,30 @@ def test_main_api_text_request_reads_markdown_and_enforces_response_limit(monkey
     )
     with pytest.raises(api_client.ApiClientError, match="exceeds the configured size limit"):
         api_client.main_api_text_request("/report")
+
+
+def test_main_api_download_returns_complete_bytes_without_json_decoding(monkeypatch):
+    received = {}
+
+    class FakeResponse(io.BytesIO):
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_):
+            self.close()
+
+    def fake_urlopen(request, timeout):
+        received["request"] = request
+        received["timeout"] = timeout
+        return FakeResponse(b"row_type,audit_id\naudit_record,123\n")
+
+    monkeypatch.setattr(api_client, "urlopen", fake_urlopen)
+    monkeypatch.setenv("MAIN_API_URL", "http://main-api:8000")
+    content = api_client.main_api_download("/ml-experiments/policy-audit/export.csv?outcome=FAILED")
+    assert content == b"row_type,audit_id\naudit_record,123\n"
+    assert received["request"].get_method() == "GET"
+    assert received["request"].get_header("Accept") == "application/json, text/csv"
+    assert received["timeout"] == api_client.DOWNLOAD_TIMEOUT_SECONDS
+
+    with pytest.raises(ValueError, match="path must be an application route"):
+        api_client.main_api_download("//invalid")
