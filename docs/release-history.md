@@ -1,5 +1,13 @@
 # Release history and V4.0 readiness
 
+## V8.8.0 — Offline audit export verification
+
+Adds a downloadable manifest for JSON/CSV audit exports and a standard-library CLI to verify files offline. The manifest hashes one deterministic canonical record array shared by both file formats, not the incidental JSON/CSV serialization. Verification checks schema, filters, count, and digest with `VALID`, `INVALID`, or `UNSUPPORTED` results. No database or network access is needed, and no saved audits or V8.6 digests are changed. Local digests are not authenticity or tamper-proof evidence. Product V8.8.0 maps to Python/Docker `0.8.8`; audit data remains synthetic and separate from official MinTIC records.
+
+## V8.8.0 — Verificación offline de exportaciones de auditoría
+
+Agrega un manifiesto descargable para exportaciones JSON/CSV de auditoría y un CLI de biblioteca estándar que verifica archivos offline. El manifiesto calcula el hash de un arreglo de registros canónico determinista compartido por ambos formatos, no de su serialización JSON/CSV incidental. La verificación comprueba esquema, filtros, cantidad y digest con resultados `VALID`, `INVALID` o `UNSUPPORTED`. No requiere base de datos ni red y no modifica auditorías guardadas ni digests V8.6. Los digests locales no prueban autenticidad ni invulnerabilidad a cambios. V8.8.0 corresponde a Python/Docker `0.8.8`; la auditoría sigue sintética y separada de MinTIC oficial.
+
 ## V8.7.0 — Audit evidence export
 
 Adds filtered JSON/CSV downloads for all matching local policy audit events, with export metadata, deterministic record order, original digests, and verification states. Explicit allowlisting excludes unknown event properties, and dashboard exports are independent of history pagination. Exports are read-only and preserve the V8.6 consistency-only digest limitation. Product V8.7.0 maps to Python/Docker `0.8.7`; synthetic audit events remain separate from official MinTIC data.

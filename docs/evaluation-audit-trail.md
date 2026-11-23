@@ -31,3 +31,5 @@ The dashboard exposes these states, event details, filters, and a run-ID verific
 This is a local consistency check, not a digital signature or proof of origin. It does not make SQLite tamper-proof. A privileged database operator can rewrite both an event and its digest, or replace the whole database. No external audit service, key, or paid dependency is used. A `VERIFIED` result means only that the current local event digest and linked data are consistent under the documented encoding.
 
 V8.7 adds filtered JSON/CSV downloads of complete matching audit history. See the [audit evidence export guide](evaluation-audit-export.md) for fields, metadata, and ordering.
+
+V8.8 adds per-file manifests and an offline CLI that validates an export's structure and canonical record digest. It does not require access to the application database. See the [offline export verification guide](evaluation-audit-export.md).

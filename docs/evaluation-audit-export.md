@@ -6,6 +6,7 @@ V8.7 adds read-only exports for the V8.6 local policy-evaluation audit trail. Ex
 
 - `GET /ml-experiments/policy-audit/export.json`
 - `GET /ml-experiments/policy-audit/export.csv`
+- `GET /ml-experiments/policy-audit/export.manifest.json?export_format=json|csv`
 
 Both endpoints accept optional `policy_id`, `policy_version`, `experiment_id`, `outcome`, `execution_source`, `created_from_utc`, and `created_to_utc` filters. Date bounds must be ordered, UTC-aware ISO timestamps. Invalid ranges return HTTP 422. Results sort by timestamp descending and audit ID ascending for timestamp ties. JSON uses a stable record ordering; its generation timestamp naturally differs between export requests.
 
@@ -15,8 +16,29 @@ The CSV uses fixed columns. Its first data row has `row_type=metadata` and conta
 
 The existing dashboard audit filters control both downloads. “Prepare complete filtered audit exports” requests the JSON and CSV files with filters only; the visible history `limit` and `offset` are deliberately omitted.
 
+## Offline manifest and CLI verification (V8.8)
+
+The dashboard prepares a separate manifest for each exact JSON/CSV response it downloads, then offers all four files: export JSON, JSON manifest, export CSV, and CSV manifest. The API manifest endpoint uses the same filters and returns a downloadable manifest for `export_format=json` or `export_format=csv`. When requesting an API export and manifest separately, use the same filters; if matching records change between requests, verification reports a mismatch. The dashboard-generated manifests are based directly on the downloaded bytes.
+
+Example file pairs and commands:
+
+```powershell
+python scripts/verify_audit_export.py policy-evaluation-audit.json policy-evaluation-audit.json.manifest.json
+python scripts/verify_audit_export.py policy-evaluation-audit.csv policy-evaluation-audit.csv.manifest.json
+```
+
+The verifier reads only local files and uses the standard library. It does not start FastAPI/Streamlit, open SQLite, or access the network. It exits `0` for `VALID`, `1` for `INVALID`, and `2` for `UNSUPPORTED`; it prints the status and a concise reason. Malformed files/manifests, mismatched filters/counts, and record digest changes are invalid. Unknown manifest/export schema versions, format, or canonicalization versions are unsupported.
+
+### Canonical records digest
+
+JSON and CSV records are first parsed into the same privacy-allowlisted record objects. The ordered `records` array is serialized as UTF-8 with recursively sorted object keys, compact separators, unescaped Unicode, and non-finite numbers rejected. This is equivalent to `json.dumps(records, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False).encode("utf-8")`. Array order is preserved. The manifest stores lowercase SHA-256 of those bytes and identifies this rule as `json-sort-keys-compact-utf8-v1`. CSV quoting, line endings, and JSON indentation do not affect the digest; changing a record or record order does.
+
+The manifest includes `manifest_schema_version`, `export_format`, `canonicalization`, `generated_at_utc`, `record_count`, `applied_filters`, and `records_sha256`. Its timestamp is not included in the records digest. Verification also checks the manifest format, filter metadata, schema, and count against the export.
+
 ## Integrity and data boundaries
 
 Exported digest strings preserve V8.6 verification semantics and values; exports do not regenerate, update, or repair stored events or digests. `VERIFIED`, `INVALID`, and `UNVERIFIABLE` remain distinct. A local digest supports consistency checks but is neither cryptographic authenticity nor tamper-proof storage; a privileged database operator could rewrite both an event and its digest.
 
 The exporter emits an explicit field allowlist and does not serialize entire run reports or raw event dictionaries. It does not export chat messages, request bodies, credentials, personal data, or sensitive headers. The reports cover synthetic ML policy evaluations only; official MinTIC descriptive connectivity data is not included.
+
+An offline `VALID` result checks only that the current export records match the adjacent manifest under the documented canonicalization. It is not a signature, proof of origin, or tamper-proof guarantee: someone able to replace both files can also replace the manifest digest.

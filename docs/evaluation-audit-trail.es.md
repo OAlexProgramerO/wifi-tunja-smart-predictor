@@ -31,3 +31,5 @@ El dashboard presenta estados, detalles, filtros y verificación por ID de ejecu
 Esto es una comprobación local de consistencia, no una firma digital ni una prueba de origen. No vuelve SQLite invulnerable a modificaciones. Un operador con privilegios sobre la base puede reescribir tanto el evento como su digest o reemplazar toda la base. No se usa servicio de auditoría externo, llave ni dependencia paga. `VERIFIED` solo significa que el digest local actual y los datos enlazados son consistentes con la codificación documentada.
 
 V8.7 agrega descargas JSON/CSV filtradas de todo el historial de auditoría coincidente. Consulte la [guía de exportación de evidencias](evaluation-audit-export.es.md) para conocer campos, metadatos y orden.
+
+V8.8 agrega manifiestos por archivo y un CLI offline que valida la estructura de la exportación y el digest canónico de registros. No requiere acceso a la base de datos de la aplicación. Consulte la [guía de verificación offline](evaluation-audit-export.es.md).
