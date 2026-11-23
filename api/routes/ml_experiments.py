@@ -29,6 +29,9 @@ from wifi_tunja_smart_predictor.experiments.ml_gates_service import (
 )
 from wifi_tunja_smart_predictor.experiments.ml_orchestrator import MLExperimentOrchestrator
 from wifi_tunja_smart_predictor.experiments.ml_policy_export import render_policy_audit_csv
+from wifi_tunja_smart_predictor.experiments.ml_policy_export_manifest import (
+    create_policy_audit_manifest,
+)
 from wifi_tunja_smart_predictor.experiments.ml_policy_schemas import (
     MLEvaluationPolicyAuditPage,
     MLEvaluationPolicyAuditVerification,
@@ -392,6 +395,44 @@ def export_ml_policy_audit_csv(
         execution_source=execution_source,
         created_from_utc=created_from_utc,
         created_to_utc=created_to_utc,
+    )
+
+
+@router.get("/policy-audit/export.manifest.json")
+def create_ml_policy_audit_export_manifest(
+    export_format: Literal["json", "csv"] = Query(...),
+    policy_id: str | None = Query(None, min_length=1, max_length=80),
+    policy_version: int | None = Query(None, ge=1),
+    experiment_id: str | None = Query(None, min_length=1, max_length=80),
+    outcome: Literal["PASSED", "FAILED", "INCONCLUSIVE"] | None = Query(None),
+    execution_source: str | None = Query(None, min_length=1, max_length=32),
+    created_from_utc: datetime | None = Query(None),
+    created_to_utc: datetime | None = Query(None),
+) -> JSONResponse:
+    try:
+        export = MLEvaluationPolicyService(_orchestrator().store).export_audits(
+            policy_id=policy_id,
+            policy_version=policy_version,
+            experiment_id=experiment_id,
+            outcome=outcome,
+            execution_source=execution_source,
+            created_from_utc=created_from_utc,
+            created_to_utc=created_to_utc,
+        )
+        manifest = create_policy_audit_manifest(export_format, export)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except sqlite3.Error as exc:
+        raise HTTPException(
+            status_code=503, detail="Policy audit manifest is unavailable."
+        ) from exc
+    return JSONResponse(
+        content=manifest,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="policy-evaluation-audit.{export_format}.manifest.json"'
+            )
+        },
     )
 
 

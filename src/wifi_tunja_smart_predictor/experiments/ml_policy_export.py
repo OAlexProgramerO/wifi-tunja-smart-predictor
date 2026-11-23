@@ -38,6 +38,11 @@ _PROVENANCE_FIELDS = (
     "evaluation_split",
     "evaluation_window",
 )
+_EVALUATION_WINDOW_FIELDS = ("start", "end", "rows", "cutoff")
+
+
+def _empty_to_none(value: Any) -> Any:
+    return None if value == "" else value
 
 
 def build_policy_audit_export(
@@ -55,23 +60,42 @@ def build_policy_audit_export(
         event = audit.get("event") if isinstance(audit.get("event"), dict) else {}
         provenance = event.get("provenance")
         provenance = provenance if isinstance(provenance, dict) else {}
+        window = provenance.get("evaluation_window")
+        safe_window = (
+            {
+                key: _empty_to_none(window.get(key))
+                for key in _EVALUATION_WINDOW_FIELDS
+                if key in window
+            }
+            if isinstance(window, dict)
+            else None
+        )
         verification = audit.get("verification")
         verification = verification if isinstance(verification, dict) else {}
         records.append(
             {
-                "audit_id": audit.get("audit_id"),
-                "run_id": audit.get("run_id"),
-                "event_run_id": event.get("run_id"),
-                "experiment_id": event.get("experiment_id", audit.get("experiment_id")),
-                "policy_id": event.get("policy_id", audit.get("policy_id")),
+                "audit_id": _empty_to_none(audit.get("audit_id")),
+                "run_id": _empty_to_none(audit.get("run_id")),
+                "event_run_id": _empty_to_none(event.get("run_id")),
+                "experiment_id": _empty_to_none(
+                    event.get("experiment_id", audit.get("experiment_id"))
+                ),
+                "policy_id": _empty_to_none(event.get("policy_id", audit.get("policy_id"))),
                 "policy_version": event.get("policy_version", audit.get("policy_version")),
-                "timestamp_utc": audit.get("timestamp_utc"),
-                "execution_source": audit.get("execution_source"),
-                "outcome": audit.get("outcome"),
-                "digest_sha256": audit.get("digest_sha256"),
+                "timestamp_utc": _empty_to_none(audit.get("timestamp_utc")),
+                "execution_source": _empty_to_none(audit.get("execution_source")),
+                "outcome": _empty_to_none(audit.get("outcome")),
+                "digest_sha256": _empty_to_none(audit.get("digest_sha256")),
                 "verification_status": verification.get("status", "UNVERIFIABLE"),
                 "verification_reasons": sorted(verification.get("reasons", [])),
-                "provenance": {key: provenance.get(key) for key in _PROVENANCE_FIELDS},
+                "provenance": {
+                    key: (
+                        safe_window
+                        if key == "evaluation_window"
+                        else _empty_to_none(provenance.get(key))
+                    )
+                    for key in _PROVENANCE_FIELDS
+                },
             }
         )
     return {

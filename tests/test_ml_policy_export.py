@@ -10,6 +10,7 @@ from datetime import datetime
 from types import SimpleNamespace
 from urllib.parse import urlencode
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -20,6 +21,10 @@ from wifi_tunja_smart_predictor.experiments.ml_policy_audit import audit_digest
 from wifi_tunja_smart_predictor.experiments.ml_policy_export import (
     build_policy_audit_export,
     render_policy_audit_csv,
+)
+from wifi_tunja_smart_predictor.experiments.ml_policy_export_manifest import (
+    audit_records_sha256,
+    parse_policy_audit_export,
 )
 from wifi_tunja_smart_predictor.experiments.ml_policy_service import MLEvaluationPolicyService
 from wifi_tunja_smart_predictor.experiments.ml_store import MLExperimentStore
@@ -55,7 +60,14 @@ def test_export_builder_has_stable_schema_timestamp_order_and_safe_allowlist():
                 "policy_id": "policy-b",
                 "policy_version": 1,
                 "sensitive_token": "must-not-export",
-                "provenance": {"task": "classification", "private_email": "x@example.com"},
+                "provenance": {
+                    "task": "classification",
+                    "private_email": "x@example.com",
+                    "evaluation_window": {
+                        "start": "2026-01-01",
+                        "contact_email": "person@example.com",
+                    },
+                },
             },
             "digest_sha256": "a" * 64,
             "verification": {"status": "INVALID", "reasons": ["Z_REASON", "A_REASON"]},
@@ -82,6 +94,8 @@ def test_export_builder_has_stable_schema_timestamp_order_and_safe_allowlist():
     encoded = json.dumps(export, ensure_ascii=False)
     assert "must-not-export" not in encoded
     assert "private_email" not in encoded
+    assert "person@example.com" not in encoded
+    assert "contact_email" not in encoded
 
     csv_rows = list(csv.DictReader(io.StringIO(render_policy_audit_csv(export))))
     assert csv_rows[0]["row_type"] == "metadata"
@@ -255,3 +269,39 @@ def test_export_reports_unverifiable_when_event_and_linked_report_are_malformed(
     assert export["record_count"] == 1
     assert export["records"][0]["verification_status"] == "UNVERIFIABLE"
     assert export["records"][0]["run_id"] == report["run_id"]
+
+
+@pytest.mark.parametrize("export_format", ["json", "csv"])
+def test_api_manifest_download_includes_matching_filter_digest_and_headers(
+    tmp_path, monkeypatch, export_format
+):
+    _, _, policy, experiment_id, _, client = _setup_exports(tmp_path, monkeypatch)
+    query = urlencode(
+        {
+            "export_format": export_format,
+            "policy_id": policy["policy_id"],
+            "experiment_id": experiment_id,
+        }
+    )
+    response = client.get(f"/ml-experiments/policy-audit/export.manifest.json?{query}")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/json")
+    assert (
+        f'filename="policy-evaluation-audit.{export_format}.manifest.json"'
+        in response.headers["content-disposition"]
+    )
+    manifest = response.json()
+    assert manifest["manifest_schema_version"] == "1.0"
+    assert manifest["export_format"] == export_format
+    assert manifest["record_count"] == 1
+    assert manifest["applied_filters"] == {
+        "experiment_id": experiment_id,
+        "policy_id": policy["policy_id"],
+    }
+
+    exported_response = client.get(
+        f"/ml-experiments/policy-audit/export.{export_format}?"
+        + urlencode({"policy_id": policy["policy_id"], "experiment_id": experiment_id})
+    )
+    parsed = parse_policy_audit_export(exported_response.content, export_format)
+    assert manifest["records_sha256"] == audit_records_sha256(parsed["records"])
