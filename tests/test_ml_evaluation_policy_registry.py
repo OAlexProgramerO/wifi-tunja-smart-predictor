@@ -295,6 +295,8 @@ def test_policy_api_creates_lists_retrieves_versions_and_evaluates(monkeypatch, 
 
 
 def test_dashboard_browses_policy_versions_and_runs_selected_version(monkeypatch):
+    import json
+
     from streamlit.testing.v1 import AppTest
 
     from app import dashboard
@@ -379,11 +381,53 @@ def test_dashboard_browses_policy_versions_and_runs_selected_version(monkeypatch
             return {"experiment": {"experiment_id": path.split("/")[2]}}
         return {"experiment_id": path.split("/")[-1], "status": "COMPLETED"}
 
+    audit_export = {
+        "export_schema_version": "1.0",
+        "generated_at_utc": "2026-11-22T12:00:00+00:00",
+        "applied_filters": {},
+        "record_count": 1,
+        "records": [
+            {
+                "audit_id": "history-1",
+                "run_id": "history-1",
+                "event_run_id": "history-1",
+                "experiment_id": "run-1",
+                "policy_id": "policy-1",
+                "policy_version": 1,
+                "timestamp_utc": "2026-11-22T12:00:00+00:00",
+                "execution_source": "api",
+                "outcome": "PASSED",
+                "digest_sha256": "a" * 64,
+                "verification_status": "VERIFIED",
+                "verification_reasons": [],
+                "provenance": {
+                    "project_version": "0.8.8",
+                    "task": "classification",
+                    "dataset_kind": "synthetic",
+                    "dataset_fingerprint_algorithm": "sha256",
+                    "dataset_fingerprint": "b" * 64,
+                    "evaluation_split": "validation",
+                    "evaluation_window": None,
+                },
+            }
+        ],
+    }
+
+    from wifi_tunja_smart_predictor.experiments.ml_policy_export import (
+        render_policy_audit_csv,
+    )
+
+    def fake_download(path):
+        download_requests.append(path)
+        if path.endswith("export.json"):
+            return json.dumps(audit_export).encode("utf-8")
+        return render_policy_audit_csv(audit_export).encode("utf-8")
+
     monkeypatch.setattr(dashboard, "main_api_request", fake_request)
     monkeypatch.setattr(
         dashboard,
         "main_api_download",
-        lambda path: download_requests.append(path) or path.encode("utf-8"),
+        fake_download,
     )
     app = AppTest.from_string(
         "from app.dashboard import _render_page\n"
@@ -429,6 +473,8 @@ def test_dashboard_browses_policy_versions_and_runs_selected_version(monkeypatch
     assert all("limit=" not in path and "offset=" not in path for path in download_requests)
     assert any(item.label == "Download complete audit JSON" for item in app.download_button)
     assert any(item.label == "Download complete audit CSV" for item in app.download_button)
+    assert any(item.label == "Download JSON export manifest" for item in app.download_button)
+    assert any(item.label == "Download CSV export manifest" for item in app.download_button)
     app.text_input(key="ml_policy_audit_verify_run_id").set_value("history-1").run()
     next(button for button in app.button if button.label == "Verify audit record").click().run()
     assert any(path.endswith("/policy-runs/history-1/audit/verify") for path, _ in requests)

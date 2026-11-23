@@ -56,6 +56,9 @@ from wifi_tunja_smart_predictor.connectivity.mintic import (
 )
 from wifi_tunja_smart_predictor.data.loader import load_raw_dataset
 from wifi_tunja_smart_predictor.exceptions import DatasetNotFoundError, ModelNotFoundError
+from wifi_tunja_smart_predictor.experiments.ml_policy_export_manifest import (
+    create_policy_audit_manifest_from_bytes,
+)
 from wifi_tunja_smart_predictor.reporting.service import (
     build_experiment_comparison_report,
     render_experiment_comparison_markdown,
@@ -3738,15 +3741,25 @@ def render_ml_experiment_orchestration() -> None:
         st.caption("Exports include every record matching these filters, independent of this page.")
         if st.button("Prepare complete filtered audit exports"):
             try:
+                json_export = main_api_download(
+                    f"/ml-experiments/policy-audit/export.json{export_suffix}"
+                )
+                csv_export = main_api_download(
+                    f"/ml-experiments/policy-audit/export.csv{export_suffix}"
+                )
+                json_manifest = create_policy_audit_manifest_from_bytes(json_export, "json")
+                csv_manifest = create_policy_audit_manifest_from_bytes(csv_export, "csv")
                 st.session_state["ml_policy_audit_exports"] = {
-                    "json": main_api_download(
-                        f"/ml-experiments/policy-audit/export.json{export_suffix}"
-                    ),
-                    "csv": main_api_download(
-                        f"/ml-experiments/policy-audit/export.csv{export_suffix}"
-                    ),
+                    "json": json_export,
+                    "csv": csv_export,
+                    "json_manifest": json.dumps(
+                        json_manifest, indent=2, ensure_ascii=False, allow_nan=False
+                    ).encode("utf-8"),
+                    "csv_manifest": json.dumps(
+                        csv_manifest, indent=2, ensure_ascii=False, allow_nan=False
+                    ).encode("utf-8"),
                 }
-            except ApiClientError as exc:
+            except (ApiClientError, ValueError) as exc:
                 st.error(f"Audit export could not be prepared: {exc}")
         exports = st.session_state.get("ml_policy_audit_exports")
         if isinstance(exports, dict):
@@ -3757,11 +3770,23 @@ def render_ml_experiment_orchestration() -> None:
                 file_name="policy-evaluation-audit.json",
                 mime="application/json",
             )
+            download_columns[0].download_button(
+                "Download JSON export manifest",
+                data=exports["json_manifest"],
+                file_name="policy-evaluation-audit.json.manifest.json",
+                mime="application/json",
+            )
             download_columns[1].download_button(
                 "Download complete audit CSV",
                 data=exports["csv"],
                 file_name="policy-evaluation-audit.csv",
                 mime="text/csv",
+            )
+            download_columns[1].download_button(
+                "Download CSV export manifest",
+                data=exports["csv_manifest"],
+                file_name="policy-evaluation-audit.csv.manifest.json",
+                mime="application/json",
             )
     except ApiClientError as exc:
         st.info(f"Evaluation audit history is unavailable: {exc}")
