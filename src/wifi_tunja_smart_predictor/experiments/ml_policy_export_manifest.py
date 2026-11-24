@@ -393,11 +393,37 @@ def verify_policy_audit_export_files(
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point; uses only local files and the standard library."""
     import argparse
+    import sys
+
+    from wifi_tunja_smart_predictor.experiments.ml_policy_export_history import (
+        VerificationHistoryError,
+        build_verification_history_record,
+        history_cli_main,
+        save_verification_history,
+    )
+
+    arguments = list(sys.argv[1:] if argv is None else argv)
+    if arguments and arguments[0] == "history":
+        return history_cli_main(arguments[1:])
 
     parser = argparse.ArgumentParser(description="Verify a downloaded policy audit export offline.")
     parser.add_argument("export_file", type=Path, help="Downloaded JSON or CSV audit export")
     parser.add_argument("manifest_file", type=Path, help="Matching audit export manifest JSON")
-    args = parser.parse_args(argv)
+    parser.add_argument(
+        "--save-history",
+        type=Path,
+        metavar="SQLITE_FILE",
+        help="Opt in to saving metadata-only verification history locally",
+    )
+    args = parser.parse_args(arguments)
     result = verify_policy_audit_export_files(args.export_file, args.manifest_file)
     print(f"{result['status']}: {result['message']}")
+    if args.save_history is not None:
+        try:
+            record = build_verification_history_record(args.export_file, args.manifest_file, result)
+            save_verification_history(args.save_history, record)
+            print(f"Saved verification ID: {record['verification_id']}")
+        except (VerificationHistoryError, OSError) as exc:
+            print(f"History error: {exc}", file=sys.stderr)
+            return 3
     return {"VALID": 0, "INVALID": 1, "UNSUPPORTED": 2}[result["status"]]
