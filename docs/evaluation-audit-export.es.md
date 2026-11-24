@@ -27,7 +27,7 @@ python scripts/verify_audit_export.py policy-evaluation-audit.json policy-evalua
 python scripts/verify_audit_export.py policy-evaluation-audit.csv policy-evaluation-audit.csv.manifest.json
 ```
 
-El verificador solo lee archivos locales y usa la biblioteca estándar. No inicia FastAPI/Streamlit, no abre SQLite ni accede a la red. Termina con código `0` para `VALID`, `1` para `INVALID` y `2` para `UNSUPPORTED`; imprime el estado y una razón breve. Archivos/manifiestos malformados, filtros/cantidades distintas y cambios en el digest de registros son inválidos. Versiones desconocidas de manifiesto/exportación, formatos o canonicalización no son compatibles.
+El verificador solo lee archivos locales y usa la biblioteca estándar. Sin `--save-history`, no inicia FastAPI/Streamlit, no abre SQLite ni accede a la red. Termina con código `0` para `VALID`, `1` para `INVALID` y `2` para `UNSUPPORTED`; imprime el estado y una razón breve. Archivos/manifiestos malformados, filtros/cantidades distintas y cambios en el digest de registros son inválidos. Versiones desconocidas de manifiesto/exportación, formatos o canonicalización no son compatibles.
 
 ### Digest de registros canónico
 
@@ -42,3 +42,18 @@ Los digests exportados conservan los valores y semántica de verificación de V8
 El exportador usa una lista explícita de campos y no serializa informes completos ni diccionarios de eventos sin filtrar. No exporta mensajes de chat, cuerpos de solicitudes, credenciales, datos personales ni cabeceras sensibles. Los informes solo cubren evaluaciones de políticas ML sintéticas; no incluyen los datos descriptivos oficiales de conectividad MinTIC.
 
 Un resultado offline `VALID` solo comprueba que los registros de la exportación coinciden con el manifiesto bajo la canonicalización documentada. No es una firma, prueba de origen ni garantía contra modificaciones: quien pueda reemplazar ambos archivos también puede cambiar el digest del manifiesto.
+
+## Historial local de verificaciones (V8.9)
+
+Guardar es opcional. Añada `--save-history RUTA.sqlite` a una verificación para persistir una fila local:
+
+```powershell
+python scripts/verify_audit_export.py policy-evaluation-audit.json policy-evaluation-audit.json.manifest.json --save-history verification-history.sqlite
+python scripts/verify_audit_export.py history list --store verification-history.sqlite --result VALID --limit 25 --offset 0
+python scripts/verify_audit_export.py history list --store verification-history.sqlite --from-utc 2026-11-01T00:00:00Z --to-utc 2026-11-30T23:59:59Z
+python scripts/verify_audit_export.py history show ID_VERIFICACION --store verification-history.sqlite
+```
+
+El JSON del historial tiene esquema fijo, claves ordenadas y orden estable por fecha de verificación descendente y luego ID ascendente; `limit`/`offset` permiten paginar de forma estable. Cada fila contiene solo ID y fecha de verificación, nombre base y formato de exportación, versión de esquema del manifiesto, cantidad de registros, digest y resultado. El contenido de los registros exportados nunca se copia a SQLite ni a los informes. El comando normal sigue sin guardar historial salvo que se proporcione `--save-history`. Los errores de consulta del historial devuelven código `3`. Para listar se requiere un almacén existente; un almacén SQLite ausente, dañado o incompatible produce un error claro y nunca se recrea, reinicia ni migra silenciosamente. El historial contiene metadatos locales y no es un sistema de eventos de auditoría adicional.
+
+El historial corresponde solo a evidencias de evaluación de políticas ML sintéticas y no incluye registros descriptivos oficiales MinTIC.

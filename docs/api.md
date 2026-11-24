@@ -55,6 +55,8 @@ V8.7 adds `GET /ml-experiments/policy-audit/export.json` and `/export.csv`. Both
 
 V8.8 adds `GET /ml-experiments/policy-audit/export.manifest.json?export_format=json|csv`, returning an attachment manifest with schema version, format, generation timestamp, record count, applied filters, canonicalization identifier, and SHA-256 over the canonical parsed `records` array. The dashboard creates each manifest from the exact downloaded file bytes and provides separate downloads for JSON and CSV manifests. Offline CLI verification is available as `python scripts/verify_audit_export.py <export-file> <manifest-file>`. It uses no database or network, checks metadata/structure and digest, and exits 0=`VALID`, 1=`INVALID`, 2=`UNSUPPORTED`. Canonicalization sorts object keys recursively and uses compact UTF-8 JSON while preserving array order; CSV punctuation and JSON whitespace are not hashed. A manifest digest is a local consistency check, not proof of authenticity or tamper-proof storage. See [Offline audit export verification](evaluation-audit-export.md).
 
+V8.9 adds an opt-in local SQLite catalog to the same offline CLI: pass `--save-history history.sqlite` to a verification, then use `history list --store history.sqlite` or `history show <verification-id> --store history.sqlite`. This catalog is local CLI persistence, not an HTTP API or audit-event system. See the audit export guide for filters, pagination, schema and error behavior.
+
 Start with `uvicorn api.main:app --reload --port 8000`; interactive OpenAPI is at `/docs`.
 
 - `GET /health` reports that the API process is responding and returns the installed application version. It does not claim models are usable.

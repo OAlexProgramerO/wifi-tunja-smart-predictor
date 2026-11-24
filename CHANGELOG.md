@@ -1,5 +1,11 @@
 # Changelog
 
+## V8.9.0 — Audit Verification History
+
+Adds opt-in local SQLite history for offline export verifications. The CLI can save a verification and list, filter, paginate, or inspect metadata-only records with deterministic JSON output. History stores the verification ID/time, export filename and format, manifest schema, record count, digest, and result; it never copies exported records. Missing, corrupted, or unsupported stores produce explicit errors without resetting or discarding data. Product V8.9.0 maps to Python/Docker `0.8.9`; synthetic ML audit evidence remains separate from official MinTIC descriptive data.
+
+Agrega historial SQLite local y opcional para verificaciones offline de exportaciones. El CLI permite guardar una verificación y listar, filtrar, paginar o consultar registros que contienen solo metadatos, con salida JSON determinista. El historial guarda identificador/fecha de verificación, nombre y formato del archivo, esquema del manifiesto, cantidad de registros, digest y resultado; nunca copia los registros exportados. Los almacenes ausentes, dañados o incompatibles generan errores explícitos sin reiniciarse ni descartar datos. V8.9.0 corresponde a Python/Docker `0.8.9`; las evidencias ML sintéticas siguen separadas de los datos descriptivos oficiales MinTIC.
+
 ## V8.8.0 — Offline Audit Export Verification
 
 Adds a downloadable versioned manifest for JSON/CSV audit exports and a standard-library CLI verifier that works offline. Manifests record format, generation timestamp, record count, filters, canonicalization identifier, and SHA-256 over the canonical ordered records array (not JSON whitespace or CSV formatting). Verification reports `VALID`, `INVALID`, or `UNSUPPORTED` with exit codes 0, 1, or 2. The dashboard provides a separate manifest for each exact downloaded file; the API also exposes a manifest endpoint. No stored audit events, runs, policy versions, or V8.6 digests are changed. Digests are local consistency checks, not authenticity or tamper-proof guarantees. Product V8.8.0 maps to Python/Docker `0.8.8`; audited data remains synthetic-only and separate from official MinTIC records.

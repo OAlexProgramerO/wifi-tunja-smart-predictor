@@ -27,7 +27,7 @@ python scripts/verify_audit_export.py policy-evaluation-audit.json policy-evalua
 python scripts/verify_audit_export.py policy-evaluation-audit.csv policy-evaluation-audit.csv.manifest.json
 ```
 
-The verifier reads only local files and uses the standard library. It does not start FastAPI/Streamlit, open SQLite, or access the network. It exits `0` for `VALID`, `1` for `INVALID`, and `2` for `UNSUPPORTED`; it prints the status and a concise reason. Malformed files/manifests, mismatched filters/counts, and record digest changes are invalid. Unknown manifest/export schema versions, format, or canonicalization versions are unsupported.
+The verifier reads only local files and uses the standard library. Without `--save-history`, it does not start FastAPI/Streamlit, open SQLite, or access the network. It exits `0` for `VALID`, `1` for `INVALID`, and `2` for `UNSUPPORTED`; it prints the status and a concise reason. Malformed files/manifests, mismatched filters/counts, and record digest changes are invalid. Unknown manifest/export schema versions, format, or canonicalization versions are unsupported.
 
 ### Canonical records digest
 
@@ -42,3 +42,18 @@ Exported digest strings preserve V8.6 verification semantics and values; exports
 The exporter emits an explicit field allowlist and does not serialize entire run reports or raw event dictionaries. It does not export chat messages, request bodies, credentials, personal data, or sensitive headers. The reports cover synthetic ML policy evaluations only; official MinTIC descriptive connectivity data is not included.
 
 An offline `VALID` result checks only that the current export records match the adjacent manifest under the documented canonicalization. It is not a signature, proof of origin, or tamper-proof guarantee: someone able to replace both files can also replace the manifest digest.
+
+## Local verification history (V8.9)
+
+Saving is opt-in. Add `--save-history PATH.sqlite` to a verification to persist one local history row:
+
+```powershell
+python scripts/verify_audit_export.py policy-evaluation-audit.json policy-evaluation-audit.json.manifest.json --save-history verification-history.sqlite
+python scripts/verify_audit_export.py history list --store verification-history.sqlite --result VALID --limit 25 --offset 0
+python scripts/verify_audit_export.py history list --store verification-history.sqlite --from-utc 2026-11-01T00:00:00Z --to-utc 2026-11-30T23:59:59Z
+python scripts/verify_audit_export.py history show VERIFICATION_ID --store verification-history.sqlite
+```
+
+History JSON has a fixed schema, sorted object keys, and stable ordering by verification time descending then ID ascending; `limit`/`offset` provide stable pagination. Rows contain only the verification ID and time, export basename and format, manifest schema version, record count, digest, and result. Exported record contents are never copied into SQLite or history reports. The normal verification command remains stateless unless `--save-history` is supplied. History inspection errors return exit code `3`. Listing requires an existing store; a missing, corrupted, or unsupported SQLite store produces a clear error and is never silently recreated, reset, or migrated. History is local metadata and is not an additional audit-event system.
+
+The export history relates to synthetic ML policy evaluation evidence only and does not include official MinTIC descriptive records.
