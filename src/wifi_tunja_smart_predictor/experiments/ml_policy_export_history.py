@@ -122,7 +122,7 @@ def _validate_record(record: dict[str, Any]) -> None:
     for key in ("export_format", "manifest_schema_version", "digest_sha256"):
         if record[key] is not None and not isinstance(record[key], str):
             raise VerificationHistoryError(f"{key} must be text or null.")
-    if record["export_format"] not in _FORMATS:
+    if record["export_format"] is not None and record["export_format"] not in _FORMATS:
         raise VerificationHistoryError("export_format is not supported for the history catalog.")
     schema_version = record["manifest_schema_version"]
     if schema_version is not None and not _SCHEMA_VERSION_RE.fullmatch(schema_version):
@@ -142,7 +142,10 @@ def _open_store(path: str | Path, *, create: bool) -> sqlite3.Connection:
     if create:
         store.parent.mkdir(parents=True, exist_ok=True)
     try:
-        connection = sqlite3.connect(str(store))
+        if create:
+            connection = sqlite3.connect(str(store))
+        else:
+            connection = sqlite3.connect(f"{store.resolve().as_uri()}?mode=ro", uri=True)
         check = connection.execute("PRAGMA quick_check").fetchone()
         if not check or check[0] != "ok":
             raise VerificationHistoryError("Verification history database is corrupted.")
@@ -265,6 +268,70 @@ def list_verification_history(
     }
 
 
+def summarize_verification_history(
+    path: str | Path,
+    *,
+    result: str | None = None,
+    from_utc: str | None = None,
+    to_utc: str | None = None,
+) -> dict[str, Any]:
+    """Aggregate metadata for all matching rows without returning individual records."""
+    if result is not None and result not in _RESULTS:
+        raise VerificationHistoryError("result filter must be VALID, INVALID, or UNSUPPORTED.")
+    start = _date_filter(from_utc, "from_utc")
+    end = _date_filter(to_utc, "to_utc")
+    if start and end and start > end:
+        raise VerificationHistoryError("from_utc must not be later than to_utc.")
+    where: list[str] = []
+    params: list[Any] = []
+    if result:
+        where.append("result = ?")
+        params.append(result)
+    if start:
+        where.append("timestamp_utc >= ?")
+        params.append(start)
+    if end:
+        where.append("timestamp_utc <= ?")
+        params.append(end)
+    clause = f" WHERE {' AND '.join(where)}" if where else ""
+    connection = _open_store(path, create=False)
+    try:
+        total, earliest, latest, missing_format = connection.execute(
+            "SELECT COUNT(*), MIN(timestamp_utc), MAX(timestamp_utc), "
+            f"SUM(CASE WHEN export_format IS NULL THEN 1 ELSE 0 END) FROM verification_history{clause}",
+            params,
+        ).fetchone()
+        result_rows = connection.execute(
+            f"SELECT result, COUNT(*) FROM verification_history{clause} GROUP BY result",
+            params,
+        ).fetchall()
+        format_rows = connection.execute(
+            (
+                f"SELECT export_format, COUNT(*) FROM verification_history{clause} "
+                "AND export_format IS NOT NULL GROUP BY export_format ORDER BY export_format"
+                if clause
+                else "SELECT export_format, COUNT(*) FROM verification_history "
+                "WHERE export_format IS NOT NULL GROUP BY export_format ORDER BY export_format"
+            ),
+            params,
+        ).fetchall()
+    except sqlite3.DatabaseError as exc:
+        raise VerificationHistoryError(f"Cannot summarize verification history: {exc}") from exc
+    finally:
+        connection.close()
+    result_counts = {status: 0 for status in sorted(_RESULTS)}
+    result_counts.update({status: count for status, count in result_rows})
+    return {
+        "history_schema_version": HISTORY_SCHEMA_VERSION,
+        "filters": {"result": result, "from_utc": start, "to_utc": end},
+        "total_records": total,
+        "result_counts": result_counts,
+        "format_counts": {export_format: count for export_format, count in format_rows},
+        "missing_format_count": missing_format or 0,
+        "date_range_utc": {"from": earliest, "to": latest} if total else None,
+    }
+
+
 def inspect_verification_history(path: str | Path, verification_id: str) -> dict[str, Any]:
     """Retrieve one metadata-only verification result by ID."""
     connection = _open_store(path, create=False)
@@ -304,6 +371,11 @@ def history_cli_main(argv: list[str]) -> int:
     listing.add_argument("--to-utc")
     listing.add_argument("--limit", type=int, default=50)
     listing.add_argument("--offset", type=int, default=0)
+    summary = commands.add_parser("summary", help="Summarize matching verification results")
+    summary.add_argument("--store", required=True, type=Path)
+    summary.add_argument("--result", choices=sorted(_RESULTS))
+    summary.add_argument("--from-utc")
+    summary.add_argument("--to-utc")
     detail = commands.add_parser("show", help="Inspect one saved verification result")
     detail.add_argument("verification_id")
     detail.add_argument("--store", required=True, type=Path)
@@ -317,6 +389,13 @@ def history_cli_main(argv: list[str]) -> int:
                 to_utc=args.to_utc,
                 limit=args.limit,
                 offset=args.offset,
+            )
+        elif args.command == "summary":
+            report = summarize_verification_history(
+                args.store,
+                result=args.result,
+                from_utc=args.from_utc,
+                to_utc=args.to_utc,
             )
         else:
             report = inspect_verification_history(args.store, args.verification_id)
