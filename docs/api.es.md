@@ -18,6 +18,8 @@ V8.8 agrega `GET /ml-experiments/policy-audit/export.manifest.json?export_format
 
 V8.9 agrega al mismo CLI offline un catálogo SQLite local y optativo: use `--save-history historial.sqlite` al verificar y luego `history list --store historial.sqlite` o `history show <id-verificacion> --store historial.sqlite`. Este catálogo es persistencia local del CLI, no una API HTTP ni un sistema de eventos de auditoría. Consulte la guía de exportación para filtros, paginación, esquema y errores.
 
+V8.10 agrega `history summary --store historial.sqlite` para agrupar metadatos guardados por resultado y formato. Acepta `--result`, `--from-utc` y `--to-utc`, devuelve JSON determinista con la cantidad coincidente y el rango de fechas y usa SQLite en modo de solo lectura. No informa rendimiento de modelos ni redes. Consulte la guía de exportación para ver el esquema JSON y ejemplos.
+
 La API principal corre en el puerto 8000; Swagger está disponible en `/docs`.
 
 - `GET /architecture/diagnostics` devuelve responsabilidades de componentes y comprobaciones de estado sanitizadas. Distingue servicios sin verificar/datos no disponibles de fallos confirmados. No inspecciona el estado del daemon Docker; consulte la [guía de arquitectura](architecture.md).

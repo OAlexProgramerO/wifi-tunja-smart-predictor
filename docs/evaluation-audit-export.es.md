@@ -51,8 +51,11 @@ Guardar es opcional. Añada `--save-history RUTA.sqlite` a una verificación par
 python scripts/verify_audit_export.py policy-evaluation-audit.json policy-evaluation-audit.json.manifest.json --save-history verification-history.sqlite
 python scripts/verify_audit_export.py history list --store verification-history.sqlite --result VALID --limit 25 --offset 0
 python scripts/verify_audit_export.py history list --store verification-history.sqlite --from-utc 2026-11-01T00:00:00Z --to-utc 2026-11-30T23:59:59Z
+python scripts/verify_audit_export.py history summary --store verification-history.sqlite --from-utc 2026-11-01T00:00:00Z --result VALID
 python scripts/verify_audit_export.py history show ID_VERIFICACION --store verification-history.sqlite
 ```
+
+`history summary` acepta `--result`, `--from-utc` y `--to-utc`; agrega todas las filas coincidentes sin paginación. Sus campos JSON deterministas son `history_schema_version`, `filters`, `total_records`, `result_counts`, `format_counts`, `missing_format_count` y `date_range_utc` (`null` si no hay coincidencias). Los conteos por resultado siempre incluyen los tres estados. Los formatos nulos/desconocidos se informan aparte. Este resumen usa solo metadatos: las cantidades no miden calidad del modelo, rendimiento WiFi ni confiabilidad del servicio. Resumen/listado/detalle abren SQLite en modo de solo lectura.
 
 El JSON del historial tiene esquema fijo, claves ordenadas y orden estable por fecha de verificación descendente y luego ID ascendente; `limit`/`offset` permiten paginar de forma estable. Cada fila contiene solo ID y fecha de verificación, nombre base y formato de exportación, versión de esquema del manifiesto, cantidad de registros, digest y resultado. El contenido de los registros exportados nunca se copia a SQLite ni a los informes. El comando normal sigue sin guardar historial salvo que se proporcione `--save-history`. Los errores de consulta del historial devuelven código `3`. Para listar se requiere un almacén existente; un almacén SQLite ausente, dañado o incompatible produce un error claro y nunca se recrea, reinicia ni migra silenciosamente. El historial contiene metadatos locales y no es un sistema de eventos de auditoría adicional.
 

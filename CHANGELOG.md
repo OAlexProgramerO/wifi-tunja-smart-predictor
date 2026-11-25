@@ -1,5 +1,11 @@
 # Changelog
 
+## V8.10.0 — Verification History Summary Reports
+
+Adds read-only, deterministic JSON summaries over saved V8.9 verification history. The CLI groups matching metadata by result and available export format, reports missing format metadata, matched total, and time range, and accepts result/date filters. It never exposes record contents or changes stored history. Summary counts do not represent model quality, WiFi performance, or service reliability. Product V8.10.0 maps to Python/Docker `0.8.10`; synthetic ML verification history stays separate from official MinTIC descriptions.
+
+Agrega resúmenes JSON deterministas y de solo lectura sobre el historial V8.9 guardado. El CLI agrupa metadatos coincidentes por resultado y formato disponible, informa formatos faltantes, total y rango de fechas, y acepta filtros de resultado/fecha. Nunca expone el contenido de registros ni modifica el historial. Los conteos no representan calidad del modelo, rendimiento WiFi ni confiabilidad del servicio. V8.10.0 corresponde a Python/Docker `0.8.10`; el historial de verificaciones ML sintéticas sigue separado de las descripciones oficiales MinTIC.
+
 ## V8.9.0 — Audit Verification History
 
 Adds opt-in local SQLite history for offline export verifications. The CLI can save a verification and list, filter, paginate, or inspect metadata-only records with deterministic JSON output. History stores the verification ID/time, export filename and format, manifest schema, record count, digest, and result; it never copies exported records. Missing, corrupted, or unsupported stores produce explicit errors without resetting or discarding data. Product V8.9.0 maps to Python/Docker `0.8.9`; synthetic ML audit evidence remains separate from official MinTIC descriptive data.

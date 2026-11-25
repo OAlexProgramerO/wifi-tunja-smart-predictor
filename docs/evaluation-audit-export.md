@@ -51,8 +51,11 @@ Saving is opt-in. Add `--save-history PATH.sqlite` to a verification to persist 
 python scripts/verify_audit_export.py policy-evaluation-audit.json policy-evaluation-audit.json.manifest.json --save-history verification-history.sqlite
 python scripts/verify_audit_export.py history list --store verification-history.sqlite --result VALID --limit 25 --offset 0
 python scripts/verify_audit_export.py history list --store verification-history.sqlite --from-utc 2026-11-01T00:00:00Z --to-utc 2026-11-30T23:59:59Z
+python scripts/verify_audit_export.py history summary --store verification-history.sqlite --from-utc 2026-11-01T00:00:00Z --result VALID
 python scripts/verify_audit_export.py history show VERIFICATION_ID --store verification-history.sqlite
 ```
+
+`history summary` accepts `--result`, `--from-utc`, and `--to-utc`; it aggregates every matching row without pagination. Its deterministic JSON fields are `history_schema_version`, `filters`, `total_records`, `result_counts`, `format_counts`, `missing_format_count`, and `date_range_utc` (`null` when no rows match). Result counts always include all three statuses. Format counts omit unknown/null formats, which are reported separately. This summary is metadata only: counts do not measure model quality, WiFi performance, or service reliability. Summary/list/detail use SQLite read-only mode.
 
 History JSON has a fixed schema, sorted object keys, and stable ordering by verification time descending then ID ascending; `limit`/`offset` provide stable pagination. Rows contain only the verification ID and time, export basename and format, manifest schema version, record count, digest, and result. Exported record contents are never copied into SQLite or history reports. The normal verification command remains stateless unless `--save-history` is supplied. History inspection errors return exit code `3`. Listing requires an existing store; a missing, corrupted, or unsupported SQLite store produces a clear error and is never silently recreated, reset, or migrated. History is local metadata and is not an additional audit-event system.
 

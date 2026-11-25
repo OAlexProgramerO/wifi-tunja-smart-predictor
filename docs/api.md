@@ -57,6 +57,8 @@ V8.8 adds `GET /ml-experiments/policy-audit/export.manifest.json?export_format=j
 
 V8.9 adds an opt-in local SQLite catalog to the same offline CLI: pass `--save-history history.sqlite` to a verification, then use `history list --store history.sqlite` or `history show <verification-id> --store history.sqlite`. This catalog is local CLI persistence, not an HTTP API or audit-event system. See the audit export guide for filters, pagination, schema and error behavior.
 
+V8.10 adds `history summary --store history.sqlite` to aggregate saved metadata by result and format. It supports `--result`, `--from-utc`, and `--to-utc`, returns deterministic JSON with the matching count and timestamp range, and uses SQLite read-only mode. It does not report model or network performance. See the audit export guide for the JSON schema and examples.
+
 Start with `uvicorn api.main:app --reload --port 8000`; interactive OpenAPI is at `/docs`.
 
 - `GET /health` reports that the API process is responding and returns the installed application version. It does not claim models are usable.

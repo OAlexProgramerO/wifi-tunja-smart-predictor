@@ -1,5 +1,13 @@
 # Release history and V4.0 readiness
 
+## V8.10.0 — Verification history summary reports
+
+Adds read-only deterministic JSON aggregation of local verification history by result and available export format, with matched totals, missing-format counts, date range, and result/date filters. Summary operations open the existing SQLite store read-only and expose metadata only. Counts do not indicate model quality, WiFi performance, or operational reliability. Product V8.10.0 maps to Python/Docker `0.8.10`; verification history remains separate from official MinTIC descriptive data.
+
+## V8.10.0 — Informes resumen del historial de verificaciones
+
+Agrega agregación JSON determinista y de solo lectura del historial local por resultado y formato disponible, con totales, formatos faltantes, rango de fechas y filtros de resultado/fecha. Los resúmenes abren SQLite en modo de solo lectura y exponen solo metadatos. Los conteos no indican calidad del modelo, rendimiento WiFi ni confiabilidad operativa. V8.10.0 corresponde a Python/Docker `0.8.10`; el historial sigue separado de los datos descriptivos oficiales MinTIC.
+
 ## V8.9.0 — Audit verification history
 
 Adds opt-in local SQLite storage and deterministic listing, filtering, pagination, and inspection for export-verification metadata. Stored rows never contain exported audit records. Missing, corrupted, and unsupported stores return explicit errors without being reset. Product V8.9.0 maps to Python/Docker `0.8.9`; ML evidence remains synthetic-only and separate from official MinTIC descriptions.
