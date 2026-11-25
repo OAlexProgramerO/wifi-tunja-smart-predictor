@@ -21,6 +21,7 @@ from wifi_tunja_smart_predictor.experiments.ml_policy_export_history import (
     list_verification_history,
     render_history_json,
     save_verification_history,
+    summarize_verification_history,
 )
 from wifi_tunja_smart_predictor.experiments.ml_policy_export_manifest import (
     create_policy_audit_manifest,
@@ -44,7 +45,7 @@ def _write_pair(tmp_path: Path, export_format: str = "json"):
                     "policy_id": "policy-1",
                     "policy_version": 1,
                     "provenance": {
-                        "project_version": "0.8.9",
+                        "project_version": "0.8.10",
                         "task": "classification",
                         "dataset_kind": "synthetic",
                         "dataset_fingerprint_algorithm": "sha256",
@@ -129,6 +130,55 @@ def test_history_lists_filters_stably_and_supports_pagination(tmp_path):
     assert detail["record"] == records[0]
 
 
+def test_summary_aggregates_result_format_missing_metadata_and_date_range(tmp_path):
+    store = tmp_path / "history.sqlite"
+    records = [
+        _record(tmp_path, "VALID", "2026-11-24T10:00:00+00:00"),
+        _record(tmp_path, "INVALID", "2026-11-24T11:00:00+00:00"),
+        _record(tmp_path, "UNSUPPORTED", "2026-11-24T12:00:00+00:00"),
+    ]
+    records[1]["export_format"] = "csv"
+    records[2]["export_format"] = None
+    for record in records:
+        save_verification_history(store, record)
+    stored_bytes = store.read_bytes()
+    report = summarize_verification_history(store)
+    assert store.read_bytes() == stored_bytes
+    assert report["total_records"] == 3
+    assert report["result_counts"] == {"INVALID": 1, "UNSUPPORTED": 1, "VALID": 1}
+    assert report["format_counts"] == {"csv": 1, "json": 1}
+    assert report["missing_format_count"] == 1
+    assert report["date_range_utc"] == {
+        "from": "2026-11-24T10:00:00+00:00",
+        "to": "2026-11-24T12:00:00+00:00",
+    }
+    valid_only = summarize_verification_history(store, result="VALID")
+    assert valid_only["total_records"] == 1
+    assert valid_only["result_counts"] == {"INVALID": 0, "UNSUPPORTED": 0, "VALID": 1}
+    date_only = summarize_verification_history(
+        store,
+        from_utc="2026-11-24T10:30:00Z",
+        to_utc="2026-11-24T11:30:00Z",
+    )
+    assert date_only["result_counts"]["INVALID"] == 1
+    serialized = render_history_json(report)
+    assert serialized == render_history_json(report)
+    assert "audit-1" not in serialized
+    assert "experiment-1" not in serialized
+    assert "verification_reasons" not in serialized
+
+
+def test_summary_of_empty_history_and_no_matching_rows(tmp_path):
+    store = tmp_path / "history.sqlite"
+    save_verification_history(store, _record(tmp_path, "VALID", "2026-11-24T10:00:00+00:00"))
+    empty = summarize_verification_history(store, result="UNSUPPORTED")
+    assert empty["total_records"] == 0
+    assert empty["result_counts"] == {"INVALID": 0, "UNSUPPORTED": 0, "VALID": 0}
+    assert empty["format_counts"] == {}
+    assert empty["missing_format_count"] == 0
+    assert empty["date_range_utc"] is None
+
+
 def test_history_reports_missing_corrupted_and_unsupported_stores(tmp_path):
     missing = tmp_path / "missing.sqlite"
     with pytest.raises(VerificationHistoryError, match="does not exist"):
@@ -137,6 +187,8 @@ def test_history_reports_missing_corrupted_and_unsupported_stores(tmp_path):
     corrupted.write_bytes(b"not a database")
     with pytest.raises(VerificationHistoryError, match="Cannot open|corrupted"):
         list_verification_history(corrupted)
+    with pytest.raises(VerificationHistoryError, match="Cannot open|corrupted"):
+        summarize_verification_history(corrupted)
     unsupported = tmp_path / "unsupported.sqlite"
     with sqlite3.connect(unsupported) as connection:
         connection.execute("PRAGMA user_version = 99")
@@ -197,6 +249,14 @@ def test_cli_saves_lists_inspects_and_reports_history_errors(tmp_path):
     listed_records = json.loads(listed.stdout)["records"]
     assert any(row["verification_id"] == verification_id for row in listed_records)
     assert any(row["result"] == "INVALID" for row in listed_records)
+    summary = subprocess.run(
+        [sys.executable, str(script), "history", "summary", "--store", str(store)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert summary.returncode == 0
+    assert json.loads(summary.stdout)["total_records"] == 2
     shown = subprocess.run(
         [sys.executable, str(script), "history", "show", verification_id, "--store", str(store)],
         capture_output=True,
