@@ -38,7 +38,7 @@ def _export():
             "policy_id": "policy-1",
             "policy_version": 1,
             "provenance": {
-                "project_version": "0.8.9",
+                "project_version": "0.8.10",
                 "task": "classification",
                 "dataset_kind": "synthetic",
                 "dataset_fingerprint_algorithm": "sha256",

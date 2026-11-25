@@ -401,7 +401,7 @@ def test_dashboard_browses_policy_versions_and_runs_selected_version(monkeypatch
                 "verification_status": "VERIFIED",
                 "verification_reasons": [],
                 "provenance": {
-                    "project_version": "0.8.9",
+                    "project_version": "0.8.10",
                     "task": "classification",
                     "dataset_kind": "synthetic",
                     "dataset_fingerprint_algorithm": "sha256",
