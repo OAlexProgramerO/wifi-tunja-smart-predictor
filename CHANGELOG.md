@@ -1,5 +1,11 @@
 # Changelog
 
+## V8.11.0 — CSV Export for Verification History Summaries
+
+Adds opt-in CSV output to the existing read-only history summary CLI while keeping deterministic JSON as the default. CSV has fixed columns, UTF-8 encoding, LF endings, stable summary/result/format row order, and empty cells for unavailable optional values. Supports the same filters and optional file output; it exports aggregate metadata only. Product V8.11.0 maps to Python/Docker `0.8.11`; counts are local verification outcomes, not model/WiFi performance or proof of authenticity.
+
+Agrega salida CSV opcional al CLI existente de resumen de historial de solo lectura y conserva JSON determinista como predeterminado. CSV usa columnas fijas, UTF-8, finales LF, orden estable de filas resumen/resultado/formato y celdas vacías para valores opcionales ausentes. Admite los mismos filtros y archivo de salida opcional; solo exporta metadatos agregados. V8.11.0 corresponde a Python/Docker `0.8.11`; los conteos son resultados locales, no rendimiento del modelo/WiFi ni prueba de autenticidad.
+
 ## V8.10.0 — Verification History Summary Reports
 
 Adds read-only, deterministic JSON summaries over saved V8.9 verification history. The CLI groups matching metadata by result and available export format, reports missing format metadata, matched total, and time range, and accepts result/date filters. It never exposes record contents or changes stored history. Summary counts do not represent model quality, WiFi performance, or service reliability. Product V8.10.0 maps to Python/Docker `0.8.10`; synthetic ML verification history stays separate from official MinTIC descriptions.

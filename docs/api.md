@@ -59,6 +59,8 @@ V8.9 adds an opt-in local SQLite catalog to the same offline CLI: pass `--save-h
 
 V8.10 adds `history summary --store history.sqlite` to aggregate saved metadata by result and format. It supports `--result`, `--from-utc`, and `--to-utc`, returns deterministic JSON with the matching count and timestamp range, and uses SQLite read-only mode. It does not report model or network performance. See the audit export guide for the JSON schema and examples.
 
+V8.11 keeps JSON as the summary default and adds `--format csv`; `--output FILE` optionally writes the selected summary format to a UTF-8 file. The CSV has fixed columns and row ordering and represents missing optional values as empty cells. This remains a local offline CLI command, not an API endpoint.
+
 Start with `uvicorn api.main:app --reload --port 8000`; interactive OpenAPI is at `/docs`.
 
 - `GET /health` reports that the API process is responding and returns the installed application version. It does not claim models are usable.

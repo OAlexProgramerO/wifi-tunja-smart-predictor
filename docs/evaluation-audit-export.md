@@ -60,3 +60,30 @@ python scripts/verify_audit_export.py history show VERIFICATION_ID --store verif
 History JSON has a fixed schema, sorted object keys, and stable ordering by verification time descending then ID ascending; `limit`/`offset` provide stable pagination. Rows contain only the verification ID and time, export basename and format, manifest schema version, record count, digest, and result. Exported record contents are never copied into SQLite or history reports. The normal verification command remains stateless unless `--save-history` is supplied. History inspection errors return exit code `3`. Listing requires an existing store; a missing, corrupted, or unsupported SQLite store produces a clear error and is never silently recreated, reset, or migrated. History is local metadata and is not an additional audit-event system.
 
 The export history relates to synthetic ML policy evaluation evidence only and does not include official MinTIC descriptive records.
+
+## Summary CSV output (V8.11)
+
+`history summary` continues to emit deterministic JSON to standard output by default. Select CSV explicitly, and optionally write either format to a UTF-8 file:
+
+```powershell
+python scripts/verify_audit_export.py history summary --store verification-history.sqlite
+python scripts/verify_audit_export.py history summary --store verification-history.sqlite --format csv
+python scripts/verify_audit_export.py history summary --store verification-history.sqlite --result INVALID --from-utc 2026-11-01T00:00:00Z --format csv --output verification-summary.csv
+```
+
+CSV uses UTF-8 without a byte-order mark, LF line endings, a fixed column order, and `\n` as the record terminator. It contains one `summary` row, three `result` rows in `VALID`, `INVALID`, `UNSUPPORTED` order, then one `format` row per available format in alphabetical order. Missing optional values are empty cells; numeric zero counts are written as `0`.
+
+| Column | Meaning |
+| --- | --- |
+| `row_type` | `summary`, `result`, or `format` row kind |
+| `history_schema_version` | Existing history schema, on the summary row |
+| `filter_result`, `filter_from_utc`, `filter_to_utc` | Filters applied to the summary |
+| `total_records` | Number of verification rows matching the filters |
+| `result` | One status on each result row |
+| `result_count` | Count for that status |
+| `export_format` | One available export format on each format row |
+| `format_count` | Count for that format |
+| `missing_format_count` | Matching rows without format metadata |
+| `date_range_from_utc`, `date_range_to_utc` | Earliest and latest matching verification timestamps; empty if none match |
+
+The same summary service and filters supply JSON and CSV, so their totals and group counts agree. CSV contains aggregate verification metadata only; it never includes filenames, evidence records, or sensitive fields. These counts describe local verification outcomes only, not authenticity, model quality, WiFi performance, or operational reliability. An unsupported `--format` is rejected by the CLI; output-file failures return exit code `3`.

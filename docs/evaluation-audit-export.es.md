@@ -60,3 +60,30 @@ python scripts/verify_audit_export.py history show ID_VERIFICACION --store verif
 El JSON del historial tiene esquema fijo, claves ordenadas y orden estable por fecha de verificación descendente y luego ID ascendente; `limit`/`offset` permiten paginar de forma estable. Cada fila contiene solo ID y fecha de verificación, nombre base y formato de exportación, versión de esquema del manifiesto, cantidad de registros, digest y resultado. El contenido de los registros exportados nunca se copia a SQLite ni a los informes. El comando normal sigue sin guardar historial salvo que se proporcione `--save-history`. Los errores de consulta del historial devuelven código `3`. Para listar se requiere un almacén existente; un almacén SQLite ausente, dañado o incompatible produce un error claro y nunca se recrea, reinicia ni migra silenciosamente. El historial contiene metadatos locales y no es un sistema de eventos de auditoría adicional.
 
 El historial corresponde solo a evidencias de evaluación de políticas ML sintéticas y no incluye registros descriptivos oficiales MinTIC.
+
+## Salida CSV del resumen (V8.11)
+
+`history summary` continúa usando JSON determinista en la salida estándar de forma predeterminada. Seleccione CSV explícitamente; opcionalmente escriba cualquiera de los formatos en un archivo UTF-8:
+
+```powershell
+python scripts/verify_audit_export.py history summary --store verification-history.sqlite
+python scripts/verify_audit_export.py history summary --store verification-history.sqlite --format csv
+python scripts/verify_audit_export.py history summary --store verification-history.sqlite --result INVALID --from-utc 2026-11-01T00:00:00Z --format csv --output resumen-verificacion.csv
+```
+
+CSV usa UTF-8 sin marca BOM, finales de línea LF, columnas en orden fijo y `\n` como terminador de registro. Incluye una fila `summary`, tres filas `result` en orden `VALID`, `INVALID`, `UNSUPPORTED` y luego una fila `format` por cada formato disponible en orden alfabético. Los valores opcionales ausentes son celdas vacías; los conteos numéricos cero se escriben como `0`.
+
+| Columna | Significado |
+| --- | --- |
+| `row_type` | Tipo de fila: `summary`, `result` o `format` |
+| `history_schema_version` | Esquema del historial existente, en la fila resumen |
+| `filter_result`, `filter_from_utc`, `filter_to_utc` | Filtros aplicados al resumen |
+| `total_records` | Cantidad de verificaciones coincidentes con los filtros |
+| `result` | Estado de cada fila de resultados |
+| `result_count` | Cantidad para ese estado |
+| `export_format` | Formato disponible en cada fila de formato |
+| `format_count` | Cantidad para ese formato |
+| `missing_format_count` | Filas coincidentes sin metadatos de formato |
+| `date_range_from_utc`, `date_range_to_utc` | Marcas temporales mínima y máxima; vacías si no hay coincidencias |
+
+JSON y CSV usan el mismo servicio y filtros; sus totales y conteos por grupo coinciden. El CSV solo contiene metadatos agregados de verificación; no incluye nombres de archivo, evidencias ni campos sensibles. Los conteos describen resultados locales, no autenticidad, calidad del modelo, rendimiento WiFi ni confiabilidad operativa. Un `--format` no soportado se rechaza; los errores de archivo de salida devuelven código `3`.

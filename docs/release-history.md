@@ -1,5 +1,13 @@
 # Release history and V4.0 readiness
 
+## V8.11.0 — CSV summary export
+
+Adds explicit CSV output for the local verification history summary while preserving JSON as the default. The CSV has a documented fixed schema, UTF-8 encoding, LF line endings, and stable row ordering; optional output files and existing summary filters are supported. Product V8.11.0 maps to Python/Docker `0.8.11`. Exported values are aggregate verification metadata only.
+
+## V8.11.0 — Exportación CSV del resumen
+
+Agrega salida CSV explícita al resumen local del historial y conserva JSON como predeterminado. El CSV tiene esquema fijo documentado, UTF-8, finales LF y orden de filas estable; admite archivo de salida opcional y filtros existentes. V8.11.0 corresponde a Python/Docker `0.8.11`. Los valores exportados son solo metadatos agregados de verificación.
+
 ## V8.10.0 — Verification history summary reports
 
 Adds read-only deterministic JSON aggregation of local verification history by result and available export format, with matched totals, missing-format counts, date range, and result/date filters. Summary operations open the existing SQLite store read-only and expose metadata only. Counts do not indicate model quality, WiFi performance, or operational reliability. Product V8.10.0 maps to Python/Docker `0.8.10`; verification history remains separate from official MinTIC descriptive data.

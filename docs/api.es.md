@@ -20,6 +20,8 @@ V8.9 agrega al mismo CLI offline un catálogo SQLite local y optativo: use `--sa
 
 V8.10 agrega `history summary --store historial.sqlite` para agrupar metadatos guardados por resultado y formato. Acepta `--result`, `--from-utc` y `--to-utc`, devuelve JSON determinista con la cantidad coincidente y el rango de fechas y usa SQLite en modo de solo lectura. No informa rendimiento de modelos ni redes. Consulte la guía de exportación para ver el esquema JSON y ejemplos.
 
+V8.11 conserva JSON como formato predeterminado del resumen y agrega `--format csv`; `--output ARCHIVO` escribe opcionalmente el formato seleccionado en un archivo UTF-8. El CSV tiene columnas y orden de filas fijos y representa valores opcionales ausentes con celdas vacías. Sigue siendo un comando CLI local offline, no un endpoint API.
+
 La API principal corre en el puerto 8000; Swagger está disponible en `/docs`.
 
 - `GET /architecture/diagnostics` devuelve responsabilidades de componentes y comprobaciones de estado sanitizadas. Distingue servicios sin verificar/datos no disponibles de fallos confirmados. No inspecciona el estado del daemon Docker; consulte la [guía de arquitectura](architecture.md).
