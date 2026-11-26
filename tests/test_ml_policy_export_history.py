@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import sqlite3
 import subprocess
@@ -15,10 +17,12 @@ from wifi_tunja_smart_predictor.experiments.ml_policy_export import (
     render_policy_audit_csv,
 )
 from wifi_tunja_smart_predictor.experiments.ml_policy_export_history import (
+    SUMMARY_CSV_FIELDS,
     VerificationHistoryError,
     build_verification_history_record,
     inspect_verification_history,
     list_verification_history,
+    render_history_csv,
     render_history_json,
     save_verification_history,
     summarize_verification_history,
@@ -45,7 +49,7 @@ def _write_pair(tmp_path: Path, export_format: str = "json"):
                     "policy_id": "policy-1",
                     "policy_version": 1,
                     "provenance": {
-                        "project_version": "0.8.10",
+                        "project_version": "0.8.11",
                         "task": "classification",
                         "dataset_kind": "synthetic",
                         "dataset_fingerprint_algorithm": "sha256",
@@ -171,12 +175,55 @@ def test_summary_aggregates_result_format_missing_metadata_and_date_range(tmp_pa
 def test_summary_of_empty_history_and_no_matching_rows(tmp_path):
     store = tmp_path / "history.sqlite"
     save_verification_history(store, _record(tmp_path, "VALID", "2026-11-24T10:00:00+00:00"))
-    empty = summarize_verification_history(store, result="UNSUPPORTED")
+    with sqlite3.connect(store) as connection:
+        connection.execute("DELETE FROM verification_history")
+    empty = summarize_verification_history(store)
     assert empty["total_records"] == 0
     assert empty["result_counts"] == {"INVALID": 0, "UNSUPPORTED": 0, "VALID": 0}
     assert empty["format_counts"] == {}
     assert empty["missing_format_count"] == 0
     assert empty["date_range_utc"] is None
+    csv_rows = list(csv.DictReader(io.StringIO(render_history_csv(empty), newline="")))
+    assert [row["row_type"] for row in csv_rows] == ["summary", "result", "result", "result"]
+    assert csv_rows[0]["date_range_from_utc"] == ""
+    assert csv_rows[0]["missing_format_count"] == "0"
+
+
+def test_csv_summary_has_stable_columns_rows_and_no_evidence_contents(tmp_path):
+    store = tmp_path / "history.sqlite"
+    records = [
+        _record(tmp_path, "VALID", "2026-11-24T10:00:00+00:00"),
+        _record(tmp_path, "INVALID", "2026-11-24T11:00:00+00:00"),
+        _record(tmp_path, "UNSUPPORTED", "2026-11-24T12:00:00+00:00"),
+    ]
+    records[1]["export_format"] = "csv"
+    records[2]["export_format"] = None
+    for record in records:
+        save_verification_history(store, record)
+    report = summarize_verification_history(store)
+    first = render_history_csv(report)
+    assert first == render_history_csv(report)
+    assert "\r" not in first
+    assert "audit-1" not in first
+    assert "experiment-1" not in first
+    assert "verification_reasons" not in first
+    assert "audit_id" not in first
+    assert "request_body" not in first
+    reader = csv.DictReader(io.StringIO(first, newline=""))
+    assert tuple(reader.fieldnames or ()) == SUMMARY_CSV_FIELDS
+    rows = list(reader)
+    assert [row["row_type"] for row in rows] == [
+        "summary",
+        "result",
+        "result",
+        "result",
+        "format",
+        "format",
+    ]
+    assert [row["result"] for row in rows[1:4]] == ["VALID", "INVALID", "UNSUPPORTED"]
+    assert [row["export_format"] for row in rows[4:]] == ["csv", "json"]
+    assert rows[0]["total_records"] == str(report["total_records"])
+    assert rows[0]["date_range_from_utc"] == report["date_range_utc"]["from"]
 
 
 def test_history_reports_missing_corrupted_and_unsupported_stores(tmp_path):
@@ -257,6 +304,138 @@ def test_cli_saves_lists_inspects_and_reports_history_errors(tmp_path):
     )
     assert summary.returncode == 0
     assert json.loads(summary.stdout)["total_records"] == 2
+    csv_output = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "history",
+            "summary",
+            "--store",
+            str(store),
+            "--result",
+            "VALID",
+            "--from-utc",
+            "2000-01-01T00:00:00Z",
+            "--to-utc",
+            "2099-12-31T23:59:59Z",
+            "--format",
+            "csv",
+        ],
+        capture_output=True,
+        text=False,
+        check=False,
+    )
+    assert csv_output.returncode == 0
+    assert b"\r" not in csv_output.stdout
+    csv_text = csv_output.stdout.decode("utf-8")
+    parsed_csv = list(csv.DictReader(io.StringIO(csv_text, newline="")))
+    assert parsed_csv[0]["total_records"] == "1"
+    assert parsed_csv[0]["filter_result"] == "VALID"
+    assert [row["result_count"] for row in parsed_csv[1:4]] == ["1", "0", "0"]
+    filtered_json = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "history",
+            "summary",
+            "--store",
+            str(store),
+            "--result",
+            "VALID",
+            "--from-utc",
+            "2000-01-01T00:00:00Z",
+            "--to-utc",
+            "2099-12-31T23:59:59Z",
+            "--format",
+            "json",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    filtered_json_report = json.loads(filtered_json.stdout)
+    assert parsed_csv[0]["total_records"] == str(filtered_json_report["total_records"])
+    assert {
+        row["result"]: int(row["result_count"]) for row in parsed_csv[1:4]
+    } == filtered_json_report["result_counts"]
+    repeated_csv = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "history",
+            "summary",
+            "--store",
+            str(store),
+            "--result",
+            "VALID",
+            "--from-utc",
+            "2000-01-01T00:00:00Z",
+            "--to-utc",
+            "2099-12-31T23:59:59Z",
+            "--format",
+            "csv",
+        ],
+        capture_output=True,
+        text=False,
+        check=False,
+    )
+    assert repeated_csv.stdout == csv_output.stdout
+    output_path = tmp_path / "summary.csv"
+    file_output = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "history",
+            "summary",
+            "--store",
+            str(store),
+            "--format",
+            "csv",
+            "--output",
+            str(output_path),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert file_output.returncode == 0
+    assert "Summary written to:" in file_output.stdout
+    assert output_path.read_bytes() == render_history_csv(
+        summarize_verification_history(store)
+    ).encode("utf-8")
+    invalid_format = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "history",
+            "summary",
+            "--store",
+            str(store),
+            "--format",
+            "xml",
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert invalid_format.returncode == 2
+    output_error = subprocess.run(
+        [
+            sys.executable,
+            str(script),
+            "history",
+            "summary",
+            "--store",
+            str(store),
+            "--output",
+            str(tmp_path / "absent" / "summary.csv"),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert output_error.returncode == 3
+    assert "History output error:" in output_error.stderr
     shown = subprocess.run(
         [sys.executable, str(script), "history", "show", verification_id, "--store", str(store)],
         capture_output=True,
