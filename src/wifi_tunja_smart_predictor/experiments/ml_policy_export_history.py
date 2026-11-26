@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 import re
 import sqlite3
@@ -22,7 +24,23 @@ HISTORY_RECORD_FIELDS = {
     "result",
 }
 _RESULTS = {"VALID", "INVALID", "UNSUPPORTED"}
+_RESULT_ORDER = ("VALID", "INVALID", "UNSUPPORTED")
 _FORMATS = {"json", "csv", "unsupported"}
+SUMMARY_CSV_FIELDS = (
+    "row_type",
+    "history_schema_version",
+    "filter_result",
+    "filter_from_utc",
+    "filter_to_utc",
+    "total_records",
+    "result",
+    "result_count",
+    "export_format",
+    "format_count",
+    "missing_format_count",
+    "date_range_from_utc",
+    "date_range_to_utc",
+)
 _SCHEMA_VERSION_RE = re.compile(r"^[0-9A-Za-z][0-9A-Za-z._-]{0,39}$")
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 _COLUMNS = (
@@ -357,6 +375,41 @@ def render_history_json(report: dict[str, Any]) -> str:
     return json.dumps(report, sort_keys=True, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
 
 
+def render_history_csv(report: dict[str, Any]) -> str:
+    """Render deterministic metadata-only summary rows using stable columns and LF endings."""
+    output = io.StringIO(newline="")
+    writer = csv.DictWriter(
+        output, fieldnames=SUMMARY_CSV_FIELDS, lineterminator="\n", extrasaction="raise"
+    )
+    writer.writeheader()
+    filters = report["filters"]
+    date_range = report["date_range_utc"] or {}
+    shared = {
+        "history_schema_version": report["history_schema_version"],
+        "filter_result": filters["result"] or "",
+        "filter_from_utc": filters["from_utc"] or "",
+        "filter_to_utc": filters["to_utc"] or "",
+        "total_records": report["total_records"],
+        "missing_format_count": report["missing_format_count"],
+        "date_range_from_utc": date_range.get("from") or "",
+        "date_range_to_utc": date_range.get("to") or "",
+    }
+    writer.writerow({**shared, "row_type": "summary"})
+    for status in _RESULT_ORDER:
+        writer.writerow(
+            {
+                "row_type": "result",
+                "result": status,
+                "result_count": report["result_counts"][status],
+            }
+        )
+    for export_format, count in sorted(report["format_counts"].items()):
+        writer.writerow(
+            {"row_type": "format", "export_format": export_format, "format_count": count}
+        )
+    return output.getvalue()
+
+
 def history_cli_main(argv: list[str]) -> int:
     """CLI for listing and inspecting local verification history."""
     import argparse
@@ -376,6 +429,8 @@ def history_cli_main(argv: list[str]) -> int:
     summary.add_argument("--result", choices=sorted(_RESULTS))
     summary.add_argument("--from-utc")
     summary.add_argument("--to-utc")
+    summary.add_argument("--format", choices=("json", "csv"), default="json")
+    summary.add_argument("--output", type=Path, help="Write the summary to a UTF-8 file")
     detail = commands.add_parser("show", help="Inspect one saved verification result")
     detail.add_argument("verification_id")
     detail.add_argument("--store", required=True, type=Path)
@@ -399,8 +454,22 @@ def history_cli_main(argv: list[str]) -> int:
             )
         else:
             report = inspect_verification_history(args.store, args.verification_id)
-        print(render_history_json(report), end="")
+        output = (
+            render_history_csv(report)
+            if args.command == "summary" and args.format == "csv"
+            else render_history_json(report)
+        )
+        if args.command == "summary" and args.output is not None:
+            args.output.write_text(output, encoding="utf-8", newline="")
+            print(f"Summary written to: {args.output}")
+        elif args.command == "summary" and args.format == "csv":
+            sys.stdout.buffer.write(output.encode("utf-8"))
+        else:
+            print(output, end="")
         return 0
     except VerificationHistoryError as exc:
         print(f"History error: {exc}", file=sys.stderr)
+        return 3
+    except OSError as exc:
+        print(f"History output error: {exc}", file=sys.stderr)
         return 3
