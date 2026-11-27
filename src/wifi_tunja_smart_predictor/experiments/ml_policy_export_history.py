@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 HISTORY_SCHEMA_VERSION = 1
+INTEGRITY_REPORT_SCHEMA_VERSION = "1.0"
 HISTORY_RECORD_FIELDS = {
     "verification_id",
     "timestamp_utc",
@@ -233,20 +234,11 @@ def _date_filter(value: str | None, field: str) -> str | None:
     return _timestamp(value, field) if value is not None else None
 
 
-def list_verification_history(
-    path: str | Path,
-    *,
-    result: str | None = None,
-    from_utc: str | None = None,
-    to_utc: str | None = None,
-    limit: int = 50,
-    offset: int = 0,
-) -> dict[str, Any]:
-    """Return a stable page and deterministic JSON-ready report of saved metadata."""
+def _history_filter_clause(
+    *, result: str | None, from_utc: str | None, to_utc: str | None
+) -> tuple[str, list[Any], str | None, str | None]:
     if result is not None and result not in _RESULTS:
         raise VerificationHistoryError("result filter must be VALID, INVALID, or UNSUPPORTED.")
-    if not 1 <= limit <= 500 or offset < 0:
-        raise VerificationHistoryError("limit must be 1..500 and offset must be non-negative.")
     start = _date_filter(from_utc, "from_utc")
     end = _date_filter(to_utc, "to_utc")
     if start and end and start > end:
@@ -262,7 +254,24 @@ def list_verification_history(
     if end:
         where.append("timestamp_utc <= ?")
         params.append(end)
-    clause = f" WHERE {' AND '.join(where)}" if where else ""
+    return (f" WHERE {' AND '.join(where)}" if where else "", params, start, end)
+
+
+def list_verification_history(
+    path: str | Path,
+    *,
+    result: str | None = None,
+    from_utc: str | None = None,
+    to_utc: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> dict[str, Any]:
+    """Return a stable page and deterministic JSON-ready report of saved metadata."""
+    if not 1 <= limit <= 500 or offset < 0:
+        raise VerificationHistoryError("limit must be 1..500 and offset must be non-negative.")
+    clause, params, start, end = _history_filter_clause(
+        result=result, from_utc=from_utc, to_utc=to_utc
+    )
     connection = _open_store(path, create=False)
     try:
         total = connection.execute(
@@ -294,24 +303,9 @@ def summarize_verification_history(
     to_utc: str | None = None,
 ) -> dict[str, Any]:
     """Aggregate metadata for all matching rows without returning individual records."""
-    if result is not None and result not in _RESULTS:
-        raise VerificationHistoryError("result filter must be VALID, INVALID, or UNSUPPORTED.")
-    start = _date_filter(from_utc, "from_utc")
-    end = _date_filter(to_utc, "to_utc")
-    if start and end and start > end:
-        raise VerificationHistoryError("from_utc must not be later than to_utc.")
-    where: list[str] = []
-    params: list[Any] = []
-    if result:
-        where.append("result = ?")
-        params.append(result)
-    if start:
-        where.append("timestamp_utc >= ?")
-        params.append(start)
-    if end:
-        where.append("timestamp_utc <= ?")
-        params.append(end)
-    clause = f" WHERE {' AND '.join(where)}" if where else ""
+    clause, params, start, end = _history_filter_clause(
+        result=result, from_utc=from_utc, to_utc=to_utc
+    )
     connection = _open_store(path, create=False)
     try:
         total, earliest, latest, missing_format = connection.execute(
@@ -347,6 +341,144 @@ def summarize_verification_history(
         "format_counts": {export_format: count for export_format, count in format_rows},
         "missing_format_count": missing_format or 0,
         "date_range_utc": {"from": earliest, "to": latest} if total else None,
+    }
+
+
+def check_verification_history_integrity(
+    path: str | Path,
+    *,
+    result: str | None = None,
+    from_utc: str | None = None,
+    to_utc: str | None = None,
+) -> dict[str, Any]:
+    """Compare summary-service aggregates with a fresh read of matching metadata."""
+    clause, params, start, end = _history_filter_clause(
+        result=result, from_utc=from_utc, to_utc=to_utc
+    )
+    try:
+        summary = summarize_verification_history(
+            path, result=result, from_utc=from_utc, to_utc=to_utc
+        )
+        connection = _open_store(path, create=False)
+        try:
+            rows = connection.execute(
+                "SELECT timestamp_utc, result, export_format FROM verification_history" + clause,
+                params,
+            ).fetchall()
+        finally:
+            connection.close()
+    except (VerificationHistoryError, sqlite3.DatabaseError):
+        return {
+            "integrity_report_schema_version": INTEGRITY_REPORT_SCHEMA_VERSION,
+            "status": "INDETERMINATE",
+            "filters": {"result": result, "from_utc": start, "to_utc": end},
+            "records_checked": None,
+            "findings": [
+                {
+                    "code": "HISTORY_UNAVAILABLE",
+                    "message": "History storage is missing, unreadable, corrupted, or unsupported.",
+                }
+            ],
+            "summary": None,
+            "recomputed_summary": None,
+        }
+
+    status_counts = {value: 0 for value in _RESULT_ORDER}
+    format_counts: dict[str, int] = {}
+    missing_format_count = 0
+    timestamps: list[datetime] = []
+    unavailable_fields: set[str] = set()
+    for timestamp_value, result_value, format_value in rows:
+        if result_value not in status_counts:
+            unavailable_fields.add("result")
+        else:
+            status_counts[result_value] += 1
+        try:
+            parsed_timestamp = datetime.fromisoformat(str(timestamp_value).replace("Z", "+00:00"))
+            if parsed_timestamp.tzinfo is None:
+                raise ValueError
+            timestamps.append(parsed_timestamp.astimezone(UTC))
+        except (TypeError, ValueError):
+            unavailable_fields.add("timestamp_utc")
+        if format_value is None:
+            missing_format_count += 1
+        elif format_value in _FORMATS:
+            format_counts[format_value] = format_counts.get(format_value, 0) + 1
+        else:
+            unavailable_fields.add("export_format")
+
+    ordered_formats = dict(sorted(format_counts.items()))
+    actual_range = (
+        {"from": min(timestamps).isoformat(), "to": max(timestamps).isoformat()}
+        if timestamps and "timestamp_utc" not in unavailable_fields
+        else None
+    )
+    recomputed = {
+        "history_schema_version": HISTORY_SCHEMA_VERSION,
+        "filters": {"result": result, "from_utc": start, "to_utc": end},
+        "total_records": len(rows),
+        "result_counts": status_counts,
+        "format_counts": ordered_formats,
+        "missing_format_count": missing_format_count,
+        "date_range_utc": actual_range,
+    }
+    findings: list[dict[str, Any]] = []
+    if unavailable_fields:
+        findings.append(
+            {
+                "code": "INSUFFICIENT_METADATA",
+                "fields": sorted(unavailable_fields),
+                "message": "Matching rows contain missing or unsupported integrity metadata.",
+            }
+        )
+        status = "INDETERMINATE"
+    else:
+        if summary.get("history_schema_version") != HISTORY_SCHEMA_VERSION:
+            findings.append(
+                {
+                    "code": "HISTORY_SCHEMA_VERSION_MISMATCH",
+                    "field": "history_schema_version",
+                    "summary_value": summary.get("history_schema_version"),
+                    "recomputed_value": HISTORY_SCHEMA_VERSION,
+                }
+            )
+        expected_filters = {"result": result, "from_utc": start, "to_utc": end}
+        if summary.get("filters") != expected_filters:
+            findings.append(
+                {
+                    "code": "FILTERS_MISMATCH",
+                    "field": "filters",
+                    "summary_value": summary.get("filters"),
+                    "recomputed_value": expected_filters,
+                }
+            )
+        compared_fields = (
+            "total_records",
+            "result_counts",
+            "format_counts",
+            "missing_format_count",
+            "date_range_utc",
+        )
+        for field in compared_fields:
+            if summary.get(field) != recomputed[field]:
+                findings.append(
+                    {
+                        "code": f"{field.upper()}_MISMATCH",
+                        "field": field,
+                        "summary_value": summary.get(field),
+                        "recomputed_value": recomputed[field],
+                    }
+                )
+        status = "INCONSISTENT" if findings else "CONSISTENT"
+
+    return {
+        "integrity_report_schema_version": INTEGRITY_REPORT_SCHEMA_VERSION,
+        "status": status,
+        "filters": {"result": result, "from_utc": start, "to_utc": end},
+        "records_checked": len(rows),
+        "findings": findings,
+        "summary": summary,
+        "recomputed_summary": recomputed,
     }
 
 
@@ -431,6 +563,13 @@ def history_cli_main(argv: list[str]) -> int:
     summary.add_argument("--to-utc")
     summary.add_argument("--format", choices=("json", "csv"), default="json")
     summary.add_argument("--output", type=Path, help="Write the summary to a UTF-8 file")
+    integrity = commands.add_parser(
+        "check", help="Check summary consistency against stored metadata"
+    )
+    integrity.add_argument("--store", required=True, type=Path)
+    integrity.add_argument("--result", choices=sorted(_RESULTS))
+    integrity.add_argument("--from-utc")
+    integrity.add_argument("--to-utc")
     detail = commands.add_parser("show", help="Inspect one saved verification result")
     detail.add_argument("verification_id")
     detail.add_argument("--store", required=True, type=Path)
@@ -452,8 +591,18 @@ def history_cli_main(argv: list[str]) -> int:
                 from_utc=args.from_utc,
                 to_utc=args.to_utc,
             )
+        elif args.command == "check":
+            report = check_verification_history_integrity(
+                args.store,
+                result=args.result,
+                from_utc=args.from_utc,
+                to_utc=args.to_utc,
+            )
         else:
             report = inspect_verification_history(args.store, args.verification_id)
+        if args.command == "check":
+            print(render_history_json(report), end="")
+            return {"CONSISTENT": 0, "INCONSISTENT": 1, "INDETERMINATE": 2}[report["status"]]
         output = (
             render_history_csv(report)
             if args.command == "summary" and args.format == "csv"
