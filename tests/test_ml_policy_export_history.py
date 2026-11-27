@@ -20,6 +20,7 @@ from wifi_tunja_smart_predictor.experiments.ml_policy_export_history import (
     SUMMARY_CSV_FIELDS,
     VerificationHistoryError,
     build_verification_history_record,
+    check_verification_history_integrity,
     inspect_verification_history,
     list_verification_history,
     render_history_csv,
@@ -49,7 +50,7 @@ def _write_pair(tmp_path: Path, export_format: str = "json"):
                     "policy_id": "policy-1",
                     "policy_version": 1,
                     "provenance": {
-                        "project_version": "0.8.11",
+                        "project_version": "0.8.12",
                         "task": "classification",
                         "dataset_kind": "synthetic",
                         "dataset_fingerprint_algorithm": "sha256",
@@ -189,6 +190,99 @@ def test_summary_of_empty_history_and_no_matching_rows(tmp_path):
     assert csv_rows[0]["missing_format_count"] == "0"
 
 
+def test_integrity_check_is_consistent_read_only_filtered_and_deterministic(tmp_path):
+    store = tmp_path / "history.sqlite"
+    records = [
+        _record(tmp_path, "VALID", "2026-11-24T10:00:00+00:00"),
+        _record(tmp_path, "INVALID", "2026-11-24T11:00:00+00:00"),
+    ]
+    for record in records:
+        save_verification_history(store, record)
+    before = store.read_bytes()
+    filters = {
+        "result": "VALID",
+        "from_utc": "2026-11-24T09:00:00Z",
+        "to_utc": "2026-11-24T10:30:00Z",
+    }
+    report = check_verification_history_integrity(store, **filters)
+    assert report["status"] == "CONSISTENT"
+    assert report["records_checked"] == 1
+    assert report["summary"]["result_counts"]["VALID"] == 1
+    assert report["recomputed_summary"] == report["summary"]
+    assert report["filters"]["result"] == "VALID"
+    assert render_history_json(report) == render_history_json(
+        check_verification_history_integrity(store, **filters)
+    )
+    assert store.read_bytes() == before
+    encoded = render_history_json(report)
+    assert "audit-1" not in encoded
+    assert "experiment-1" not in encoded
+    assert "verification_reasons" not in encoded
+
+
+@pytest.mark.parametrize(
+    ("field", "replacement"),
+    [
+        ("total_records", 99),
+        ("result_counts", {"VALID": 0, "INVALID": 1, "UNSUPPORTED": 0}),
+        ("format_counts", {"csv": 99}),
+        (
+            "date_range_utc",
+            {"from": "2000-01-01T00:00:00+00:00", "to": "2000-01-01T00:00:00+00:00"},
+        ),
+    ],
+)
+def test_integrity_check_detects_mismatched_aggregates_and_boundaries(
+    tmp_path, monkeypatch, field, replacement
+):
+    import wifi_tunja_smart_predictor.experiments.ml_policy_export_history as history
+
+    store = tmp_path / "history.sqlite"
+    save_verification_history(store, _record(tmp_path, "VALID", "2026-11-24T10:00:00+00:00"))
+    original = history.summarize_verification_history
+
+    def corrupted_summary(*args, **kwargs):
+        summary = original(*args, **kwargs)
+        summary[field] = replacement
+        return summary
+
+    monkeypatch.setattr(history, "summarize_verification_history", corrupted_summary)
+    report = history.check_verification_history_integrity(store)
+    assert report["status"] == "INCONSISTENT"
+    assert any(finding["field"] == field for finding in report["findings"])
+
+
+def test_integrity_check_is_indeterminate_for_unavailable_or_incomplete_evidence(tmp_path):
+    missing = check_verification_history_integrity(tmp_path / "missing.sqlite")
+    assert missing["status"] == "INDETERMINATE"
+    assert missing["findings"][0]["code"] == "HISTORY_UNAVAILABLE"
+    corrupted_store = tmp_path / "corrupted.sqlite"
+    corrupted_store.write_bytes(b"not a sqlite database")
+    corrupted = check_verification_history_integrity(corrupted_store)
+    assert corrupted["status"] == "INDETERMINATE"
+    assert corrupted["findings"][0]["code"] == "HISTORY_UNAVAILABLE"
+
+    store = tmp_path / "incomplete.sqlite"
+    save_verification_history(store, _record(tmp_path, "VALID", "2026-11-24T10:00:00+00:00"))
+    with sqlite3.connect(store) as connection:
+        connection.execute("UPDATE verification_history SET timestamp_utc = 'not-a-timestamp'")
+    report = check_verification_history_integrity(store)
+    assert report["status"] == "INDETERMINATE"
+    assert report["findings"][0]["code"] == "INSUFFICIENT_METADATA"
+    assert "timestamp_utc" in report["findings"][0]["fields"]
+
+
+def test_empty_history_integrity_is_consistent(tmp_path):
+    store = tmp_path / "history.sqlite"
+    save_verification_history(store, _record(tmp_path, "VALID", "2026-11-24T10:00:00+00:00"))
+    with sqlite3.connect(store) as connection:
+        connection.execute("DELETE FROM verification_history")
+    report = check_verification_history_integrity(store)
+    assert report["status"] == "CONSISTENT"
+    assert report["records_checked"] == 0
+    assert report["summary"]["date_range_utc"] is None
+
+
 def test_csv_summary_has_stable_columns_rows_and_no_evidence_contents(tmp_path):
     store = tmp_path / "history.sqlite"
     records = [
@@ -304,6 +398,14 @@ def test_cli_saves_lists_inspects_and_reports_history_errors(tmp_path):
     )
     assert summary.returncode == 0
     assert json.loads(summary.stdout)["total_records"] == 2
+    checked = subprocess.run(
+        [sys.executable, str(script), "history", "check", "--store", str(store)],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert checked.returncode == 0
+    assert json.loads(checked.stdout)["status"] == "CONSISTENT"
     csv_output = subprocess.run(
         [
             sys.executable,
@@ -452,3 +554,28 @@ def test_cli_saves_lists_inspects_and_reports_history_errors(tmp_path):
     )
     assert failed.returncode == 3
     assert "History error:" in failed.stderr
+    unavailable = subprocess.run(
+        [sys.executable, str(script), "history", "check", "--store", str(tmp_path / "missing")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert unavailable.returncode == 2
+    assert json.loads(unavailable.stdout)["status"] == "INDETERMINATE"
+
+
+def test_integrity_cli_returns_nonzero_for_inconsistent_results(monkeypatch, capsys, tmp_path):
+    import wifi_tunja_smart_predictor.experiments.ml_policy_export_history as history
+
+    monkeypatch.setattr(
+        history,
+        "check_verification_history_integrity",
+        lambda *_args, **_kwargs: {
+            "integrity_report_schema_version": "1.0",
+            "status": "INCONSISTENT",
+            "findings": [{"code": "TOTAL_RECORDS_MISMATCH"}],
+        },
+    )
+    result = history.history_cli_main(["check", "--store", str(tmp_path / "history.sqlite")])
+    assert result == 1
+    assert json.loads(capsys.readouterr().out)["status"] == "INCONSISTENT"
