@@ -87,3 +87,30 @@ CSV usa UTF-8 sin marca BOM, finales de línea LF, columnas en orden fijo y `\n`
 | `date_range_from_utc`, `date_range_to_utc` | Marcas temporales mínima y máxima; vacías si no hay coincidencias |
 
 JSON y CSV usan el mismo servicio y filtros; sus totales y conteos por grupo coinciden. El CSV solo contiene metadatos agregados de verificación; no incluye nombres de archivo, evidencias ni campos sensibles. Los conteos describen resultados locales, no autenticidad, calidad del modelo, rendimiento WiFi ni confiabilidad operativa. Un `--format` no soportado se rechaza; los errores de archivo de salida devuelven código `3`.
+
+## Comprobación de integridad del resumen (V8.12)
+
+Use `history check` para comparar el resumen existente con un recálculo sobre los mismos metadatos coincidentes. Es de solo lectura, funciona offline y acepta los mismos filtros de resultado/fecha:
+
+```powershell
+python scripts/verify_audit_export.py history check --store verification-history.sqlite
+python scripts/verify_audit_export.py history check --store verification-history.sqlite --result VALID --from-utc 2026-11-01T00:00:00Z --to-utc 2026-11-30T23:59:59Z
+```
+
+El comando siempre genera JSON determinista. `CONSISTENT` (código `0`) significa que el total, conteos de resultados/formatos, formatos faltantes, rango de fechas, esquema y filtros coinciden entre el servicio de resumen y el recálculo. `INCONSISTENT` (código `1`) incluye hallazgos como diferencias de conteos o límites de fecha. `INDETERMINATE` (código `2`) significa que el almacén no está disponible o que las filas coincidentes no contienen metadatos suficientes/compatibles. Filtros inválidos y errores de uso CLI devuelven error no cero; el historial no se repara ni modifica.
+
+Ejemplo de informe `CONSISTENT` (aquí se abrevian otros campos):
+
+```json
+{
+  "integrity_report_schema_version": "1.0",
+  "status": "CONSISTENT",
+  "filters": {"result": null, "from_utc": null, "to_utc": null},
+  "records_checked": 2,
+  "findings": [],
+  "summary": {"total_records": 2, "result_counts": {"VALID": 2}},
+  "recomputed_summary": {"total_records": 2, "result_counts": {"VALID": 2}}
+}
+```
+
+El arreglo `findings` contiene códigos legibles por máquina, campos afectados y valores observados/recálculados cuando existen. La comprobación solo detecta desacuerdos entre los metadatos locales y los agregados derivados. No valida exportaciones de origen, digests, autenticidad, no repudio ni almacenamiento invulnerable; un operador privilegiado puede cambiar la base local. Estos conteos locales no son métricas ML sintéticas, estadísticas oficiales MinTIC, calidad del modelo, rendimiento WiFi ni confiabilidad operativa.

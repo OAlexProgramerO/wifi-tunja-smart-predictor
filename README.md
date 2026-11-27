@@ -1,4 +1,4 @@
-# WiFi Tunja Smart Predictor — V8.11.0
+# WiFi Tunja Smart Predictor — V8.12.0
 
 [![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![scikit-learn](https://img.shields.io/badge/scikit--learn-ML-F7931E?logo=scikitlearn&logoColor=white)](https://scikit-learn.org/)
@@ -9,7 +9,7 @@
 
 Read this in [Español](README.es.md)
 
-**Current version:** Product V8.11.0; Python package and Docker image `0.8.11`. See the [architecture guide](docs/architecture.md), [API reference](docs/api.md), [evaluation audit trail guide](docs/evaluation-audit-trail.md), [audit evidence export and offline verification guide](docs/evaluation-audit-export.md), [synthetic drift monitoring guide](docs/synthetic-drift-monitoring.md), [experiment orchestration guide](docs/experiment-orchestration.md), [advanced experiment comparison guide](docs/experiment-comparison.md), [automated evaluation gates guide](docs/experiment-evaluation-gates.md), [reusable evaluation policy guide](docs/evaluation-policy-registry.md), [ML artifact inventory guide](docs/model-artifact-inventory.md), [model run comparison guide](docs/model-run-comparison.md), and [release history](docs/release-history.md).
+**Current version:** Product V8.12.0; Python package and Docker image `0.8.12`. See the [architecture guide](docs/architecture.md), [API reference](docs/api.md), [evaluation audit trail guide](docs/evaluation-audit-trail.md), [audit evidence export and offline verification guide](docs/evaluation-audit-export.md), [synthetic drift monitoring guide](docs/synthetic-drift-monitoring.md), [experiment orchestration guide](docs/experiment-orchestration.md), [advanced experiment comparison guide](docs/experiment-comparison.md), [automated evaluation gates guide](docs/experiment-evaluation-gates.md), [reusable evaluation policy guide](docs/evaluation-policy-registry.md), [ML artifact inventory guide](docs/model-artifact-inventory.md), [model run comparison guide](docs/model-run-comparison.md), and [release history](docs/release-history.md).
 
 WiFi Tunja Smart Predictor combines its synthetic-data demonstration with descriptive analytics from an optional official MinTIC fixed-internet dataset. V7.5.0 summarizes provider concentration from reported municipal fixed-internet subscriptions; it does not characterize WiFi traffic or service performance. V7.6.0 adds sanitized architecture diagnostics; V7.7.0 adds privacy-safe operational counters; V7.8.0 inventories persisted synthetic model artifacts; V7.9.0 compares saved candidate evaluations; V8.0.0 monitors feature distribution shifts between synthetic chronological partitions.
 
@@ -36,6 +36,8 @@ V8.9.0 adds optional local verification history. Verify with `python scripts/ver
 V8.10.0 adds read-only JSON summaries of saved verification history, grouping matching results by status and available file format with date ranges. Example: `python scripts/verify_audit_export.py history summary --store history.sqlite --from-utc 2026-11-01T00:00:00Z --result VALID`. Counts describe local verification outcomes only; they do not measure model quality, WiFi performance, or service reliability.
 
 V8.11.0 preserves JSON as the default verification-history summary output and adds `--format csv`, with optional `--output summary.csv`. CSV exports aggregate metadata only and use stable columns and rows; see the [audit export guide](docs/evaluation-audit-export.md).
+
+V8.12.0 adds the offline, read-only `history check` command. It compares the summary with aggregates recomputed from matching stored metadata and reports `CONSISTENT`, `INCONSISTENT`, or `INDETERMINATE`; for example: `python scripts/verify_audit_export.py history check --store history.sqlite --result VALID`. It checks local consistency only, not authenticity or tamper-proof storage.
 
 See the [system architecture guide](docs/architecture.md) for the component map, request/data flows, Compose services, and separation between synthetic ML and official MinTIC records.
 

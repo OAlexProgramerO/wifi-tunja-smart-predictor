@@ -1,5 +1,13 @@
 # Release history and V4.0 readiness
 
+## V8.12.0 — Verification history summary integrity checks
+
+Adds an offline, read-only `history check` CLI that compares summary results with aggregates recomputed from matching metadata. It reports `CONSISTENT`, `INCONSISTENT`, or `INDETERMINATE` plus machine-readable findings and supports existing result/date filters. It checks local consistency only. Product V8.12.0 maps to Python/Docker `0.8.12`.
+
+## V8.12.0 — Comprobación de integridad del resumen
+
+Agrega el CLI offline y de solo lectura `history check`, que compara resúmenes con agregados recalculados desde metadatos coincidentes. Informa `CONSISTENT`, `INCONSISTENT` o `INDETERMINATE` con hallazgos legibles por máquina y admite los filtros existentes de resultado/fecha. Solo comprueba consistencia local. V8.12.0 corresponde a Python/Docker `0.8.12`.
+
 ## V8.11.0 — CSV summary export
 
 Adds explicit CSV output for the local verification history summary while preserving JSON as the default. The CSV has a documented fixed schema, UTF-8 encoding, LF line endings, and stable row ordering; optional output files and existing summary filters are supported. Product V8.11.0 maps to Python/Docker `0.8.11`. Exported values are aggregate verification metadata only.

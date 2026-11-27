@@ -87,3 +87,30 @@ CSV uses UTF-8 without a byte-order mark, LF line endings, a fixed column order,
 | `date_range_from_utc`, `date_range_to_utc` | Earliest and latest matching verification timestamps; empty if none match |
 
 The same summary service and filters supply JSON and CSV, so their totals and group counts agree. CSV contains aggregate verification metadata only; it never includes filenames, evidence records, or sensitive fields. These counts describe local verification outcomes only, not authenticity, model quality, WiFi performance, or operational reliability. An unsupported `--format` is rejected by the CLI; output-file failures return exit code `3`.
+
+## Verification-history summary integrity check (V8.12)
+
+Use `history check` to compare the existing summary service output with a fresh recomputation over the same matching metadata. It is read-only, runs offline, and accepts the same result/date filters:
+
+```powershell
+python scripts/verify_audit_export.py history check --store verification-history.sqlite
+python scripts/verify_audit_export.py history check --store verification-history.sqlite --result VALID --from-utc 2026-11-01T00:00:00Z --to-utc 2026-11-30T23:59:59Z
+```
+
+The command always emits deterministic JSON. `CONSISTENT` (exit `0`) means total, result/format counts, missing-format count, date range, schema and filters agree between the summary service and the recomputed view. `INCONSISTENT` (exit `1`) includes findings such as a count or date-boundary mismatch. `INDETERMINATE` (exit `2`) means storage is unavailable or matching rows contain insufficient/unsupported metadata. Invalid filters and CLI usage errors return nonzero CLI errors; history storage is not repaired or changed.
+
+Example `CONSISTENT` report (other fields are abbreviated here):
+
+```json
+{
+  "integrity_report_schema_version": "1.0",
+  "status": "CONSISTENT",
+  "filters": {"result": null, "from_utc": null, "to_utc": null},
+  "records_checked": 2,
+  "findings": [],
+  "summary": {"total_records": 2, "result_counts": {"VALID": 2}},
+  "recomputed_summary": {"total_records": 2, "result_counts": {"VALID": 2}}
+}
+```
+
+The findings array contains machine-readable `code` values, affected fields, and observed/recomputed values when available. The check only detects disagreement between local stored metadata and derived aggregates. It does not verify source exports, digests, authenticity, non-repudiation, or tamper-proof storage; a privileged operator can change the local database. These local verification counts are not synthetic ML metrics, official MinTIC statistics, model quality, WiFi performance, or operational reliability.

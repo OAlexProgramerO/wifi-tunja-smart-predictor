@@ -1,5 +1,11 @@
 # Changelog
 
+## V8.12.0 — Verification History Summary Integrity Checks
+
+Adds read-only `history check` to compare summary-service aggregates against a fresh recomputation from matching verification metadata using the same result/date filters. Reports deterministic JSON outcomes `CONSISTENT`, `INCONSISTENT`, or `INDETERMINATE` with machine-readable findings; it never repairs or changes history. This checks local summary consistency only, not authenticity or tamper-proof storage. Product V8.12.0 maps to Python/Docker `0.8.12`; verification history remains separate from synthetic ML metrics and official MinTIC descriptive data.
+
+Agrega `history check` de solo lectura para comparar agregados del servicio de resumen con un recálculo a partir de metadatos coincidentes y los mismos filtros de resultado/fecha. Devuelve JSON determinista con `CONSISTENT`, `INCONSISTENT` o `INDETERMINATE` y hallazgos legibles por máquina; nunca repara ni modifica el historial. Comprueba solo consistencia local, no autenticidad ni almacenamiento invulnerable. V8.12.0 corresponde a Python/Docker `0.8.12`; el historial permanece separado de métricas ML sintéticas y datos descriptivos oficiales MinTIC.
+
 ## V8.11.0 — CSV Export for Verification History Summaries
 
 Adds opt-in CSV output to the existing read-only history summary CLI while keeping deterministic JSON as the default. CSV has fixed columns, UTF-8 encoding, LF endings, stable summary/result/format row order, and empty cells for unavailable optional values. Supports the same filters and optional file output; it exports aggregate metadata only. Product V8.11.0 maps to Python/Docker `0.8.11`; counts are local verification outcomes, not model/WiFi performance or proof of authenticity.

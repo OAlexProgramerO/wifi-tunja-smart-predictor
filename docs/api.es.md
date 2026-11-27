@@ -22,6 +22,8 @@ V8.10 agrega `history summary --store historial.sqlite` para agrupar metadatos g
 
 V8.11 conserva JSON como formato predeterminado del resumen y agrega `--format csv`; `--output ARCHIVO` escribe opcionalmente el formato seleccionado en un archivo UTF-8. El CSV tiene columnas y orden de filas fijos y representa valores opcionales ausentes con celdas vacías. Sigue siendo un comando CLI local offline, no un endpoint API.
 
+V8.12 agrega el comando CLI offline `history check --store ARCHIVO` con filtros opcionales `--result`, `--from-utc` y `--to-utc`. Genera JSON determinista y termina con `0`=`CONSISTENT`, `1`=`INCONSISTENT` o `2`=`INDETERMINATE`. Es una comparación de agregados locales de solo lectura, no un endpoint de auditoría criptográfica.
+
 La API principal corre en el puerto 8000; Swagger está disponible en `/docs`.
 
 - `GET /architecture/diagnostics` devuelve responsabilidades de componentes y comprobaciones de estado sanitizadas. Distingue servicios sin verificar/datos no disponibles de fallos confirmados. No inspecciona el estado del daemon Docker; consulte la [guía de arquitectura](architecture.md).

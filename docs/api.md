@@ -61,6 +61,8 @@ V8.10 adds `history summary --store history.sqlite` to aggregate saved metadata 
 
 V8.11 keeps JSON as the summary default and adds `--format csv`; `--output FILE` optionally writes the selected summary format to a UTF-8 file. The CSV has fixed columns and row ordering and represents missing optional values as empty cells. This remains a local offline CLI command, not an API endpoint.
 
+V8.12 adds the offline CLI command `history check --store FILE` with optional `--result`, `--from-utc`, and `--to-utc` filters. It emits deterministic JSON and exits `0`=`CONSISTENT`, `1`=`INCONSISTENT`, or `2`=`INDETERMINATE`. This is a read-only comparison of locally derived summary aggregates, not a cryptographic audit endpoint.
+
 Start with `uvicorn api.main:app --reload --port 8000`; interactive OpenAPI is at `/docs`.
 
 - `GET /health` reports that the API process is responding and returns the installed application version. It does not claim models are usable.
